@@ -178,9 +178,9 @@ export function start(port = DEFAULT_PORT) {
 
   server.on('error', (error) => {
     if (error.code === 'EADDRINUSE') {
-      console.error(`Порт ${port} занят. Запустите с другим портом:  node server.js ${port + 1}`);
+      console.error(`Port ${port} is busy. Start it on another one:  node server.js ${port + 1}`);
     } else {
-      console.error(`Не удалось запустить сервер: ${error.message}`);
+      console.error(`The server could not start: ${error.message}`);
     }
     process.exitCode = 1;
   });
@@ -188,9 +188,9 @@ export function start(port = DEFAULT_PORT) {
   // Loopback only: the wishlist of the user is not published to the network.
   server.listen(port, '127.0.0.1', () => {
     console.log('Steam Wishlist Sorter');
-    console.log(`  Откройте в браузере:  http://localhost:${port}/`);
-    console.log(`  Папка:                ${ROOT}`);
-    console.log('  Остановить:           Ctrl+C');
+    console.log(`  Open in the browser:  http://localhost:${port}/`);
+    console.log(`  Folder:               ${ROOT}`);
+    console.log('  Stop:                 Ctrl+C');
   });
 
   return server;

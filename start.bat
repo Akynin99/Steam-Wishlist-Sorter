@@ -6,8 +6,9 @@ rem Node serves it with server.js; if Node is not installed, the built-in
 rem server of Python does the same job, and if neither is there the script
 rem says so instead of flashing a black window and disappearing.
 rem
-rem The code page is switched to UTF-8 so that the messages below read the
-rem same in a modern terminal and in the classic console window.
+rem The code page is switched to UTF-8 so that a path with non-Latin letters
+rem in it prints the same in a modern terminal and in the classic console
+rem window.
 
 setlocal
 chcp 65001 >nul
@@ -24,7 +25,7 @@ if "%PORT%"=="" set "PORT=8080"
 
 where node >nul 2>nul
 if %errorlevel%==0 (
-    echo Запуск через Node...
+    echo Starting through Node...
     start "" /b cmd /c ""%~f0" --open-browser %PORT%"
     node server.js %PORT%
     goto :end
@@ -32,21 +33,21 @@ if %errorlevel%==0 (
 
 where python >nul 2>nul
 if %errorlevel%==0 (
-    echo Node не найден, запуск через Python...
-    echo   Откройте в браузере:  http://localhost:%PORT%/
+    echo Node was not found, starting through Python...
+    echo   Open in the browser:  http://localhost:%PORT%/
     start "" /b cmd /c ""%~f0" --open-browser %PORT%"
     python -m http.server %PORT% --bind 127.0.0.1
     goto :end
 )
 
 echo.
-echo Не найдено ни Node, ни Python.
+echo Neither Node nor Python was found.
 echo.
-echo Приложению нужен локальный HTTP-сервер: браузеры не загружают
-echo ES-модули со схемы file://, поэтому просто открыть index.html нельзя.
+echo The application needs a local HTTP server: browsers do not load ES
+echo modules over file://, so opening index.html on its own does not work.
 echo.
-echo Установите Node.js 20 или новее: https://nodejs.org/
-echo и запустите этот файл снова.
+echo Install Node.js 20 or newer: https://nodejs.org/
+echo and run this file again.
 echo.
 pause
 goto :end
