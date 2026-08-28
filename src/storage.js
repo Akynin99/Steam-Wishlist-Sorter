@@ -10,6 +10,7 @@
  * the user, and export is a file they save themselves.
  */
 
+import { DEFAULT_LANGUAGE, normalizeLanguage } from './i18n.js';
 import { createSession } from './ranking.js';
 
 /** Key the state is stored under. */
@@ -39,7 +40,7 @@ export class StorageError extends Error {
  * @property {string} app       Application signature.
  * @property {number} version   Envelope version.
  * @property {string} savedAt   ISO timestamp of the last save.
- * @property {{ loadCovers: boolean }} settings
+ * @property {{ loadCovers: boolean, language: string }} settings
  * @property {object} session   Output of `RankingSession.serialize()`.
  */
 
@@ -81,7 +82,7 @@ export function detectBackend() {
 }
 
 /**
- * A blank state: no items, no answers, covers enabled.
+ * A blank state: no items, no answers, covers enabled, interface in English.
  *
  * @returns {AppState}
  */
@@ -90,7 +91,7 @@ export function createEmptyState() {
     app: APP_SIGNATURE,
     version: STATE_FORMAT_VERSION,
     savedAt: new Date(0).toISOString(),
-    settings: { loadCovers: true },
+    settings: { loadCovers: true, language: DEFAULT_LANGUAGE },
     session: createSession().serialize(),
   };
 }
@@ -125,6 +126,10 @@ export function validateState(data) {
     savedAt: typeof data.savedAt === 'string' ? data.savedAt : new Date(0).toISOString(),
     settings: {
       loadCovers: data.settings?.loadCovers !== false,
+      // A file saved before the interface became bilingual has no language at
+      // all, and a hand-edited one may hold anything: both read as English
+      // rather than as a broken file.
+      language: normalizeLanguage(data.settings?.language),
     },
     session: data.session,
   };
@@ -196,7 +201,7 @@ export class StateStorage {
   /**
    * Starts a new empty session and stores it, replacing whatever was there.
    *
-   * @param {{ settings?: { loadCovers?: boolean } }} [options]
+   * @param {{ settings?: { loadCovers?: boolean, language?: string } }} [options]
    * @returns {AppState}
    */
   newSession(options = {}) {

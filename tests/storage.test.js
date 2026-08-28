@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { DEFAULT_LANGUAGE } from '../src/i18n.js';
 import { createSession } from '../src/ranking.js';
 import {
   APP_SIGNATURE,
@@ -162,4 +163,38 @@ test('the default settings enable covers, and an old file without settings still
 
   assert.equal(state.settings.loadCovers, true);
   assert.ok(storage.save(state));
+});
+
+test('a state file saved before the interface was bilingual reads as English', () => {
+  // Exactly what the previous version of the application wrote: settings with
+  // the covers flag and nothing else.
+  const state = validateState({
+    app: APP_SIGNATURE,
+    version: 1,
+    settings: { loadCovers: false },
+    session: createSession().serialize(),
+  });
+
+  assert.equal(state.settings.language, DEFAULT_LANGUAGE);
+  assert.equal(state.settings.language, 'en');
+  assert.equal(state.settings.loadCovers, false, 'the setting that was there is kept');
+  assert.equal(createEmptyState().settings.language, 'en', 'a new state starts in English too');
+});
+
+test('a language the application does not have is read as English, a known one is kept', () => {
+  const base = { app: APP_SIGNATURE, version: 1, session: createSession().serialize() };
+
+  assert.equal(validateState({ ...base, settings: { language: 'ru' } }).settings.language, 'ru');
+  assert.equal(validateState({ ...base, settings: { language: 'de' } }).settings.language, 'en');
+  assert.equal(validateState({ ...base, settings: { language: 42 } }).settings.language, 'en');
+  assert.equal(validateState({ ...base, settings: { language: null } }).settings.language, 'en');
+});
+
+test('the language of the settings survives the round trip through the backend', () => {
+  const storage = new StateStorage({ backend: createStubBackend() });
+  const state = createEmptyState();
+  state.settings.language = 'ru';
+
+  storage.save(state);
+  assert.equal(storage.load().settings.language, 'ru');
 });
