@@ -544,10 +544,24 @@ old one back.
   what the page itself uses when a row is dragged; Valve promises nothing about it and may change it
   any day. When that happens, the script says what came back instead of pretending it worked.
 - **A wishlist opened by its custom url says nothing about whose it is.** The endpoint takes the
-  numeric SteamID64 only, so on a `/wishlist/id/<name>/` page the script uses the account the page
-  says is signed in, and states in the report which account that is. If the page belongs to somebody
-  else, Steam refuses the request and nothing changes. On the numeric address the two ids are
-  compared instead, and a wishlist that is not yours is refused here, before anything is sent.
+  numeric SteamID64 only, and Steam brings the address to `/wishlist/id/<name>/`, redirecting the
+  numeric form back to it. So the account is looked for in five places, in this order: seventeen
+  digits in the address of the page; `g_steamID`, the variable the old layout defined; a link on the
+  page to this same wishlist by its numeric address; the same address inside an inline script; a
+  `data-steamid` attribute. The numeric address wins over everything the page says. Whatever
+  answers, the report names the account the write would go to — the id, the custom name if the
+  address gives one, and which of the five said so — and the confirmation names it again.
+- **Sources that disagree are a refusal, not a choice.** A page carries links to wishlists other
+  than its own, so when two of the five name two different accounts the script says so, names each
+  account and the source that named it, and offers no write at all — there is no way round it in the
+  panel. Guessing there would put your order into somebody else's list, and that cannot be taken
+  back. On the numeric address the id of the page and the signed-in one are compared instead, and a
+  wishlist that is not yours is refused before anything is sent.
+- **When nothing on the page names an account, you can type it in.** A field appears in the report
+  for your own seventeen digits — they are in the address of your profile, or in the address bar
+  under “Edit Profile” if your profile has a custom address too. It is checked for the shape and
+  used for nothing but the address of the request. A wrong number costs a refusal from Steam and
+  nothing else, and the script stops depending on where exactly Steam hides the id this month.
 - **A very large wishlist may not fit into one request.** Steam answers `413`, and the script says
   so in words. Splitting the list is not a way out — a partial list is not a partial reorder, Steam
   spreads the entries it was given through the ones it was not — so for such a list the preview mode
