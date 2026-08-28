@@ -1,0 +1,492 @@
+/**
+ * Tests for the userscript that writes the order back into Steam.
+ *
+ * A userscript is a standalone file loaded by Tampermonkey, so it cannot
+ * export anything the way a module does. What it can do is notice that there
+ * is no `document` around — which is exactly the case under `node --test` —
+ * and hand its pure half over instead of building a panel. That half is
+ * everything that decides *what* gets sent and *what an answer means*, and it
+ * is the half worth testing: by the time a request has gone out, a wishlist
+ * has already been rearranged.
+ *
+ * Not one test touches the network. `sendReorder` takes the `fetch` it should
+ * use, and the stub here records the request and answers with a fixed reply —
+ * which is also how the assertions about the address and the body are made at
+ * all.
+ */
+
+import assert from 'node:assert/strict';
+import test from 'node:test';
+
+await import('../userscripts/steam-wishlist-import-order.user.js');
+
+const {
+  APP_SIGNATURE,
+  ORDER_KIND,
+  ORDER_VERSION,
+  buildBackupOrder,
+  buildReorderBody,
+  buildTargetOrder,
+  compareOrders,
+  describeNetworkFailure,
+  parseOrderFile,
+  readReorderAnswer,
+  resolveReorderTarget,
+  sendReorder,
+  sessionIdFromText,
+} = globalThis.__swsReorderTestApi;
+
+const STEAM_ID = '76561198000000001';
+const REORDER_URL = `https://store.steampowered.com/wishlist/profiles/${STEAM_ID}/reorder/`;
+
+/**
+ * An order file the way `src/export.js` writes it.
+ *
+ * @param {Array<{ appId: number, title?: string }>} items
+ * @param {Array<{ appId: number, title?: string }>} [remove]
+ * @returns {string}
+ */
+function orderFile(items, remove = []) {
+  return JSON.stringify({
+    app: APP_SIGNATURE,
+    kind: ORDER_KIND,
+    version: ORDER_VERSION,
+    exportedAt: '2026-08-29T10:00:00.000Z',
+    summary: { total: items.length, resolved: items.length, fallback: 0, manual: 0, removed: remove.length },
+    items: items.map((item, index) => ({
+      position: index + 1,
+      appId: item.appId,
+      title: item.title ?? `Game ${item.appId}`,
+      category: 'must',
+      categoryLabel: 'Must have',
+      positionInCategory: index + 1,
+      origin: 'comparisons',
+      tiedWithPrevious: false,
+    })),
+    remove: remove.map((item) => ({ appId: item.appId, title: item.title ?? `Game ${item.appId}` })),
+  });
+}
+
+/**
+ * A `fetch` that never leaves the process: it records what it was asked for
+ * and answers with what the test told it to.
+ *
+ * @param {{ status?: number, body?: string, contentType?: string, throws?: Error }} reply
+ */
+function stubFetch(reply) {
+  const calls = [];
+  const impl = async (url, options) => {
+    calls.push({ url, options });
+    if (reply.throws) throw reply.throws;
+    return {
+      status: reply.status ?? 200,
+      headers: { get: (name) => (name.toLowerCase() === 'content-type' ? (reply.contentType ?? '') : null) },
+      text: async () => reply.body ?? '',
+    };
+  };
+  return { impl, calls };
+}
+
+// ============================================================================
+// The list that will be sent
+// ============================================================================
+
+test('the order of the file comes first, in the order of the file', () => {
+  const target = buildTargetOrder({
+    items: [{ appId: 30 }, { appId: 10 }, { appId: 20 }],
+    remove: [],
+    pageAppIds: [10, 20, 30],
+  });
+
+  assert.deepEqual(target.appIds, [30, 10, 20]);
+  assert.deepEqual(target.missing, []);
+  assert.deepEqual(target.extra, []);
+  assert.deepEqual(target.removals, []);
+});
+
+test('entries of the page that the file does not know are appended, keeping their order', () => {
+  const target = buildTargetOrder({
+    items: [{ appId: 30 }, { appId: 10 }],
+    remove: [],
+    pageAppIds: [77, 10, 88, 30, 99],
+  });
+
+  assert.deepEqual(target.appIds, [30, 10, 77, 88, 99]);
+  assert.deepEqual(target.extra, [77, 88, 99]);
+});
+
+test('entries marked for removal go last and are handed back as a list', () => {
+  const target = buildTargetOrder({
+    items: [{ appId: 30 }, { appId: 10 }],
+    remove: [{ appId: 55 }, { appId: 66 }],
+    pageAppIds: [55, 10, 77, 30, 66],
+  });
+
+  assert.deepEqual(target.appIds, [30, 10, 77, 55, 66]);
+  assert.deepEqual(target.removals, [55, 66]);
+  assert.deepEqual(target.extra, [77]);
+});
+
+test('what the request carries is exactly the app ids of the page, no more and no fewer', () => {
+  const pageAppIds = [5, 4, 3, 2, 1];
+  const target = buildTargetOrder({
+    items: [{ appId: 1 }, { appId: 2 }, { appId: 999 }],
+    remove: [{ appId: 5 }],
+    pageAppIds,
+  });
+
+  assert.equal(target.appIds.length, pageAppIds.length);
+  assert.deepEqual([...target.appIds].sort((a, b) => a - b), [...pageAppIds].sort((a, b) => a - b));
+  assert.equal(new Set(target.appIds).size, target.appIds.length);
+});
+
+test('an entry of the file that is not on the page is reported and skipped', () => {
+  const target = buildTargetOrder({
+    items: [{ appId: 10, title: 'Bought last week' }, { appId: 20 }],
+    remove: [],
+    pageAppIds: [20],
+  });
+
+  assert.deepEqual(target.appIds, [20]);
+  assert.equal(target.missing.length, 1);
+  assert.equal(target.missing[0].title, 'Bought last week');
+});
+
+test('an app id listed twice in the file is sent once, at its first place', () => {
+  const target = buildTargetOrder({
+    items: [{ appId: 10 }, { appId: 20 }, { appId: 10 }],
+    remove: [],
+    pageAppIds: [10, 20],
+  });
+
+  assert.deepEqual(target.appIds, [10, 20]);
+});
+
+test('an entry that is both ordered and marked for removal keeps its ordered place', () => {
+  const target = buildTargetOrder({
+    items: [{ appId: 10 }, { appId: 20 }],
+    remove: [{ appId: 20 }],
+    pageAppIds: [10, 20],
+  });
+
+  assert.deepEqual(target.appIds, [10, 20]);
+  assert.deepEqual(target.removals, []);
+});
+
+test('an empty page yields an empty request rather than an invented one', () => {
+  const target = buildTargetOrder({ items: [{ appId: 10 }], remove: [], pageAppIds: [] });
+  assert.deepEqual(target.appIds, []);
+  assert.equal(target.missing.length, 1);
+});
+
+// ============================================================================
+// The file
+// ============================================================================
+
+test('a file of the right kind is read, in the order of the positions', () => {
+  const order = parseOrderFile(orderFile([{ appId: 30 }, { appId: 10 }, { appId: 20 }]));
+
+  assert.deepEqual(order.items.map((item) => item.appId), [30, 10, 20]);
+  assert.equal(order.versionWarning, null);
+  assert.deepEqual(order.duplicates, []);
+});
+
+test('a state dump is refused, and the message says which file is needed', () => {
+  const state = JSON.stringify({ app: APP_SIGNATURE, version: 1, session: { answers: [] } });
+  assert.throws(() => parseOrderFile(state), /not an order file/i);
+});
+
+test('a file of another kind is refused by its kind', () => {
+  const wrong = JSON.stringify({ app: APP_SIGNATURE, kind: 'wishlist-export', version: 1, items: [{ appId: 10 }] });
+  assert.throws(() => parseOrderFile(wrong), /wishlist-order/);
+});
+
+test('a file without the signature of the application is refused', () => {
+  const unsigned = JSON.stringify({ app: 'something-else', kind: ORDER_KIND, version: 1, items: [{ appId: 10 }] });
+  assert.throws(() => parseOrderFile(unsigned), /signature/i);
+});
+
+test('text that is not JSON at all is refused', () => {
+  assert.throws(() => parseOrderFile('<html>nope</html>'), /not JSON/i);
+});
+
+test('a file of an unknown version is read, with a warning', () => {
+  const future = JSON.parse(orderFile([{ appId: 10 }]));
+  future.version = 99;
+  const order = parseOrderFile(JSON.stringify(future));
+
+  assert.equal(order.items.length, 1);
+  assert.match(order.versionWarning, /version 99/);
+});
+
+test('duplicates inside the file are named, and only the first place is kept', () => {
+  const order = parseOrderFile(orderFile([{ appId: 10 }, { appId: 20 }, { appId: 10 }]));
+
+  assert.deepEqual(order.items.map((item) => item.appId), [10, 20]);
+  assert.deepEqual(order.duplicates, [10]);
+});
+
+// ============================================================================
+// The backup
+// ============================================================================
+
+test('the backup is a file this very script reads back', () => {
+  const rows = [
+    { appId: 10, title: 'First' },
+    { appId: 20, title: '' },
+  ];
+  const backup = buildBackupOrder(rows, '2026-08-29T12:00:00.000Z');
+  const read = parseOrderFile(JSON.stringify(backup));
+
+  assert.equal(backup.kind, ORDER_KIND);
+  assert.deepEqual(read.items.map((item) => item.appId), [10, 20]);
+  assert.equal(read.items[1].title, 'App 20');
+  assert.deepEqual(read.remove, []);
+});
+
+test('the backup restores the order of the page it was taken from', () => {
+  const pageAppIds = [7, 3, 9];
+  const backup = buildBackupOrder(
+    pageAppIds.map((appId) => ({ appId, title: `Game ${appId}` })),
+    '2026-08-29T12:00:00.000Z',
+  );
+  const read = parseOrderFile(JSON.stringify(backup));
+  const target = buildTargetOrder({ items: read.items, remove: read.remove, pageAppIds: [9, 7, 3] });
+
+  assert.deepEqual(target.appIds, pageAppIds);
+});
+
+// ============================================================================
+// The address and the body of the request
+// ============================================================================
+
+test('the address is built out of the steam id of the path', () => {
+  const resolved = resolveReorderTarget({ pathname: `/wishlist/profiles/${STEAM_ID}/`, loggedInSteamId: STEAM_ID });
+  assert.equal(resolved.url, REORDER_URL);
+});
+
+test('a wishlist opened by its vanity name uses the steam id of the signed-in user', () => {
+  const resolved = resolveReorderTarget({ pathname: '/wishlist/id/someone/', loggedInSteamId: STEAM_ID });
+  assert.equal(resolved.url, REORDER_URL);
+});
+
+test('the wishlist of another account is refused before anything is sent', () => {
+  const resolved = resolveReorderTarget({
+    pathname: '/wishlist/profiles/76561198000000002/',
+    loggedInSteamId: STEAM_ID,
+  });
+  assert.equal(resolved.error, 'not-yours');
+});
+
+test('an address without a steam id and a page that names nobody give up with a message', () => {
+  const resolved = resolveReorderTarget({ pathname: '/wishlist/id/someone/', loggedInSteamId: null });
+  assert.equal(resolved.error, 'unknown-owner');
+  assert.match(resolved.message, /Steam ID/);
+});
+
+test('nothing but 17 digits ever reaches the address', () => {
+  for (const junk of ['76561198000000001/../evil', 'abc', '765611980000000011111', '', null]) {
+    const resolved = resolveReorderTarget({ pathname: '/wishlist/id/someone/', loggedInSteamId: junk });
+    assert.equal(resolved.error, 'unknown-owner', `accepted ${JSON.stringify(junk)}`);
+  }
+});
+
+test('the body carries the session id and the app ids in order', () => {
+  const body = new URLSearchParams(buildReorderBody({ sessionId: 'abcdef0123456789', appIds: [30, 10, 20] }));
+
+  assert.equal(body.get('sessionid'), 'abcdef0123456789');
+  assert.deepEqual(body.getAll('appids[]'), ['30', '10', '20']);
+});
+
+test('the session id is read out of the page script and nothing else is taken for one', () => {
+  assert.equal(sessionIdFromText('var g_sessionID = "b6f2c1d4e5a60718";'), 'b6f2c1d4e5a60718');
+  assert.equal(sessionIdFromText("g_sessionID='abcdef0123456789';"), 'abcdef0123456789');
+  assert.equal(sessionIdFromText('var g_steamID = "76561198000000001";'), null);
+  assert.equal(sessionIdFromText(''), null);
+});
+
+// ============================================================================
+// The answers of Steam
+// ============================================================================
+
+test('413 is explained as a wishlist too large for one request', () => {
+  const answer = readReorderAnswer({ status: 413, body: '' });
+
+  assert.equal(answer.ok, false);
+  assert.equal(answer.kind, 'too-large');
+  assert.match(answer.message, /413/);
+  assert.match(answer.message, /drag/i);
+});
+
+test('403 is explained as a session that has to be renewed', () => {
+  const answer = readReorderAnswer({ status: 403, body: '' });
+
+  assert.equal(answer.ok, false);
+  assert.equal(answer.kind, 'signed-out');
+  assert.match(answer.message, /sign in/i);
+});
+
+test('401 is the same case as 403', () => {
+  assert.equal(readReorderAnswer({ status: 401, body: '' }).kind, 'signed-out');
+});
+
+test('a sign-in page answered with 200 is still a session that expired', () => {
+  const answer = readReorderAnswer({
+    status: 200,
+    contentType: 'text/html',
+    body: '<html><body><form action="https://steamcommunity.com/login/">Sign In</form></body></html>',
+  });
+
+  assert.equal(answer.ok, false);
+  assert.equal(answer.kind, 'signed-out');
+});
+
+test('an answer that is not JSON is named as such and nothing is claimed about the order', () => {
+  const answer = readReorderAnswer({ status: 200, contentType: 'text/plain', body: 'moved along' });
+
+  assert.equal(answer.ok, false);
+  assert.equal(answer.kind, 'not-json');
+  assert.match(answer.message, /not JSON/i);
+  assert.match(answer.message, /text\/plain/);
+});
+
+test('429 and the failures of the Steam side are told apart', () => {
+  assert.equal(readReorderAnswer({ status: 429, body: '' }).kind, 'rate-limited');
+  assert.equal(readReorderAnswer({ status: 503, body: '' }).kind, 'server-error');
+  assert.equal(readReorderAnswer({ status: 418, body: 'teapot' }).kind, 'refused');
+});
+
+test('success = 1 is the only answer read as a plain yes', () => {
+  const yes = readReorderAnswer({ status: 200, contentType: 'application/json', body: '{"success":1}' });
+  assert.equal(yes.ok, true);
+  assert.equal(yes.kind, 'ok');
+
+  const no = readReorderAnswer({ status: 200, contentType: 'application/json', body: '{"success":42}' });
+  assert.equal(no.ok, false);
+  assert.match(no.message, /42/);
+});
+
+test('an answer that says nothing is not read as a failure, and does not claim success either', () => {
+  const empty = readReorderAnswer({ status: 200, body: '   ' });
+  assert.equal(empty.kind, 'ok-empty');
+  assert.match(empty.message, /check/i);
+
+  const silent = readReorderAnswer({ status: 200, contentType: 'application/json', body: '{}' });
+  assert.equal(silent.kind, 'ok-unknown');
+  assert.match(silent.message, /check/i);
+});
+
+test('a request that never left the machine says so instead of failing silently', () => {
+  const answer = describeNetworkFailure(new TypeError('Failed to fetch'));
+
+  assert.equal(answer.ok, false);
+  assert.equal(answer.kind, 'offline');
+  assert.match(answer.message, /Failed to fetch/);
+  assert.match(answer.message, /Nothing was written/i);
+});
+
+// ============================================================================
+// Sending, with the network replaced by a stub
+// ============================================================================
+
+test('the request goes to the reorder endpoint of Steam, as a form, with the whole list', async () => {
+  const { impl, calls } = stubFetch({ status: 200, contentType: 'application/json', body: '{"success":1}' });
+  const answer = await sendReorder({
+    url: REORDER_URL,
+    sessionId: 'abcdef0123456789',
+    appIds: [30, 10, 20],
+    fetchImpl: impl,
+  });
+
+  assert.equal(answer.ok, true);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].url, REORDER_URL);
+  assert.equal(new URL(calls[0].url).origin, 'https://store.steampowered.com');
+  assert.equal(calls[0].options.method, 'POST');
+  assert.match(calls[0].options.headers['Content-Type'], /application\/x-www-form-urlencoded/);
+  assert.deepEqual(new URLSearchParams(calls[0].options.body).getAll('appids[]'), ['30', '10', '20']);
+});
+
+test('the whole list goes in one request — a partial one would be scattered by Steam', async () => {
+  const appIds = Array.from({ length: 250 }, (_, index) => 1000 + index);
+  const { impl, calls } = stubFetch({ status: 200, contentType: 'application/json', body: '{"success":1}' });
+  await sendReorder({ url: REORDER_URL, sessionId: 'abcdef0123456789', appIds, fetchImpl: impl });
+
+  assert.equal(calls.length, 1);
+  assert.deepEqual(
+    new URLSearchParams(calls[0].options.body).getAll('appids[]').map(Number),
+    appIds,
+  );
+});
+
+test('a 413 answer comes back as the case it is, from the sending path too', async () => {
+  const { impl } = stubFetch({ status: 413, body: '' });
+  const answer = await sendReorder({ url: REORDER_URL, sessionId: 'abcdef0123456789', appIds: [1], fetchImpl: impl });
+
+  assert.equal(answer.kind, 'too-large');
+});
+
+test('a fetch that throws is reported, not swallowed', async () => {
+  const { impl } = stubFetch({ throws: new TypeError('NetworkError when attempting to fetch resource.') });
+  const answer = await sendReorder({ url: REORDER_URL, sessionId: 'abcdef0123456789', appIds: [1], fetchImpl: impl });
+
+  assert.equal(answer.kind, 'offline');
+  assert.match(answer.message, /NetworkError/);
+});
+
+// ============================================================================
+// Checking what came of it
+// ============================================================================
+
+test('the same order in the same places is a match', () => {
+  const verdict = compareOrders([3, 1, 2], [3, 1, 2]);
+
+  assert.equal(verdict.matches, true);
+  assert.equal(verdict.inPlace, 3);
+  assert.equal(verdict.firstMismatch, -1);
+});
+
+test('a difference is shown at the place it starts, not swallowed', () => {
+  const verdict = compareOrders([1, 2, 3, 4], [1, 3, 2, 4]);
+
+  assert.equal(verdict.matches, false);
+  assert.equal(verdict.firstMismatch, 1);
+  assert.equal(verdict.inPlace, 1);
+});
+
+test('an entry that left the wishlist between the write and the check is named on its own', () => {
+  const verdict = compareOrders([1, 2, 3], [1, 3]);
+
+  assert.equal(verdict.matches, false);
+  assert.deepEqual(verdict.missing, [2]);
+  assert.deepEqual(verdict.unexpected, []);
+  // The entries that are still there are compared among themselves, so one
+  // purchase does not turn into a report of everything below it being wrong.
+  assert.equal(verdict.inPlace, 2);
+  assert.equal(verdict.compared, 2);
+});
+
+test('an entry that appeared after the write is named on its own as well', () => {
+  const verdict = compareOrders([1, 2], [1, 2, 9]);
+
+  assert.equal(verdict.matches, false);
+  assert.deepEqual(verdict.unexpected, [9]);
+  assert.deepEqual(verdict.missing, []);
+});
+
+test('a wishlist shown in an order of its own is reported from the very first place', () => {
+  const verdict = compareOrders([1, 2, 3], [3, 2, 1]);
+
+  assert.equal(verdict.matches, false);
+  assert.equal(verdict.firstMismatch, 0);
+  assert.equal(verdict.inPlace, 0);
+});
+
+test('the check of an order that was built from a file and a page holds together', () => {
+  const order = parseOrderFile(orderFile([{ appId: 30 }, { appId: 10 }], [{ appId: 40 }]));
+  const target = buildTargetOrder({ items: order.items, remove: order.remove, pageAppIds: [10, 20, 30, 40] });
+
+  assert.deepEqual(target.appIds, [30, 10, 20, 40]);
+  assert.equal(compareOrders(target.appIds, [30, 10, 20, 40]).matches, true);
+  assert.equal(compareOrders(target.appIds, [10, 30, 20, 40]).matches, false);
+});
