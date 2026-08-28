@@ -103,7 +103,8 @@ const EN = {
   'privacy.note':
     'Your data never leaves the browser. The only external request the application makes at any '
     + 'point is loading game covers from the Steam CDN over a public URL; it is switched off by the '
-    + '“Load covers” toggle.',
+    + '“Load covers” toggle. The import straight from an account is asked for by the local server '
+    + 'on your own machine: it goes to Steam, to nobody else, and only when you press the button.',
   'dialog.title': 'Confirm the action',
   'dialog.cancel': 'Cancel',
   'dialog.confirm': 'Continue',
@@ -145,8 +146,8 @@ const EN = {
   /* -- import screen ------------------------------------------------ */
   'import.heading': 'Import the wishlist',
   'import.hint':
-    'Load a JSON file with your wishlist — or take the demo set if you just want to see how this '
-    + 'works.',
+    'Bring the wishlist over straight from your Steam account, load it from a JSON file — or take '
+    + 'the demo set if you just want to see how this works.',
   'import.file.title': 'JSON file',
   'import.file.hint': 'An export from Steam or a file collected by the userscript.',
   'import.file.button': 'Choose a file…',
@@ -200,6 +201,74 @@ const EN = {
     '{message}. The file {url} has to sit next to index.html — and the page has to be opened over '
     + 'http(s), not as file://.',
   'import.demo.httpError': 'the server answered {status}',
+
+  /* -- import straight from a Steam account ------------------------- */
+  'steam.title': 'Straight from a Steam account',
+  'steam.hint':
+    'Type your SteamID or the name of your profile — the wishlist comes over by itself. It works '
+    + 'while the wishlist is public.',
+  'steam.label': 'SteamID64, profile name or a link to the profile',
+  'steam.placeholder': '76561198000000000, nickname or a profile link',
+  'steam.run': 'Fetch the wishlist',
+  'steam.cancel': 'Stop',
+  'steam.checking': 'Looking for the local server…',
+  'steam.unavailable.title': 'Only when you run it yourself',
+  'steam.unavailable.text':
+    'Steam does not let a page ask it for a wishlist, so the request is made by server.js — the '
+    + 'local server this application is started with. This page has no such server behind it: it is '
+    + 'the demo on GitHub Pages, or a start without Node. Take the userscript or a JSON file '
+    + 'instead.',
+  'steam.step.account': 'Looking the account up…',
+  'steam.step.wishlist': 'Asking Steam for the wishlist…',
+  'steam.step.titles': 'Titles: {done} of {total}',
+  'steam.step.waiting': 'Steam is limiting the requests. Waiting {seconds} s and asking again…',
+  'steam.note':
+    'One title, one request, so a long list takes minutes. Everything that has already arrived is '
+    + 'saved — stopping loses nothing.',
+  'steam.done.title': 'The wishlist came over',
+  'steam.done.titlesTitle': 'The titles are fetched',
+  'steam.done.titlesText': '{items} in the list, {titles} of them with a title from Steam.',
+  'steam.done.text':
+    'Steam account {account}: {items} in the list, {titles} of them with a title from Steam.',
+  'steam.done.missing.one': 'Steam did not hand over {count} title: that item is shown by its App ID.',
+  'steam.done.missing.few':
+    'Steam did not hand over {count} titles: those items are shown by their App ID.',
+  'steam.done.missing.many':
+    'Steam did not hand over {count} titles: those items are shown by their App ID.',
+  'steam.done.throttled':
+    'Steam stopped answering at title {done} of {total}: it is limiting the requests. Everything '
+    + 'fetched is already in the list — try the button again in a few minutes.',
+  'steam.missing.text.one': '{count} item in the list is still shown by an App ID, not a title.',
+  'steam.missing.text.few': '{count} items in the list are still shown by an App ID, not a title.',
+  'steam.missing.text.many': '{count} items in the list are still shown by an App ID, not a title.',
+  'steam.missing.run': 'Fetch the remaining titles',
+  'steam.cancelled': 'Stopped. Everything that had arrived by then stayed in the list.',
+  'steam.error.title': 'The import from Steam failed',
+  'steam.error.emptyInput':
+    'The field is empty: type a SteamID64, a profile name or a link to the profile.',
+  'steam.error.invalidAccount':
+    'This is neither a SteamID64 (17 digits), nor a Steam profile name, nor a link to a profile on '
+    + 'steamcommunity.com.',
+  'steam.error.accountNotFound':
+    'Steam has no such account. Check the spelling — or open your profile in the browser and copy '
+    + 'the address of the page.',
+  'steam.error.wishlistPrivate':
+    'Steam did not hand the wishlist over, which almost always means the privacy settings. Open '
+    + 'Steam → your profile → Edit profile → Privacy settings and set “Game details” to Public: the '
+    + 'wishlist follows that setting. If it is already public, the list may simply be empty. The '
+    + 'userscript works either way — it reads the page you are logged into.',
+  'steam.error.wishlistEmpty':
+    'The wishlist of this account is empty: there is nothing to sort yet.',
+  'steam.error.rateLimited':
+    'Steam is limiting the requests: too many of them came from this address. It lets go after a '
+    + 'few minutes — try again then.',
+  'steam.error.network':
+    'Steam could not be reached. Check the connection, and that the local server is still running.',
+  'steam.error.steamError':
+    'Steam answered with something unexpected. That is usually Steam itself having a moment; try '
+    + 'again a little later.',
+  'steam.error.notLocal': 'The local server answers requests from localhost only.',
+  'steam.error.unknown': 'Unexpected failure: {message}',
 
   /* -- state file --------------------------------------------------- */
   'state.error.invalidJson': 'The state file does not read as JSON.',
@@ -468,8 +537,8 @@ const RU = {
   /* -- import screen ------------------------------------------------ */
   'import.heading': 'Импорт списка желаемого',
   'import.hint':
-    'Загрузите JSON со своим wishlist — или возьмите демо-набор, если хотите просто посмотреть, '
-    + 'как это работает.',
+    'Перенесите список желаемого прямо из аккаунта Steam, загрузите JSON — или возьмите '
+    + 'демо-набор, если хотите просто посмотреть, как это работает.',
   'import.file.title': 'Файл JSON',
   'import.file.hint': 'Выгрузка из Steam или файл, собранный userscript-ом.',
   'import.file.button': 'Выбрать файл…',
@@ -523,6 +592,72 @@ const RU = {
     '{message}. Файл {url} должен лежать рядом с index.html — и страница должна быть открыта по '
     + 'http(s), а не как file://.',
   'import.demo.httpError': 'сервер ответил {status}',
+
+  /* -- import straight from a Steam account ------------------------- */
+  'steam.title': 'Прямо из аккаунта Steam',
+  'steam.hint':
+    'Введите свой SteamID или имя профиля — список приедет сам. Работает, пока список желаемого '
+    + 'открыт настройками приватности.',
+  'steam.label': 'SteamID64, имя профиля или ссылка на профиль',
+  'steam.placeholder': '76561198000000000, ник или ссылка на профиль',
+  'steam.run': 'Загрузить список',
+  'steam.cancel': 'Остановить',
+  'steam.checking': 'Ищем локальный сервер…',
+  'steam.unavailable.title': 'Только при локальном запуске',
+  'steam.unavailable.text':
+    'Steam не разрешает странице спрашивать у него список желаемого, поэтому запрос делает '
+    + 'server.js — локальный сервер, которым запускается приложение. За этой страницей такого '
+    + 'сервера нет: это либо демо на GitHub Pages, либо запуск без Node. Возьмите userscript или '
+    + 'файл JSON.',
+  'steam.step.account': 'Ищем аккаунт…',
+  'steam.step.wishlist': 'Запрашиваем список желаемого…',
+  'steam.step.titles': 'Названия: {done} из {total}',
+  'steam.step.waiting': 'Steam ограничил частоту запросов. Ждём {seconds} с и спрашиваем снова…',
+  'steam.note':
+    'Одно название — один запрос, поэтому длинный список занимает минуты. Всё, что уже пришло, '
+    + 'сохранено: остановка ничего не теряет.',
+  'steam.done.title': 'Список желаемого получен',
+  'steam.done.titlesTitle': 'Названия дотянуты',
+  'steam.done.titlesText': 'В списке {items}, из них {titles} с названием из Steam.',
+  'steam.done.text':
+    'Аккаунт Steam {account}: в списке {items}, из них {titles} с названием из Steam.',
+  'steam.done.missing.one': 'Steam не отдал {count} название: эта позиция показана по App ID.',
+  'steam.done.missing.few': 'Steam не отдал {count} названия: эти позиции показаны по App ID.',
+  'steam.done.missing.many': 'Steam не отдал {count} названий: эти позиции показаны по App ID.',
+  'steam.done.throttled':
+    'Steam перестал отвечать на названии {done} из {total}: он ограничивает частоту запросов. Всё '
+    + 'полученное уже в списке — попробуйте кнопку снова через несколько минут.',
+  'steam.missing.text.one': '{count} позиция в списке показана по App ID, а не по названию.',
+  'steam.missing.text.few': '{count} позиции в списке показаны по App ID, а не по названию.',
+  'steam.missing.text.many': '{count} позиций в списке показаны по App ID, а не по названию.',
+  'steam.missing.run': 'Дотянуть остальные названия',
+  'steam.cancelled': 'Остановлено. Всё, что успело прийти, осталось в списке.',
+  'steam.error.title': 'Импорт из Steam не удался',
+  'steam.error.emptyInput':
+    'Поле пустое: введите SteamID64, имя профиля или ссылку на профиль.',
+  'steam.error.invalidAccount':
+    'Это не SteamID64 (17 цифр), не имя профиля Steam и не ссылка на профиль на steamcommunity.com.',
+  'steam.error.accountNotFound':
+    'Такого аккаунта в Steam нет. Проверьте написание — или откройте свой профиль в браузере и '
+    + 'скопируйте адрес страницы.',
+  'steam.error.wishlistPrivate':
+    'Steam не отдал список желаемого, и почти всегда это настройки приватности. Откройте '
+    + 'Steam → свой профиль → «Редактировать профиль» → «Настройки приватности» и поставьте '
+    + '«Игровые подробности» в «Открытый»: список желаемого следует этой настройке. Если она уже '
+    + 'открыта, список может быть просто пуст. Userscript работает в любом случае — он читает '
+    + 'страницу, на которой вы уже вошли.',
+  'steam.error.wishlistEmpty':
+    'Список желаемого этого аккаунта пуст: сортировать пока нечего.',
+  'steam.error.rateLimited':
+    'Steam ограничивает частоту запросов: с этого адреса их пришло слишком много. Через несколько '
+    + 'минут ограничение снимается — тогда и попробуйте снова.',
+  'steam.error.network':
+    'До Steam не достучаться. Проверьте соединение и то, что локальный сервер ещё работает.',
+  'steam.error.steamError':
+    'Steam ответил чем-то неожиданным. Обычно это временные неполадки на его стороне; попробуйте '
+    + 'чуть позже.',
+  'steam.error.notLocal': 'Локальный сервер отвечает только на запросы с localhost.',
+  'steam.error.unknown': 'Неожиданная ошибка: {message}',
 
   /* -- state file --------------------------------------------------- */
   'state.error.invalidJson': 'Файл состояния не читается как JSON.',
