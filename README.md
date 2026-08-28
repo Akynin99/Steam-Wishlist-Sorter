@@ -3,475 +3,512 @@
 [![tests](https://github.com/Akynin99/Steam-Wishlist-Sorter/actions/workflows/test.yml/badge.svg)](https://github.com/Akynin99/Steam-Wishlist-Sorter/actions/workflows/test.yml)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**Локальное веб-приложение, которое превращает список желаемого в Steam на 200+ позиций
-в честно упорядоченный список — попарными сравнениями, без сервера и без отправки данных куда-либо.**
+**A local web application that turns a 200+ entry Steam wishlist into an honestly ordered list —
+through pairwise comparisons, with no server and with nothing sent anywhere.**
 
-🇬🇧 [English version](README.en.md) · 🎮 [Живое демо](https://akynin99.github.io/Steam-Wishlist-Sorter/)
-(демо-набор уже внутри, свой wishlist загружать не обязательно)
+🎮 [Live demo](https://akynin99.github.io/Steam-Wishlist-Sorter/)
+(the demo set is already inside, you do not have to load a wishlist of your own)
 
-![Экран импорта](docs/screenshots/import.png)
+![The import screen](docs/screenshots/import.png)
+
+The interface is bilingual: **English by default, Russian as the second language**, switched in the
+header. Nothing is lost when the language changes — not one answer and not the place in the sorting.
 
 ---
 
-## Зачем это нужно
+## Why this exists
 
-Список желаемого растёт годами, а вопрос всегда один: **что из этого брать сейчас?**
-Штатный wishlist умеет сортировать по цене, по скидке и по дате добавления — то есть по чему угодно,
-кроме того, насколько вам самому хочется в это играть. Ручной порядок в Steam есть, но расставить
-двести позиций перетаскиванием невозможно: чтобы поставить игру на её место, надо помнить весь список.
+A wishlist grows for years, and the question is always the same: **what do I buy right now?**
+Steam sorts it by price, by discount and by the date it was added — by everything except how much
+you actually want to play the thing. Steam does have a manual order, but arranging two hundred
+entries by dragging is impossible: to put a game in its place you have to hold the whole list in
+your head.
 
-Очевидное решение — «оцени каждую игру от 1 до 10» — не работает по трём причинам:
+The obvious answer — "rate every game from 1 to 10" — does not work, for three reasons:
 
-- **оценки сползают.** Первые двадцать позиций получают восьмёрки и девятки, к сотой планка уезжает,
-  и оценки из начала и конца списка оказываются несравнимы между собой;
-- **шкала слипается.** На 200 позициях и 10 делениях в каждом делении оказывается по два десятка игр,
-  а внутри деления порядка нет — то есть задача не решена;
-- **абсолютная оценка — трудный вопрос.** «Насколько я хочу Hades по десятибалльной шкале?» требует
-  держать в голове весь остальной список.
+- **ratings drift.** The first twenty entries get eights and nines, by the hundredth the bar has
+  moved, and the ratings from the top and from the bottom of the list are no longer comparable;
+- **the scale clumps.** Over 200 entries and 10 steps, every step holds a couple of dozen games,
+  and inside a step there is no order at all — which means the problem is not solved;
+- **an absolute rating is a hard question.** "How much do I want Hades, out of ten?" asks you to
+  keep the rest of the list in mind.
 
-Попарное сравнение — вопрос, на который человек отвечает быстро и уверенно: **«Hades или Hollow Knight?»**
-Здесь не нужна шкала, не нужен контекст, ответ не сползает со временем. Из тысячи таких ответов
-получается порядок, которого никакая десятибалльная шкала не даёт.
+A pairwise question is one a human answers fast and confidently: **"Hades or Hollow Knight?"**
+No scale is needed, no context, and the answer does not drift over time. A thousand answers like
+that produce an order no ten-point scale can give you.
 
-Дальше — арифметика. Наивное сравнение всех со всеми на 200 позициях — это 19 900 вопросов, столько
-никто не осилит. Приложение задаёт около тысячи: сначала список грубо раскладывается по шести
-категориям желания, а внутри категории работает вставка бинарным поиском поверх графа предпочтений,
-который сам выводит всё, что следует из уже данных ответов (см. [Архитектуру](#архитектура)).
+The rest is arithmetic. Comparing everything with everything over 200 entries is 19,900 questions,
+and nobody gets through that. The application asks about a thousand: the list is first split coarsely
+into six buckets of desire, and inside a bucket a binary insertion runs on top of a preference graph
+that derives everything already implied by the answers given (see [Architecture](#architecture)).
 
-| Экран категорий | Экран сравнений | Итоговый список |
+| The categories screen | The comparisons screen | The final list |
 | --- | --- | --- |
-| ![Категории](docs/screenshots/categorize.png) | ![Сравнения](docs/screenshots/compare.png) | ![Результат](docs/screenshots/results.png) |
+| ![Categories](docs/screenshots/categorize.png) | ![Comparisons](docs/screenshots/compare.png) | ![Result](docs/screenshots/results.png) |
 
 ---
 
-## Живое демо
+## Live demo
 
 <https://akynin99.github.io/Steam-Wishlist-Sorter/>
 
-Это то же самое приложение, опубликованное как статические файлы через GitHub Pages. Нажмите
-**«Загрузить демо-набор»** на экране импорта — внутри лежит набор из 20 игр, на нём видно все три
-этапа целиком, свой wishlist для этого не нужен.
+It is the same application, published as static files through GitHub Pages. Press **“Load the demo
+set”** on the import screen — a set of 20 games is inside, enough to walk all three stages, and no
+wishlist of your own is needed for that.
 
-> **Данные остаются в вашем браузере.** Демо — это статическая страница: у неё нет бэкенда, некуда
-> и нечем отправлять то, что вы там разложите. Всё, что вы наимпортируете, лежит в `localStorage`
-> вашего браузера и исчезает по кнопке «Начать заново» или вместе с данными сайта.
-> Подробности — в разделе [Приватность](#приватность).
+> **Your data stays in your browser.** The demo is a static page: it has no backend, so there is
+> nothing to send your work with and nowhere to send it. Everything you import lives in the
+> `localStorage` of your browser and disappears with the “Start over” button or along with the site
+> data. The details are in [Privacy](#privacy).
 
-Для регулярной работы со своим списком лучше запустить приложение локально: это те же файлы,
-но состояние тогда живёт в `localStorage` локального адреса и не смешивается с демо.
+For regular work on your own list it is better to run the application locally: the same files, but
+the state then lives in the `localStorage` of a local address and does not mix with the demo.
 
 ---
 
-## Запуск
+## Running it
 
-ES-модули не загружаются со схемы `file://`, поэтому приложение открывается с HTTP-адреса.
-Сервер входит в комплект — `server.js` на чистом Node, без единой зависимости.
+ES modules do not load over the `file://` scheme, so the application is opened from an HTTP address.
+The server ships with the project — `server.js`, plain Node, without a single dependency.
 
 **Windows:**
 
-1. Установите [Node.js](https://nodejs.org/) 20 или новее (разработка идёт на 24 LTS).
-2. Запустите `start.bat` двойным щелчком.
-3. Браузер откроется сам на <http://localhost:8080/>. Если не открылся — введите адрес руками.
+1. Install [Node.js](https://nodejs.org/) 20 or newer (development happens on 24 LTS).
+2. Run `start.bat` with a double click.
+3. The browser opens <http://localhost:8080/> by itself. If it does not, type the address by hand.
 
-Другой порт: `start.bat 9000`. Если Node не установлен, `start.bat` попробует поднять на том же
-порту встроенный сервер Python, а если нет и его — честно скажет об этом, а не мигнёт чёрным окном.
+Another port: `start.bat 9000`. If Node is not installed, `start.bat` tries to bring up the built-in
+Python server on the same port, and if that is missing too, it says so honestly instead of flashing
+a black window.
 
-**Любая другая система:**
+**Any other system:**
 
 ```bash
 node server.js
 ```
 
-и открыть <http://localhost:8080/>.
+and open <http://localhost:8080/>.
 
-**Тесты:**
+**Tests:**
 
 ```bash
 node --test
 ```
 
-Ни `npm install`, ни `npx` не нужны: у проекта нет и не будет сторонних зависимостей, тесты написаны
-на встроенных `node:test` и `node:assert`. Те же тесты гоняет GitHub Actions на каждый push и PR.
+Neither `npm install` nor `npx` is needed: the project has no third-party dependencies and never
+will, and the tests are written on the built-in `node:test` and `node:assert`. GitHub Actions runs
+the same tests on every push and pull request.
 
 ---
 
-## Как выгрузить wishlist из Steam
+## Language of the interface
 
-В репозитории лежат два userscript-а. Первый — тот, которым выгружают список.
+The switch sits in the header, next to the covers toggle. **English is the default, always** — the
+browser language is deliberately not consulted, so the demo opens the same way for every visitor.
+The choice is stored next to the other settings and survives a reload; a state file saved before the
+interface became bilingual reads as English.
 
-### Шаг 1. Поставьте Tampermonkey
-
-[Tampermonkey](https://www.tampermonkey.net/) — расширение, которое запускает пользовательские скрипты
-на страницах. Есть для Chrome, Edge, Firefox и Opera. Подойдёт и Violentmonkey.
-
-В Chrome и Edge после установки нужно один раз включить режим разработчика в `chrome://extensions`
-(`edge://extensions`) — без него расширение не сможет выполнять userscript-ы.
-
-### Шаг 2. Установите скрипт
-
-Откройте [`userscripts/steam-wishlist-export.user.js`](userscripts/steam-wishlist-export.user.js),
-нажмите **Raw** — Tampermonkey сам предложит установку. Либо скопируйте содержимое файла
-и вставьте в редакторе Tampermonkey («Создать новый скрипт»).
-
-### Шаг 3. Соберите список
-
-1. Откройте свой список желаемого: <https://store.steampowered.com/wishlist/>
-   (Steam перебросит на адрес вида `/wishlist/profiles/<ваш SteamID64>/`).
-2. В правом нижнем углу появится панель **«Wishlist Sorter — экспорт»**. Нажмите **«Собрать список»**.
-3. Страница начнёт прокручиваться сама — так Steam подгружает позиции: они не лежат в разметке
-   все сразу. Не трогайте её, пока идёт сбор. Двести позиций — это примерно минута.
-4. Скрипт покажет отчёт: сколько позиций собрано, сколько шагов прокрутки понадобилось и не разошлось ли
-   собранное с числом, которое Steam показывает сам. Нажмите **«Скачать JSON»**.
-
-### Шаг 4. Загрузите файл в приложение
-
-На экране импорта — **«Файл JSON»**, выберите скачанный файл. Всё, можно раскладывать по категориям.
-
-Повторный импорт **не стирает работу**: позиции сопоставляются по App ID, категории и ответы
-на сравнения сохраняются, обновляются только названия, обложки и позиции в wishlist. Так что
-через месяц можно выгрузить список заново и продолжить с того же места.
-
-### Что скрипт делает и чего не делает
-
-- собирает App ID, название, ссылку, URL обложки, текущую позицию в wishlist и тип (игра / DLC /
-  `unknown`, если пометки на странице нет — тип не угадывается);
-- **не делает ни одного сетевого запроса**: ни `fetch`, ни `XMLHttpRequest`; в заголовке
-  `@grant none` и нет ни одного `@connect`;
-- не читает cookie, не трогает `sessionid`, токены и любые другие секреты;
-- если селекторы Steam не сработали — показывает понятное сообщение и останавливается.
-  Пустой или заведомо неполный файл молча не отдаётся: неполнота всегда написана в отчёте.
+Switching the language redraws the screens and touches nothing else: the answers, the categories,
+the manual moves and the exact place in the sorting stay where they were. The exports follow the
+language too — see [What comes out](#what-comes-out).
 
 ---
 
-## Если userscript не сработал
+## Getting the wishlist out of Steam
 
-Steam меняет вёрстку wishlist-а, и когда-нибудь селекторы отвалятся. Список всё равно можно получить —
-приложение принимает несколько форматов JSON.
+The repository holds two userscripts. The first one is the one that exports the list.
 
-### Способ 1. Публичный эндпоинт wishlist
+### Step 1. Install Tampermonkey
 
-Откройте прямо в браузере, подставив свой SteamID64:
+[Tampermonkey](https://www.tampermonkey.net/) is an extension that runs user scripts on pages. It
+exists for Chrome, Edge, Firefox and Opera. Violentmonkey does the job as well.
+
+In Chrome and Edge you have to turn on developer mode in `chrome://extensions`
+(`edge://extensions`) once — without it the extension cannot execute userscripts.
+
+### Step 2. Install the script
+
+Open [`userscripts/steam-wishlist-export.user.js`](userscripts/steam-wishlist-export.user.js) and
+press **Raw** — Tampermonkey offers the installation itself. Or copy the contents of the file and
+paste them into the Tampermonkey editor (“Create a new script”).
+
+### Step 3. Collect the list
+
+1. Open your wishlist: <https://store.steampowered.com/wishlist/>
+   (Steam redirects to an address like `/wishlist/profiles/<your SteamID64>/`).
+2. A **“Wishlist Sorter — export”** panel appears in the bottom right corner. Press
+   **“Collect the list”**.
+3. The page starts scrolling by itself — that is how Steam loads the entries, they are not all in
+   the markup at once. Do not touch it while the collection runs. Two hundred entries take about a
+   minute.
+4. The script shows a report: how many entries were collected, how many scroll steps it took and
+   whether the result disagrees with the number Steam shows itself. Press **“Download JSON”**.
+
+### Step 4. Load the file into the application
+
+On the import screen, **“JSON file”** — pick the downloaded file. That is it, the categories are next.
+
+Importing again **does not erase the work**: entries are matched by App ID, the categories and the
+comparison answers are kept, and only the titles, the covers and the wishlist positions are
+refreshed. So a month later you can export the list again and continue from the same place.
+
+### What the script does and does not do
+
+- it collects the App ID, the title, the link, the cover URL, the current position in the wishlist
+  and the type (game / DLC / `unknown` when the page carries no mark — the type is never guessed);
+- it **makes no network request at all**: no `fetch`, no `XMLHttpRequest`; the header says
+  `@grant none` and there is not a single `@connect`;
+- it does not read cookies, and does not touch `sessionid`, tokens or any other secret;
+- when the Steam selectors do not match, it shows a readable message and stops. An empty or
+  knowingly incomplete file is never handed over silently: incompleteness is always in the report.
+
+---
+
+## When the userscript stops working
+
+Steam changes the layout of the wishlist, and one day the selectors will break. The list can still
+be obtained — the application accepts several JSON shapes.
+
+### Way 1. The public wishlist endpoint
+
+Open it in the browser directly, with your own SteamID64:
 
 ```
 https://api.steampowered.com/IWishlistService/GetWishlist/v1?steamid=76561198000000000
 ```
 
-Браузер покажет JSON. Сохраните страницу файлом (`Ctrl+S`) и загрузите файл в приложение.
+The browser shows JSON. Save the page as a file (`Ctrl+S`) and load the file into the application.
 
-Есть ещё старый эндпоинт с более богатыми данными — названия и обложки прямо в ответе; он местами
-уже не отвечает, но если ответит, приложение и его формат понимает:
+There is also an older endpoint with richer data — titles and covers right there in the answer; in
+places it no longer responds, but when it does, the application understands its format as well:
 
 ```
 https://store.steampowered.com/wishlist/profiles/76561198000000000/wishlistdata/?p=0
 ```
 
-Две оговорки, обе важные:
+Two caveats, both important:
 
-- **список желаемого должен быть открыт** в настройках приватности профиля Steam, иначе эндпоинт
-  вернёт пусто;
-- **затянуть этот адрес в приложение автоматически нельзя** — CORS. Steam не отдаёт нашей странице
-  заголовок, который позволил бы прочитать чужой домен из браузера, а обходить это через прокси
-  означало бы отправить ваш список желаемого постороннему серверу. Поэтому только через файл:
-  открыли, сохранили, загрузили.
+- **the wishlist has to be public** in the privacy settings of the Steam profile, otherwise the
+  endpoint returns nothing;
+- **that address cannot be pulled into the application automatically** — CORS. Steam does not give
+  our page the header that would let it read another domain from the browser, and working around
+  that through a proxy would mean sending your wishlist to somebody else's server. So it goes
+  through a file: open, save, load.
 
-Новый эндпоинт отдаёт **только App ID и приоритеты**, без названий. Это нормально: приложение
-показывает такие позиции как `App 1086940`, само достраивает ссылку на страницу магазина и обложку
-по публичному URL CDN Steam — игру видно по картинке. А если позже выгрузить список userscript-ом
-и импортировать поверх, названия подставятся к тем же позициям, ничего не потеряв.
+The new endpoint returns **App IDs and priorities only**, without titles. That is fine: the
+application shows such entries as `App 1086940`, builds the store link itself and takes the cover
+from the public URL of the Steam CDN — you recognize the game by its picture. And if you later
+export the list with the userscript and import it on top, the titles land on the same entries and
+nothing is lost.
 
-### Способ 2. Вставить JSON текстом
+### Way 2. Paste the JSON as text
 
-На экране импорта есть поле **«Вставить JSON»** — туда можно вставить содержимое ответа, не сохраняя
-файл. Понимаются: массив объектов, массив голых App ID, объект вида `{ "440": { … } }`,
-`{ response: { items: [...] } }` и собственный экспорт приложения.
+The import screen has a **“Paste JSON”** field — the body of the answer can go there without saving
+a file. Understood are: an array of objects, an array of bare App IDs, an object shaped like
+`{ "440": { … } }`, `{ response: { items: [...] } }` and the application's own export.
 
-Всё, что прочитать не удалось, попадает в отчёт импорта с причиной — импорт не падает
-целиком из-за одной кривой записи.
-
----
-
-## Как этим пользоваться
-
-1. **Импорт.** Файл, текст, демо-набор или файл состояния.
-2. **Категории.** Шесть корзин по силе желания — от «Очень хочу» до «Почти не интересует», плюс
-   «Удалить из желаемого». Клавиши `1`–`6`, `←` — назад, `→` или пробел — отложить. Этап можно
-   пропустить и сравнивать всё в одной куче, но с категориями вопросов будет заметно меньше:
-   позиция из «Очень хочу» никогда не сравнивается с позицией из «Маловероятно».
-3. **Сравнения.** Один вопрос — две игры. Ответы: «эта», «та», **«примерно одинаково»** (ничья)
-   и **«не могу решить»** (пара откладывается, к ней вернутся позже, а часто и не придётся —
-   порядок выведется из других ответов). Есть отмена последнего ответа.
-4. **Результат.** Пронумерованный список с фильтром по категории, поиском, перетаскиванием строк
-   и экспортом.
-
-### Сортировку можно бросить на середине
-
-Это заложено в конструкцию, а не «работает случайно». Тысяча сравнений за один присест не делается,
-и инструмент, который до самого конца не отдаёт ничего, бесполезен.
-
-Экран «Результат» доступен с первой минуты и всегда даёт осмысленный список: всё, что уже выводится
-из ответов, стоит в выведенном порядке, остальное — в запасном, по позиции в вашем wishlist.
-Каждая строка помечена, откуда её место:
-
-- **подтверждено сравнениями** — порядок с обоими соседями следует из ваших ответов;
-- **запасной порядок** — сюда сравнения ещё не дошли;
-- **вручную** — вы сами перетащили строку сюда.
-
-Сводка сверху честно говорит, какая часть списка уже упорядочена, а какая просто стоит по старшинству.
-
-### Где лежит состояние и как сделать бэкап
-
-Состояние пишется в `localStorage` браузера под ключом `steam-wishlist-sorter/state` после каждого
-действия. Закрыли вкладку, выключили компьютер, вернулись через неделю — приложение откроется там же,
-где вы его оставили, и предложит тот же вопрос.
-
-Что важно понимать про `localStorage`: он привязан к **браузеру и адресу** (`http://localhost:8080`
-и демо на GitHub Pages — разные хранилища), живёт на одной машине и стирается вместе с данными сайта.
-Поэтому в приложении есть кнопка **«Сохранить в файл»** (и её дубль «Резервная копия состояния»
-на экране результата): она выгружает всё состояние целиком — список, категории, ответы, ручные
-перестановки — одним JSON.
-
-Этот файл — и бэкап, и способ переехать: на другой машине откройте приложение и загрузите его
-через **«Файл состояния»** на экране импорта. Загрузка состояния заменяет текущую работу целиком,
-поэтому приложение спрашивает подтверждение.
-
-Делайте копию перед тем, как чистить данные браузера или менять машину: это единственный способ
-не потерять сделанные сравнения.
+Everything that could not be read lands in the import report with a reason — an import does not
+fail as a whole because of one malformed record.
 
 ---
 
-## Что получается на выходе
+## How to use it
 
-Кнопки на экране «Результат»:
+1. **Import.** A file, text, the demo set or a state file.
+2. **Categories.** Six buckets by the strength of the desire — from “Really want it” to “Barely
+   interested”, plus “Remove from the wishlist”. Keys `1`–`6`, `←` for back, `→` or space to
+   postpone. The stage can be skipped and everything compared in one heap, but with categories there
+   are noticeably fewer questions: an entry from “Really want it” is never compared with an entry
+   from “Unlikely”.
+3. **Comparisons.** One question, two games. The answers are “this one”, “that one”, **“about the
+   same”** (a tie) and **“cannot decide”** (the pair is postponed, it comes back later — and often
+   it does not have to, because the order follows from other answers). The last answer can be undone.
+4. **Result.** A numbered list with a filter by category, a search, draggable rows and the exports.
 
-| Кнопка | Что даёт | Зачем |
+### The sorting can be abandoned halfway
+
+That is by design, not something that “happens to work”. A thousand comparisons are not done in one
+sitting, and a tool that gives nothing until the very end is useless.
+
+The “Result” screen is available from the first minute and always gives a meaningful list:
+everything that already follows from the answers stands in the derived order, and the rest stands in
+the fallback one, by the position in your wishlist. Every row is marked with where its place comes
+from:
+
+- **confirmed by comparisons** — the order with both neighbours follows from your answers;
+- **fallback order** — the comparisons have not reached this row yet;
+- **by hand** — you dragged the row here yourself.
+
+The summary on top says honestly which part of the list is already ordered and which part simply
+stands by seniority.
+
+### Where the state lives and how to back it up
+
+The state is written into the `localStorage` of the browser under the key
+`steam-wishlist-sorter/state` after every action. Close the tab, turn the computer off, come back a
+week later — the application opens where you left it and offers the same question.
+
+What matters about `localStorage`: it is tied to **the browser and the address**
+(`http://localhost:8080` and the demo on GitHub Pages are different stores), it lives on one machine
+and it is erased along with the site data. That is why the application has a **“Save to a file”**
+button (and its twin, “Backup of the state”, on the result screen): it writes the whole state out —
+the list, the categories, the answers, the manual moves — as one JSON.
+
+That file is both a backup and a way to move: on another machine, open the application and load it
+through **“Saved state”** on the import screen. Loading a state replaces the current work whole, so
+the application asks for a confirmation.
+
+Make a copy before you clear the browser data or change machines: it is the only way not to lose the
+comparisons you have made.
+
+---
+
+## What comes out
+
+The buttons on the “Result” screen:
+
+| Button | What it gives | What for |
 | --- | --- | --- |
-| **Итог в JSON** | `wishlist-order-ГГГГ-ММ-ДД.json` | машиночитаемый порядок: позиция, App ID, категория, место в категории, откуда порядок, ничьи и отдельный список «удалить». Его читает второй userscript |
-| **Итог в CSV** | `wishlist-order-ГГГГ-ММ-ДД.csv` | таблица для Excel, Google Sheets, LibreOffice |
-| **Скопировать списком** | текст в буфере обмена | нумерованный список — кинуть в заметки или в чат другу |
-| **Резервная копия состояния** | полный дамп состояния | продолжить работу на другой машине |
+| **Order as JSON** | `wishlist-order-YYYY-MM-DD.json` | the machine readable order: position, App ID, category, place in the category, where the order comes from, the ties and a separate “remove” list. The second userscript reads it |
+| **List as CSV** | `wishlist-order-YYYY-MM-DD.csv` | a table for Excel, Google Sheets, LibreOffice |
+| **Copy as a list** | text on the clipboard | a numbered list — to drop into a note or into a chat with a friend |
+| **Backup of the state** | the full state dump | to continue the work on another machine |
 
-### Почему CSV разделён точкой с запятой
+The files a human reads follow the language of the interface: the CSV header, the category names and
+the type of every entry are written in it, and so is the `categoryLabel` field of the JSON. The ids
+never move — `category`, `origin` and `kind` stay the machine readable values they always were, so
+a file exported in one language is read by the second userscript exactly like a file exported in the
+other.
 
-Это сознательное отступление от [RFC 4180](https://datatracker.ietf.org/doc/html/rfc4180), где
-разделителем назначена запятая. Причина простая: Excel при открытии `.csv` двойным щелчком не читает
-файл по RFC, а режет его по **системному разделителю списка**, а в русской (и немецкой, и французской)
-локали Windows это точка с запятой. Файл через запятую открывается там одной колонкой, и пользователь
-идёт разбираться с мастером импорта — то есть таблица, ради которой всё затевалось, не открылась.
+### Why the CSV separator follows the language
 
-Все остальные инструменты — LibreOffice, Google Sheets, `pandas`, модуль `csv` стандартной библиотеки —
-принимают разделитель параметром, для них это одна лишняя настройка. Так что компромисс сделан
-в пользу Excel на русской Windows, и это именно компромисс, а не соответствие стандарту.
+In English the separator is a **comma**, exactly as
+[RFC 4180](https://datatracker.ietf.org/doc/html/rfc4180) asks for. In Russian it is a
+**semicolon** — a deliberate departure from the standard, and for a concrete reason: when Excel
+opens a `.csv` on a double click, it does not read the file by the RFC, it splits it by the **list
+separator of the system locale**, and in the Russian (as well as the German and the French) locale
+of Windows that is a semicolon. A comma separated file opens there as one single column, and the
+user goes off to fight with the import wizard — which means the table the whole thing was for did
+not open.
 
-По той же причине в начале файла стоит BOM: без него Excel читает `.csv` в системной кодировке ANSI
-и русские названия превращаются в кракозябры.
+Every other tool — LibreOffice, Google Sheets, `pandas`, the `csv` module of the standard library —
+takes the separator as a parameter, and for them this is one extra argument. So the compromise is
+made in favour of Excel on the user's own locale, and it is a compromise, not conformance.
 
----
-
-## Перенос порядка обратно в Steam
-
-Второй userscript —
-[`userscripts/steam-wishlist-import-order.user.js`](userscripts/steam-wishlist-import-order.user.js) —
-берёт файл «Итог в JSON» и **показывает** на странице wishlist, куда какую позицию переставить.
-
-Ставится так же, как первый. Дальше: открыть wishlist → панель в правом нижнем углу → выбрать файл.
-
-Скрипт сначала прочитает страницу и покажет отчёт:
-
-- сколько позиций из файла найдено на странице, а сколько нет (обычно не найдены те, что уже куплены
-  или убраны из списка);
-- есть ли на странице дубликаты;
-- какие позиции появились в wishlist после выгрузки — их места скрипт не трогает;
-- сколько позиций помечено на удаление;
-- целевой порядок целиком: по строке можно щёлкнуть, и страница прокрутится к этой игре.
-
-**До явного подтверждения на странице не меняется ничего.** По кнопке «Показать порядок на странице»
-скрипт рисует на строках метки: синяя — целевой номер, красная — «убрать из wishlist», серая —
-«нет в файле». Метки живут только до перезагрузки, никаких данных они не трогают.
-
-Сопоставление идёт **строго по App ID**; названия показываются только для чтения глазами.
-Файл проверяется по полю `kind`, поэтому дамп состояния случайно не будет принят за файл порядка —
-скрипт скажет, что нужен другой экспорт.
-
-### Почему расстановка не автоматизирована
-
-Об этом честно, потому что это главное ограничение проекта.
-
-Единственный штатный способ задать в Steam свой порядок — **перетаскивать строки мышью** на странице
-wishlist (при сортировке по своему рангу и снятых фильтрах). Программного интерфейса для «расставь
-список вот в таком порядке» Steam не предоставляет; перестановка уходит на сервер запросом,
-который несёт `sessionid` — сессионный токен залогиненного пользователя.
-
-Автоматизировать это означало бы: **прочитать из страницы сессионный токен** и **отправить от вашего
-имени пишущие запросы в Steam**. Этот проект не делает ни того, ни другого — ни в userscript-е,
-ни где-либо ещё. К тому же список виртуализирован (строки переиспользуются при прокрутке), так что
-скрипт, имитирующий двести перетаскиваний, почти наверняка сломается где-то в середине и оставит
-wishlist в состоянии, которого никто не просил.
-
-Инструмент, который наполовину расставил список на 200 позиций и не может сказать, где он
-остановился, хуже, чем отсутствие инструмента. Поэтому вместо имитации рабочего решения —
-режим предпросмотра: отчёт, подсветка и инструкция. Перетаскиваете вы, кнопку сохранения
-скрипт не нажимает никогда.
+For the same reason there is a BOM at the start of the file: without it Excel reads a `.csv` in the
+system ANSI code page and every non-Latin title turns into mojibake.
 
 ---
 
-## Архитектура
+## Carrying the order back into Steam
 
-Vanilla JS, ES-модули, без фреймворков, без сборщика, без транспиляции. Node нужен только
-для тестов и локального сервера. Сторонних зависимостей нет ни одной — ни в рантайме, ни в разработке.
+The second userscript —
+[`userscripts/steam-wishlist-import-order.user.js`](userscripts/steam-wishlist-import-order.user.js)
+— takes the “Order as JSON” file and **shows** on the wishlist page where each entry has to go.
 
-### Модули
+It is installed the same way as the first one. Then: open the wishlist → the panel in the bottom
+right corner → pick the file.
 
-| Файл | Зачем |
+The script first reads the page and shows a report:
+
+- how many entries of the file were found on the page and how many were not (usually the missing
+  ones are those already bought or taken off the list);
+- whether the page holds duplicates;
+- which entries appeared in the wishlist after the export — the script does not touch their places;
+- how many entries are marked for removal;
+- the whole target order: a line can be clicked, and the page scrolls to that game.
+
+**Nothing on the page changes before an explicit confirmation.** On the “Show the order on the page”
+button the script draws marks on the rows: blue is the target number, red is “remove from the
+wishlist”, grey is “not in the file”. The marks live until a reload and touch no data.
+
+The matching goes **strictly by App ID**; the titles are shown for you to read, nothing more.
+The file is checked by its `kind` field, so a state dump is never mistaken for an order file — the
+script says that a different export is needed.
+
+### Why the arranging is not automated
+
+Openly, because this is the main limitation of the project.
+
+The only supported way to set your own order in Steam is to **drag the rows with the mouse** on the
+wishlist page (with the sorting by your own rank and the filters cleared). Steam provides no
+programmatic interface for “arrange the list like this”; a move goes to the server as a request that
+carries `sessionid` — the session token of the logged-in user.
+
+Automating that would mean **reading the session token out of the page** and **sending writing
+requests to Steam on your behalf**. This project does neither — not in the userscript, not anywhere
+else. On top of that the list is virtualized (rows are reused while scrolling), so a script
+imitating two hundred drags would almost certainly break somewhere in the middle and leave the
+wishlist in a state nobody asked for.
+
+A tool that has arranged half of a 200 entry list and cannot say where it stopped is worse than no
+tool at all. So instead of imitating a working solution there is a preview mode: a report,
+highlighting and instructions. You do the dragging, and the script never presses the save button.
+
+---
+
+## Architecture
+
+Vanilla JS, ES modules, no frameworks, no bundler, no transpilation. Node is needed only for the
+tests and for the local server. There is not a single third-party dependency, neither at runtime nor
+in development.
+
+### Modules
+
+| File | What for |
 | --- | --- |
-| [`src/model.js`](src/model.js) | модель позиции (`appId`, название, ссылка, обложка, позиция в wishlist, тип), шесть категорий, нормализация чего угодно к этой модели. Не знает ни про DOM, ни про хранилище |
-| [`src/import.js`](src/import.js) | приведение произвольного JSON к модели: пять форматов на входе, отчёт с причинами на выходе. Слияние по `appId`, поэтому повторный импорт не плодит дубликатов и не затирает работу |
-| [`src/storage.js`](src/storage.js) | `localStorage` за обёрткой: автосохранение, экспорт и импорт состояния файлом, проверка подписи и версии формата. Не зависит от DOM — в тестах подменяется заглушкой в памяти |
-| [`src/ranking.js`](src/ranking.js) | ядро: граф предпочтений, планировщик пар, слой ручных ходов, построение результата. Вся логика ранжирования живёт здесь, интерфейс её не дублирует |
-| [`src/export.js`](src/export.js) | итог в JSON, CSV и текст. Без DOM — поэтому каждый формат проверяется тестом посимвольно, а не глазами в скачанном файле |
-| [`src/ui-*.js`](src/) | экраны поверх ядра: импорт, категории, сравнения, результат, общий каркас приложения и диалог подтверждения |
-| [`server.js`](server.js) | статический сервер на чистом Node: отдаёт файлы проекта, защищён от выхода за корень |
-| [`userscripts/`](userscripts/) | два Tampermonkey-скрипта: выгрузка wishlist и предпросмотр переноса порядка |
+| [`src/model.js`](src/model.js) | the model of an entry (`appId`, title, link, cover, position in the wishlist, type), the six categories, the normalization of anything into that model. It knows about neither the DOM nor the storage |
+| [`src/i18n.js`](src/i18n.js) | the two dictionaries and the lookup around them: `t()`, the plural forms, the current language. No DOM either, so it is tested directly — including the test that the sets of keys of the two languages match exactly |
+| [`src/import.js`](src/import.js) | bringing arbitrary JSON to the model: five shapes on the input, a report with reasons on the output. Merging by `appId`, so a repeated import breeds no duplicates and erases no work |
+| [`src/storage.js`](src/storage.js) | `localStorage` behind a wrapper: autosave, the export and import of the state as a file, the check of the signature and of the format version. It does not depend on the DOM — a test replaces it with an in-memory stub |
+| [`src/ranking.js`](src/ranking.js) | the core: the preference graph, the pair scheduler, the layer of manual moves, the building of the result. All the ranking logic lives here, and the interface does not duplicate it |
+| [`src/export.js`](src/export.js) | the result as JSON, CSV and text. No DOM — which is why every format is checked by a test character by character, instead of by eye in a downloaded file |
+| [`src/ui-*.js`](src/) | the screens on top of the core: import, categories, comparisons, result, the shared frame of the application and the confirmation dialog |
+| [`server.js`](server.js) | a static server on plain Node: it serves the files of the project and is guarded against escaping the root |
+| [`userscripts/`](userscripts/) | two Tampermonkey scripts: the wishlist export and the preview of carrying the order back |
 
-### Алгоритм: граф предпочтений, а не merge sort
+### The algorithm: a preference graph, not a merge sort
 
-Напрашивается взять готовую сортировку слиянием и подставить в компаратор вопрос пользователю.
-Так делать нельзя, и вот почему.
+The obvious move is to take a ready merge sort and put a question to the user into the comparator.
+That must not be done, and here is why.
 
-Merge sort **обязан знать исход текущего сравнения**, чтобы продолжить слияние. А приложению нужны
-два ответа, которых у компаратора не бывает:
+A merge sort **has to know the outcome of the current comparison** to continue merging. And the
+application needs two answers a comparator never has:
 
-- **«примерно одинаково»** — это не «меньше», не «больше» и не «равно» в смысле сортировки:
-  порядок получается нестрогий, с группами равных элементов;
-- **«не могу решить»** — пару надо отложить и **продолжить работать**, а merge sort в этом месте
-  просто встанет.
+- **“about the same”** — that is not “less”, not “greater” and not “equal” in the sense of sorting:
+  the order that comes out is non-strict, with groups of equal elements;
+- **“cannot decide”** — the pair has to be postponed and the work has to **go on**, while a merge
+  sort simply stalls at that point.
 
-Плюс два практических требования: отмена последнего ответа и удаление позиции из списка посреди
-процесса. Для merge sort и то и другое означает начать сначала.
+Plus two practical requirements: undoing the last answer, and removing an entry from the list in the
+middle of the process. For a merge sort both mean starting over.
 
-Поэтому источник истины — **граф**:
+So the source of truth is a **graph**:
 
-- ребро `A → B` означает «A выше B»;
-- структура непересекающихся множеств (union-find) держит группы позиций, объявленных равными;
-- транзитивное замыкание хранится битовыми масками предков и потомков, так что «что мы уже знаем
-  про эту пару» — это поиск за константу, а планировщик спрашивает об этом тысячи раз за сессию.
+- an edge `A → B` means “A is above B”;
+- a disjoint-set structure (union-find) holds the groups of entries declared equal;
+- the transitive closure is kept as bit masks of ancestors and descendants, so “what do we already
+  know about this pair” is a constant time lookup — and the scheduler asks that thousands of times
+  per session.
 
-Из графа всё нужное следует само: транзитивность (пара, вытекающая из уже данных ответов, никогда
-не будет задана), отмена (ответ выбрасывается, история переигрывается), удаление позиции (узел
-исчезает), ничьи (узлы сливаются в одну группу).
+Everything needed follows from the graph by itself: transitivity (a pair implied by the answers
+already given is never asked about), undo (an answer is thrown away and the history is replayed),
+the removal of an entry (a node disappears), the ties (nodes merge into one group).
 
-Поверх графа работает **планировщик** — вставка бинарным поиском, отдельно в каждой категории:
-уже расставленные позиции образуют цепочку, следующая позиция вставляется в неё бинарным поиском,
-и каждая проба сначала адресуется графу. Вопросом пользователю становится только та проба,
-на которую граф ответить не может. Отсюда O(n log n) вопросов вместо O(n²) наивного перебора.
+On top of the graph runs the **scheduler** — a binary insertion, separately in every category: the
+entries already placed form a chain, the next entry is inserted into it by binary search, and every
+probe is addressed to the graph first. A question reaches the user only for the probe the graph
+cannot answer. Hence O(n log n) questions instead of the O(n²) of the naive sweep.
 
-Отложенная пара планировщик не останавливает: позиция, которой она нужна, пропускается, вставляется
-следующая, цепочка растёт — и чаще всего отложенная пара перестаёт быть нужна вовсе. Если все
-оставшиеся вопросы отложены, планировщик сообщает о тупике и показывает первую отложенную пару
-как неизбежную.
+A postponed pair does not stop the scheduler: the entry that needs it is skipped, the next one is
+inserted, the chain grows — and most of the time the postponed pair stops being needed at all. If
+every remaining question is postponed, the scheduler reports the deadlock and shows the first
+postponed pair as unavoidable.
 
-Всё состояние — это позиции, их категории и **append-only история действий**. Граф, группы, очередь
-отложенных и позиция планировщика выводятся из неё детерминированным переигрыванием. Поэтому
-сохранение состояния не теряет ничего, а после перезагрузки приложение задаёт ровно тот же вопрос,
-что и до неё.
+The whole state is the entries, their categories and an **append-only history of actions**. The
+graph, the groups, the queue of postponed pairs and the position of the scheduler are derived from
+it by a deterministic replay. That is why saving the state loses nothing, and after a reload the
+application asks exactly the question it asked before it.
 
-### Ручной порядок как отдельный слой
+### The manual order as a separate layer
 
-Самое интересное решение в проекте. В итоговом списке строку можно перетащить мышью — и это
-не то же самое, что ответ на сравнение.
+The most interesting decision in the project. A row of the final list can be dragged with the mouse
+— and that is not the same thing as an answer to a comparison.
 
-**Ответ — это утверждение о паре.** Он идёт в граф, который append-only и обязан оставаться
-без противоречий. **Перетаскивание — утверждение о списке.** Оно вполне может противоречить ответу,
-данному десять минут назад: вы смотрите на готовый список и видите то, чего не видели, отвечая
-на отдельный вопрос.
+**An answer is a statement about a pair.** It goes into the graph, which is append-only and has to
+stay free of contradictions. **A drag is a statement about the list.** It may perfectly well
+contradict an answer given ten minutes ago: you are looking at a finished list and seeing what you
+could not see while answering a single question.
 
-Отправить перетаскивание в граф значит либо отказать пользователю в его же перестановке, либо
-удалять из графа рёбра. Оба варианта хуже, чем держать два слоя раздельно. Поэтому ручной ход
-хранится как
+Sending a drag into the graph would mean either refusing the user their own move or deleting edges
+from the graph. Both are worse than keeping the two layers apart. So a manual move is stored as
 
 ```js
-{ appId, anchor, side }   // «эта позиция идёт сразу за/перед той»
+{ appId, anchor, side }   // "this entry goes right after / before that one"
 ```
 
-и ходы переигрываются **поверх** порядка, который дали сравнения, в том порядке, в каком их сделали.
-Позиция запоминается относительно соседа, а не номером: список перенумеровывается после каждого
-нового ответа, а «сразу за Portal 2» означает одно и то же всегда.
+and the moves are replayed **on top of** the order the comparisons produce, in the order they were
+made. A place is remembered relative to a neighbour, not as a number: the list is renumbered after
+every new answer, while “right after Portal 2” always means the same thing.
 
-Следствия — все намеренные:
+The consequences are all intentional:
 
-- новые ответы продолжают улучшать список, а ручная расстановка накладывается сверху
-  и не затирается ими;
-- ход, у которого якорь ушёл в другую категорию, не теряется — он просто перестаёт применяться,
-  пока якорь не вернётся, ровно как ответ про несуществующую пару;
-- где ход спорит со сравнениями, побеждает ход, но строка помечается «вручную» и не выдаётся
-  за результат сортировки;
-- планировщик от этого не меняется: он продолжает задавать те же вопросы, потому что перетаскивание
-  никогда не заявляло, что отвечает на один из них.
+- new answers keep improving the list, while the manual arrangement is laid over them and is not
+  erased by them;
+- a move whose anchor has left for another category is not lost — it simply stops applying until the
+  anchor comes back, exactly like an answer about a pair that no longer exists;
+- where a move argues with the comparisons, the move wins, but the row is marked “moved by hand” and
+  is not passed off as a result of the sorting;
+- the scheduler is unaffected: it goes on asking the same questions, because a drag never claimed to
+  answer one of them.
 
-Ручные правки сбрасываются отдельной кнопкой, не трогая ответы на сравнения.
+The manual edits are reset by a button of their own, without touching the comparison answers.
 
 ---
 
-## Приватность
+## Privacy
 
-- Данные никуда не отправляются: **нет сервера, нет бэкенда, нет аналитики, нет cookie, нет токенов.**
-  `server.js` только отдаёт файлы приложения браузеру и не принимает от него ничего.
-- Всё состояние лежит в `localStorage` вашего браузера, на вашей машине, и стирается кнопкой
-  «Начать заново» или очисткой данных сайта.
-- **Единственный внешний запрос за всё время работы приложения — загрузка обложек игр с CDN Steam
-  по публичному URL.** Он отключается тумблером «Загружать обложки» в шапке; с выключенным тумблером
-  приложение не обращается наружу вообще.
-- Userscript-ы не делают сетевых запросов вовсе: `@grant none`, ни одного `@connect`. Cookie,
-  `sessionid` и любые другие секреты они не читают.
-- Это относится и к демо на GitHub Pages: это те же статические файлы, только на чужом хостинге.
-  Ваши данные остаются в вашем браузере — отправить их некому и нечем.
+- Nothing is sent anywhere: **no server, no backend, no analytics, no cookies, no tokens.**
+  `server.js` only hands the files of the application to the browser and accepts nothing from it.
+- The whole state lies in the `localStorage` of your browser, on your machine, and is erased by the
+  “Start over” button or by clearing the site data.
+- **The only external request the application makes at any point is loading game covers from the
+  Steam CDN over a public URL.** It is switched off by the “Load covers” toggle in the header; with
+  the toggle off, the application does not reach outside at all.
+- The userscripts make no network requests whatsoever: `@grant none`, not a single `@connect`. They
+  read neither cookies, nor `sessionid`, nor any other secret.
+- The same holds for the demo on GitHub Pages: the very same static files, only on somebody else's
+  hosting. Your data stays in your browser — there is nobody to send it to and nothing to send it
+  with.
 
-Формулировка «никаких внешних запросов» без оговорки про обложки была бы неправдой, поэтому её
-здесь нет.
-
----
-
-## Ограничения
-
-- **Порядок не переносится в Steam автоматически.** Штатного механизма нет, а имитировать его через
-  сессионный токен и пишущие запросы проект не будет. Второй userscript работает в режиме
-  предпросмотра: отчёт, подсветка и инструкция; перетаскиваете вы. Подробно — в разделе
-  [«Почему расстановка не автоматизирована»](#почему-расстановка-не-автоматизирована).
-- **Селекторы Steam когда-нибудь отвалятся.** Вёрстка wishlist-а менялась уже не раз, и обфусцированные
-  имена классов в новой версии страницы меняются сами по себе. Когда это случится, скрипт скажет
-  «на странице не найдено ни одной позиции» и остановится — молча пустой файл он не отдаст.
-
-  Чинится это в одном месте: объект `STEAM` в начале
-  [`steam-wishlist-export.user.js`](userscripts/steam-wishlist-export.user.js). Там же, в комментарии
-  над ним, расписан порядок действий: открыть wishlist, `Inspect` на строке с игрой, найти элемент,
-  который оборачивает всю строку, и добавить его селектор первым в список `rows`; при необходимости
-  дополнить `titles`, `images`, `scrollers`. Каждое поле — список кандидатов, они пробуются по порядку,
-  так что старые значения можно не удалять. Последний рубеж — запасной разбор по ссылкам `/app/<id>/`,
-  он переживает почти любую смену классов. **Тот же объект продублирован во втором userscript-е** —
-  обновлять надо оба файла: userscript загружается Tampermonkey как отдельный файл и общий модуль
-  подключить неоткуда.
-- **Тип позиции определяется не всегда.** Если страница не показывает пометку «DLC», тип остаётся
-  `unknown` — скрипт не угадывает его, чтобы не писать в файл выдуманные данные.
-- **Публичный эндпоинт даёт только App ID.** Названия и обложки приложение достраивает само;
-  чтобы получить настоящие названия, нужен userscript или повторный импорт поверх.
-- **Один браузер — одно состояние.** Синхронизации между машинами нет и не планируется: это означало бы
-  сервер. Переезд — через файл состояния.
+The wording “no external requests”, without the note about the covers, would be untrue, which is why
+it is not here.
 
 ---
 
-## Структура репозитория
+## Limitations
+
+- **The order is not carried into Steam automatically.** There is no supported mechanism, and the
+  project will not imitate one through a session token and writing requests. The second userscript
+  works in preview mode: a report, highlighting and instructions; the dragging is yours. In detail —
+  in [“Why the arranging is not automated”](#why-the-arranging-is-not-automated).
+- **The Steam selectors will break one day.** The layout of the wishlist has changed more than once,
+  and the obfuscated class names of the newer page change by themselves. When that happens, the
+  script says “not a single item was found on the page” and stops — it will not hand over a silently
+  empty file.
+
+  It is fixed in one place: the `STEAM` object at the top of
+  [`steam-wishlist-export.user.js`](userscripts/steam-wishlist-export.user.js). The comment above it
+  spells out the procedure: open the wishlist, `Inspect` a row with a game, find the element that
+  wraps the whole row and add its selector first to `rows`; extend `titles`, `images` and `scrollers`
+  if needed. Every field is a list of candidates tried in order, so the old values can stay. The last
+  line of defence is the fallback parsing by `/app/<id>/` links, which survives almost any change of
+  class names. **The same object is duplicated in the second userscript** — both files have to be
+  updated: a userscript is loaded by Tampermonkey as a file of its own, and there is nowhere to pull
+  a shared module in from.
+- **The type of an entry is not always known.** When the page shows no “DLC” mark, the type stays
+  `unknown` — the script does not guess it, so that no invented data goes into the file.
+- **The public endpoint gives App IDs only.** The application builds the titles and the covers
+  itself; for the real titles you need the userscript or a later import on top.
+- **One browser, one state.** There is no synchronization between machines and none is planned: that
+  would mean a server. Moving happens through the state file.
+
+---
+
+## Repository layout
 
 ```
-index.html                 точка входа приложения
-styles.css                 стили, тёмная тема
-server.js                  локальный статический сервер на чистом Node
-start.bat                  запуск на Windows (Node, с запасным вариантом на Python)
-src/                       исходный код: модель, импорт, хранилище, ранжирование, экспорт, экраны
-tests/                     тесты на node:test; tests/fixtures — демо-набор и тестовые данные
-userscripts/               два Tampermonkey-скрипта для страницы Steam
-docs/screenshots/          скриншоты для README
-.github/workflows/         CI: node --test на push и pull request
+index.html                 the entry point of the application
+styles.css                 the styles, a dark theme
+server.js                  the local static server on plain Node
+start.bat                  the launcher for Windows (Node, with Python as a fallback)
+src/                       the source: model, i18n, import, storage, ranking, export, screens
+tests/                     the tests on node:test; tests/fixtures — the demo set and test data
+userscripts/               two Tampermonkey scripts for the Steam page
+docs/screenshots/          the screenshots for the README
+.github/workflows/         CI: node --test on push and on pull request
 ```
 
-## Лицензия
+## License
 
 [MIT](LICENSE)
