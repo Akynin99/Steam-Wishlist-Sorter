@@ -63,7 +63,8 @@
   <p class="privacy-note" data-i18n="privacy.note">
     Your data never leaves the browser. The only external request the application makes at any point
     is loading game covers from the Steam CDN over a public URL; it is switched off by the
-    “Load covers” toggle.
+    “Load covers” toggle. The import straight from an account is asked for by the local server on
+    your own machine: it goes to Steam, to nobody else, and only when you press the button.
   </p>
 
   <main id="main" class="main">
@@ -73,12 +74,60 @@
       <div class="stage-head">
         <h1 id="import-heading" data-i18n="import.heading">Import the wishlist</h1>
         <p class="stage-head__hint" data-i18n="import.hint">
-          Load a JSON file with your wishlist — or take the demo set if you just want to see how
-          this works.
+          Bring the wishlist over straight from your Steam account, load it from a JSON file — or
+          take the demo set if you just want to see how this works.
         </p>
       </div>
 
       <div class="import-grid">
+        <article class="panel panel--steam" id="steam-panel">
+          <h2 class="panel__title" data-i18n="steam.title">Straight from a Steam account</h2>
+          <p class="panel__hint" id="steam-hint" data-i18n="steam.hint">
+            Type your SteamID or the name of your profile — the wishlist comes over by itself. It
+            works while the wishlist is public.
+          </p>
+
+          <div class="steam-form" id="steam-form">
+            <label class="visually-hidden" for="steam-account"
+                   data-i18n="steam.label">SteamID64, profile name or a link to the profile</label>
+            <input type="text" id="steam-account" class="input" autocomplete="off" spellcheck="false"
+                   data-i18n-attr="placeholder:steam.placeholder"
+                   placeholder="76561198000000000, nickname or a profile link">
+            <button type="button" class="btn btn--primary" id="steam-run"
+                    data-i18n="steam.run">Fetch the wishlist</button>
+          </div>
+
+          <div class="steam-progress" id="steam-progress" hidden>
+            <div class="progress">
+              <p class="progress__legend" id="steam-progress-text"></p>
+              <div class="progress__bar"><span class="progress__fill" id="steam-progress-fill"></span></div>
+            </div>
+            <p class="panel__hint" data-i18n="steam.note">
+              One title, one request, so a long list takes minutes. Everything that has already
+              arrived is saved — stopping loses nothing.
+            </p>
+            <button type="button" class="btn" id="steam-cancel" data-i18n="steam.cancel">Stop</button>
+          </div>
+
+          <div class="steam-missing" id="steam-missing" hidden>
+            <p class="panel__hint" id="steam-missing-text"></p>
+            <button type="button" class="btn" id="steam-missing-run"
+                    data-i18n="steam.missing.run">Fetch the remaining titles</button>
+          </div>
+
+          <div class="steam-unavailable" id="steam-unavailable" hidden>
+            <p class="steam-unavailable__title" data-i18n="steam.unavailable.title">
+              Only when you run it yourself
+            </p>
+            <p class="panel__hint" data-i18n="steam.unavailable.text">
+              Steam does not let a page ask it for a wishlist, so the request is made by server.js —
+              the local server this application is started with. This page has no such server behind
+              it: it is the demo on GitHub Pages, or a start without Node. Take the userscript or a
+              JSON file instead.
+            </p>
+          </div>
+        </article>
+
         <article class="panel">
           <h2 class="panel__title" data-i18n="import.file.title">JSON file</h2>
           <p class="panel__hint" data-i18n="import.file.hint">

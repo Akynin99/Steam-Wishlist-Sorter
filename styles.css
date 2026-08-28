@@ -829,6 +829,46 @@ kbd {
   background: linear-gradient(160deg, rgb(95 212 196 / 10%) 0%, var(--bg-elevated) 60%);
 }
 
+/* The direct import comes first and is the easiest way in, so the card says so
+   with the accent — until the server behind it turns out not to be there, and
+   the card explains itself in a quieter colour. */
+
+.panel--steam {
+  grid-column: 1 / -1;
+  border-color: var(--accent);
+  background: linear-gradient(160deg, rgb(124 198 255 / 10%) 0%, var(--bg-elevated) 60%);
+}
+
+.panel--steam-off {
+  border-color: var(--border);
+  background: var(--bg-elevated);
+}
+
+.steam-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.steam-progress,
+.steam-missing,
+.steam-unavailable {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.steam-progress .btn,
+.steam-missing .btn {
+  align-self: flex-start;
+}
+
+.steam-unavailable__title {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
 .textarea {
   width: 100%;
   padding: 10px 12px;

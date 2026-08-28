@@ -1,10 +1,12 @@
 /**
- * Import screen: the three ways of getting a wishlist into the application
+ * Import screen: the ways of getting a wishlist into the application — straight
+ * from a Steam account, from a file, from pasted text, from a saved state —
  * plus the demo set, and the report that says what actually happened.
  *
- * Nothing here parses JSON by hand: `import.js` accepts every shape and
- * `storage.js` validates a state file. This module only turns their reason
- * codes into sentences.
+ * Nothing here parses JSON by hand: `import.js` accepts every shape,
+ * `storage.js` validates a state file and `ui-steam.js` owns the conversation
+ * with the local server. This module only turns their reason codes into
+ * sentences.
  *
  * What the feedback block says is kept as data — which report, which numbers,
  * which failure — and drawn from that on every render. A report that was read
@@ -16,6 +18,7 @@ import { plural, t } from './i18n.js';
 import { ImportError, SKIP_REASONS, importItemsSorted } from './import.js';
 import { StorageError } from './storage.js';
 import { clear, element } from './ui-common.js';
+import { createSteamCard } from './ui-steam.js';
 
 /** Where the demo set lives, relative to `index.html`. */
 const DEMO_URL = 'tests/fixtures/sample-wishlist.json';
@@ -72,6 +75,8 @@ export function createImportScreen(app) {
    * @type {null
    *   | { kind: 'report', report: object, sourceKey: string, sourceParams: object }
    *   | { kind: 'state', items: number, comparisons: number, moves: number }
+   *   | { kind: 'steam', run: string, account: string, items: number, titles: number,
+   *       missing: number, throttled: { done: number, total: number }|null, cancelled: boolean }
    *   | { kind: 'failure', titleKey: string, textKey?: string, params?: object, text?: string }}
    */
   let feedback = null;
@@ -162,6 +167,82 @@ export function createImportScreen(app) {
     };
     render();
     app.toast(t('state.restored.toast'), 'ok');
+  }
+
+  /**
+   * The import straight from a Steam account. It brings its own card and its
+   * own progress; what it needs from this screen is a way into the session
+   * and the shared feedback block underneath the cards.
+   */
+  const steam = createSteamCard({
+    app,
+
+    /**
+     * Merges records that arrived from Steam into the session, without
+     * touching the feedback block: this is called while the import is still
+     * running, and the report belongs at the end of it.
+     *
+     * @param {Array<object>} records
+     */
+    absorb(records) {
+      if (records.length === 0) return;
+      let result;
+      try {
+        result = importItemsSorted({ items: records }, { existing: app.session.getItems() });
+      } catch {
+        // Nothing the user can act on: the run reports its own failure, and a
+        // batch that could not be read must not take the whole import down.
+        return;
+      }
+      app.session.setItems(result.items);
+      app.save();
+      app.refreshNav();
+    },
+
+    /**
+     * @param {object} summary What the finished run collected.
+     */
+    finish(summary) {
+      feedback = { ...summary, kind: 'steam' };
+      render();
+      app.announce(t('import.announce', { count: summary.items, total: app.session.itemCount }));
+    },
+
+    fail: showFailure,
+  });
+
+  /**
+   * @param {object} summary
+   * @returns {HTMLElement}
+   */
+  function steamBlock(summary) {
+    // A run that only fetched the missing titles has no account to name: it
+    // was asked for by app id, on the list that is already here.
+    const titles = summary.run === 'titles';
+    const block = element('div', { className: 'report' }, [
+      element('p', {
+        className: 'report__title',
+        text: t(titles ? 'steam.done.titlesTitle' : 'steam.done.title'),
+      }),
+      element('p', {
+        text: t(titles ? 'steam.done.titlesText' : 'steam.done.text', {
+          account: summary.account,
+          items: plural('count.items', summary.items),
+          titles: summary.titles,
+        }),
+      }),
+    ]);
+
+    if (summary.missing > 0) {
+      block.append(element('p', { text: plural('steam.done.missing', summary.missing) }));
+    }
+    if (summary.throttled) {
+      block.append(element('p', { text: t('steam.done.throttled', summary.throttled) }));
+    }
+    if (summary.cancelled) {
+      block.append(element('p', { text: t('steam.cancelled') }));
+    }
+    return block;
   }
 
   /**
@@ -283,6 +364,10 @@ export function createImportScreen(app) {
       nodes.feedback.append(stateBlock(feedback));
       return;
     }
+    if (feedback.kind === 'steam') {
+      nodes.feedback.append(steamBlock(feedback));
+      return;
+    }
 
     nodes.feedback.append(
       element('div', { className: 'report report--error' }, [
@@ -361,6 +446,7 @@ export function createImportScreen(app) {
 
   function render() {
     renderFeedback();
+    steam.render();
 
     const count = app.session.itemCount;
     nodes.current.hidden = count === 0;
