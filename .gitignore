@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+package-lock.json.bak
+
+# Logs
+npm-debug.log*
+*.log
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local exports and backups
+/exports/
+wishlist-state-*.json
