@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Steam Wishlist Sorter — перенос порядка в Steam (предпросмотр)
+// @name         Steam Wishlist Sorter — carry the order into Steam (preview)
 // @namespace    https://github.com/Akynin99/Steam-Wishlist-Sorter
 // @version      1.0.0
-// @description  Читает итоговый JSON из Steam Wishlist Sorter, сверяет его со страницей списка желаемого и показывает, куда какую позицию переставить. Ничего не сохраняет.
+// @description  Reads the final JSON of Steam Wishlist Sorter, matches it against the wishlist page and shows where each item has to go. Saves nothing.
 // @author       Akynin99
 // @license      MIT
 // @homepageURL  https://github.com/Akynin99/Steam-Wishlist-Sorter
@@ -177,7 +177,7 @@
       const row = rowAroundLink(link);
       if (row) rows.add(row);
     }
-    return { rows: [...rows], route: rows.size > 0 ? 'запасной разбор по ссылкам на /app/' : 'ничего' };
+    return { rows: [...rows], route: rows.size > 0 ? 'fallback parsing by /app/ links' : 'nothing' };
   }
 
   /**
@@ -218,7 +218,7 @@
     const offsets = new Map();
     /** @type {number[]} */
     const duplicates = [];
-    let route = 'ничего';
+    let route = 'nothing';
     let steps = 0;
     let stable = 0;
     let timedOut = false;
@@ -294,7 +294,7 @@
   class OrderFileError extends Error {}
 
   /**
-   * Reads and checks the JSON produced by «Порядок (JSON)» in the application.
+   * Reads and checks the JSON produced by "Order as JSON" in the application.
    *
    * The `kind` field is what separates an order from a state dump: a state has
    * a whole session inside it and importing it here would mean showing the user
@@ -310,36 +310,36 @@
     try {
       data = JSON.parse(text);
     } catch (error) {
-      throw new OrderFileError(`Это не JSON: ${error.message}`);
+      throw new OrderFileError(`This is not JSON: ${error.message}`);
     }
 
     if (!data || typeof data !== 'object' || Array.isArray(data)) {
-      throw new OrderFileError('JSON прочитан, но внутри не объект с порядком.');
+      throw new OrderFileError('The JSON was read, but what is inside is not an order object.');
     }
 
     if (data.kind !== ORDER_KIND) {
       if (data.session || data.kind === undefined) {
         throw new OrderFileError(
-          'Это не файл порядка. Похоже на дамп состояния приложения (кнопка «Сохранить в файл»). ' +
-            'Нужен файл с экрана «Результат» → кнопка «Итог в JSON».',
+          'This is not an order file. It looks like a dump of the application state (the “Save to a ' +
+            'file” button). What is needed is the file from the “Result” screen → the “Order as JSON” button.',
         );
       }
-      throw new OrderFileError(`Файл помечен как «${String(data.kind)}», а нужен «${ORDER_KIND}».`);
+      throw new OrderFileError(`The file is marked as “${String(data.kind)}”, and “${ORDER_KIND}” is needed.`);
     }
 
     if (data.app !== APP_SIGNATURE) {
-      throw new OrderFileError('В файле нет подписи Steam Wishlist Sorter.');
+      throw new OrderFileError('The file carries no Steam Wishlist Sorter signature.');
     }
 
     if (!Array.isArray(data.items) || data.items.length === 0) {
-      throw new OrderFileError('В файле нет ни одной позиции в поле items.');
+      throw new OrderFileError('The items field of the file holds no entries at all.');
     }
 
     const versionWarning =
       data.version === ORDER_VERSION
         ? null
-        : `Файл версии ${String(data.version)}, скрипт знает версию ${ORDER_VERSION}. ` +
-          'Показываю как есть — предпросмотр ничего не меняет, но проверьте список глазами.';
+        : `The file is version ${String(data.version)}, the script knows version ${ORDER_VERSION}. ` +
+          'Showing it as it is — the preview changes nothing, but read the list over yourself.';
 
     const items = data.items
       .map((item) => ({
@@ -355,7 +355,7 @@
       .sort((a, b) => a.position - b.position);
 
     if (items.length === 0) {
-      throw new OrderFileError('В items нет ни одной позиции с корректным App ID.');
+      throw new OrderFileError('Not a single entry of items carries a valid App ID.');
     }
 
     const remove = (Array.isArray(data.remove) ? data.remove : [])
@@ -411,13 +411,13 @@
 
         const target = plan.get(appId);
         if (removals.has(appId)) {
-          badge.textContent = 'убрать из wishlist';
+          badge.textContent = 'remove from the wishlist';
           badge.style.background = '#a33b3b';
         } else if (target) {
           badge.textContent = `#${target.position}${target.category ? ` · ${target.category}` : ''}`;
           badge.style.background = '#2d6ea8';
         } else {
-          badge.textContent = 'нет в файле';
+          badge.textContent = 'not in the file';
           badge.style.background = '#4a5462';
         }
       }
@@ -508,20 +508,20 @@
       <style>${PANEL_CSS}</style>
       <div class="panel">
         <div class="head">
-          <b>Wishlist Sorter — перенос порядка</b>
-          <button class="close" type="button" title="Закрыть">✕</button>
+          <b>Wishlist Sorter — carry the order</b>
+          <button class="close" type="button" title="Close">✕</button>
         </div>
         <div class="body">
           <div class="muted">
-            Выберите файл «Итог в JSON» с экрана «Результат». Скрипт сверит его со страницей
-            и покажет отчёт. До вашего подтверждения на странице ничего не меняется.
+            Pick the “Order as JSON” file from the “Result” screen. The script matches it against the
+            page and shows a report. Nothing on the page changes before you confirm it.
           </div>
           <input type="file" accept=".json,application/json" data-act="file">
           <div class="status muted"></div>
           <div class="row">
-            <button class="primary" type="button" data-act="apply" disabled>Показать порядок на странице</button>
-            <button type="button" data-act="clear" disabled>Убрать подсветку</button>
-            <button type="button" data-act="copy" disabled>Скопировать список</button>
+            <button class="primary" type="button" data-act="apply" disabled>Show the order on the page</button>
+            <button type="button" data-act="clear" disabled>Remove the marks</button>
+            <button type="button" data-act="copy" disabled>Copy the list</button>
           </div>
           <div data-act="plan"></div>
         </div>
@@ -553,17 +553,15 @@
     String(text).replace(/[&<>"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[char]);
 
   /**
+   * The English plural of a word, for the counted lines of the report.
+   *
    * @param {number} count
-   * @param {[string, string, string]} forms
+   * @param {string} one
+   * @param {string} many
    * @returns {string}
    */
-  function plural(count, forms) {
-    const n = Math.abs(count) % 100;
-    if (n > 10 && n < 20) return forms[2];
-    const tail = n % 10;
-    if (tail === 1) return forms[0];
-    if (tail >= 2 && tail <= 4) return forms[1];
-    return forms[2];
+  function plural(count, one, many) {
+    return Math.abs(count) === 1 ? one : many;
   }
 
   // ==========================================================================
@@ -594,7 +592,7 @@
     try {
       text = await file.text();
     } catch (error) {
-      panel.say(`Файл не прочитался: ${escapeHtml(error.message)}`, 'error');
+      panel.say(`The file could not be read: ${escapeHtml(error.message)}`, 'error');
       return;
     }
 
@@ -605,16 +603,16 @@
       return;
     }
 
-    panel.say('Читаю страницу: прокручиваю список, чтобы подгрузились все позиции…');
+    panel.say('Reading the page: scrolling the list so that every item loads…');
     page = await scanPage((found) =>
-      panel.say(`Читаю страницу: найдено <b>${found}</b> ${plural(found, ['позиция', 'позиции', 'позиций'])}…`),
+      panel.say(`Reading the page: <b>${found}</b> ${plural(found, 'item', 'items')} found…`),
     );
 
     if (page.appIds.length === 0) {
       panel.say(
-        'На странице не найдено ни одной позиции wishlist-а.<br>' +
-          'Скорее всего, Steam изменил вёрстку. Обновите объект <b>STEAM</b> в начале userscript-а ' +
-          '(как — расписано в скрипте экспорта). Ничего не применено.',
+        'Not a single wishlist item was found on the page.<br>' +
+          'Most likely Steam has changed the layout. Update the <b>STEAM</b> object at the top of the ' +
+          'userscript (the export script spells out how). Nothing was applied.',
         'error',
       );
       return;
@@ -633,9 +631,9 @@
     const removable = order.remove.filter((item) => onPage.has(item.appId));
 
     const lines = [
-      `В файле <b>${order.items.length}</b> ${plural(order.items.length, ['позиция', 'позиции', 'позиций'])}` +
-        `${order.exportedAt ? `, выгружен ${escapeHtml(order.exportedAt.slice(0, 10))}` : ''}.`,
-      `На странице найдено <b>${found.length}</b> из них.`,
+      `The file holds <b>${order.items.length}</b> ${plural(order.items.length, 'item', 'items')}` +
+        `${order.exportedAt ? `, exported on ${escapeHtml(order.exportedAt.slice(0, 10))}` : ''}.`,
+      `<b>${found.length}</b> of them were found on the page.`,
     ];
     let tone = 'ok';
 
@@ -645,37 +643,37 @@
     }
     if (page.timedOut) {
       tone = 'warn';
-      lines.push('Чтение страницы упёрлось в ограничение по времени — список на странице может быть прочитан не весь.');
+      lines.push('Reading the page hit the time limit — the list on the page may have been read only in part.');
     }
     if (missing.length > 0) {
       tone = 'warn';
       const sample = missing.slice(0, 5).map((item) => escapeHtml(item.title || `App ${item.appId}`));
       lines.push(
-        `Не найдено на странице: <b>${missing.length}</b> — ${sample.join(', ')}` +
-          `${missing.length > sample.length ? ' и другие' : ''}. ` +
-          'Обычно это значит, что игру уже купили или убрали из списка желаемого.',
+        `Not found on the page: <b>${missing.length}</b> — ${sample.join(', ')}` +
+          `${missing.length > sample.length ? ' and others' : ''}. ` +
+          'That usually means the game has been bought or taken off the wishlist.',
       );
     }
     if (extra.length > 0) {
       lines.push(
-        `<span class="muted">На странице есть ещё <b>${extra.length}</b> ` +
-          `${plural(extra.length, ['позиция', 'позиции', 'позиций'])}, которых нет в файле: они добавлены ` +
-          'в wishlist после выгрузки. Их места скрипт не трогает.</span>',
+        `<span class="muted">The page holds <b>${extra.length}</b> more ` +
+          `${plural(extra.length, 'item', 'items')} that the file does not: they were added to the ` +
+          'wishlist after the export. The script does not touch their places.</span>',
       );
     }
     if (page.duplicates.length > 0) {
       tone = 'warn';
-      lines.push(`Дубликаты на странице: ${page.duplicates.map((id) => `App ${id}`).join(', ')}.`);
+      lines.push(`Duplicates on the page: ${page.duplicates.map((id) => `App ${id}`).join(', ')}.`);
     }
     if (removable.length > 0) {
       lines.push(
-        `Помечено на удаление из wishlist: <b>${removable.length}</b>. ` +
-          'Скрипт их только подсветит красным — удаляете вы сами.',
+        `Marked for removal from the wishlist: <b>${removable.length}</b>. ` +
+          'The script only marks them red — you remove them yourself.',
       );
     }
 
     lines.push(
-      '<span class="muted">Порядок сопоставляется по App ID; названия показаны только для чтения глазами.</span>',
+      '<span class="muted">The order is matched by App ID; the titles are there for you to read, nothing more.</span>',
     );
     panel.say(lines.join('<br>'), tone);
 
@@ -696,7 +694,7 @@
 
     const caption = document.createElement('div');
     caption.className = 'muted';
-    caption.textContent = 'Целевой порядок — нажмите на строку, чтобы найти её на странице:';
+    caption.textContent = 'The target order — click a line to find it on the page:';
     box.append(caption);
 
     for (const item of order.items) {
@@ -710,7 +708,7 @@
 
       const title = document.createElement('span');
       title.className = `plan-title${isMissing ? ' plan-missing' : ''}`;
-      title.textContent = `${item.title || `App ${item.appId}`}${isMissing ? ' — нет на странице' : ''}`;
+      title.textContent = `${item.title || `App ${item.appId}`}${isMissing ? ' — not on the page' : ''}`;
 
       line.append(number, title);
       if (!isMissing) {
@@ -740,15 +738,15 @@
     const hint = document.createElement('div');
     hint.className = 'hint';
     hint.innerHTML =
-      '<b>Дальше — вручную.</b><br>' +
-      'Steam не даёт надёжного способа расставить список программно, поэтому скрипт ' +
-      'ничего не сохраняет и не нажимает.<br><br>' +
-      '1. В сортировке wishlist выберите свой порядок («Your rank» / «Ваш рейтинг») ' +
-      'и снимите фильтры — иначе перетаскивание недоступно.<br>' +
-      '2. Берите позиции по списку сверху вниз: #1, #2, #3 — и перетаскивайте каждую на её место. ' +
-      'Синяя метка на строке показывает целевой номер.<br>' +
-      '3. Красные метки — то, что вы пометили «удалить из желаемого»; уберите их сами.<br>' +
-      '4. Steam сохраняет перестановку сам; кнопку сохранения скрипт не нажимает никогда.';
+      '<b>The rest is by hand.</b><br>' +
+      'Steam offers no reliable way of arranging the list programmatically, so the script saves ' +
+      'nothing and presses nothing.<br><br>' +
+      '1. In the wishlist sorting, pick your own order (“Your rank”) and clear the filters — ' +
+      'dragging is not available otherwise.<br>' +
+      '2. Take the items from the top down: #1, #2, #3 — and drag each one to its place. The blue ' +
+      'mark on a row shows the number it has to end up at.<br>' +
+      '3. The red marks are what you marked as “remove from the wishlist”; take those off yourself.<br>' +
+      '4. Steam saves the arrangement itself; the script never presses the save button.';
     panel.plan.prepend(hint);
   });
 
@@ -763,12 +761,15 @@
     const text = order.items.map((item) => `${item.position}. ${item.title || `App ${item.appId}`}`).join('\n');
     try {
       await navigator.clipboard.writeText(text);
-      panel.copy.textContent = 'Скопировано';
+      panel.copy.textContent = 'Copied';
       setTimeout(() => {
-        panel.copy.textContent = 'Скопировать список';
+        panel.copy.textContent = 'Copy the list';
       }, 1500);
     } catch {
-      panel.say('Браузер не дал доступ к буферу обмена. Список целиком виден ниже — скопируйте его выделением.', 'warn');
+      panel.say(
+        'The browser refused access to the clipboard. The whole list is visible below — copy it by selecting it.',
+        'warn',
+      );
     }
   });
 })();

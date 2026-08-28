@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Steam Wishlist Sorter — экспорт списка желаемого
+// @name         Steam Wishlist Sorter — wishlist export
 // @namespace    https://github.com/Akynin99/Steam-Wishlist-Sorter
 // @version      1.0.0
-// @description  Собирает список желаемого со страницы Steam (с учётом ленивой подгрузки) и сохраняет его в JSON для Steam Wishlist Sorter
+// @description  Collects the wishlist from the Steam page (lazy loading included) and saves it as JSON for Steam Wishlist Sorter
 // @author       Akynin99
 // @license      MIT
 // @homepageURL  https://github.com/Akynin99/Steam-Wishlist-Sorter
@@ -53,8 +53,8 @@
    *     selector to `rows`, first in the list;
    *  3. check that the title, the image and the link inside it are still found
    *     by `title`, `image` and `appLink`; add selectors if they are not;
-   *  4. reload and press «Собрать список». The report says how many rows were
-   *     found and by which route.
+   *  4. reload and press "Collect the list". The report says how many rows
+   *     were found and by which route.
    */
   const STEAM = {
     /** Wishlist lives at /wishlist/profiles/<steamid64>/ and /wishlist/id/<vanity>/. */
@@ -210,7 +210,7 @@
       const row = rowAroundLink(link);
       if (row) rows.add(row);
     }
-    return { rows: [...rows], route: rows.size > 0 ? 'запасной разбор по ссылкам на /app/' : 'ничего' };
+    return { rows: [...rows], route: rows.size > 0 ? 'fallback parsing by /app/ links' : 'nothing' };
   }
 
   /**
@@ -319,6 +319,8 @@
     if (label) {
       const text = label.textContent.trim().toLowerCase();
       if (text.includes('dlc') || text.includes('downloadable content')) return 'dlc';
+      // The page speaks the language of the store, so the label is matched in
+      // both: this is text Steam wrote, not text this script owns.
       if (text === 'game' || text === 'игра') return 'game';
     }
 
@@ -409,7 +411,7 @@
 
     /** @type {Map<number, { appId: number, title: string, url: string, imageUrl: string, kind: string, offset: number, seq: number }>} */
     const seen = new Map();
-    let route = 'ничего';
+    let route = 'nothing';
     let steps = 0;
     let stable = 0;
     let timedOut = false;
@@ -595,15 +597,15 @@
       <style>${PANEL_CSS}</style>
       <div class="panel">
         <div class="head">
-          <b>Wishlist Sorter — экспорт</b>
-          <button class="close" type="button" title="Закрыть">✕</button>
+          <b>Wishlist Sorter — export</b>
+          <button class="close" type="button" title="Close">✕</button>
         </div>
         <div class="body">
-          <div class="status muted">Нажмите «Собрать список»: страница прокрутится сама, чтобы подгрузились все позиции.</div>
+          <div class="status muted">Press “Collect the list”: the page scrolls itself so that every item loads.</div>
           <div class="row">
-            <button class="primary" type="button" data-act="run">Собрать список</button>
-            <button type="button" data-act="stop" disabled>Остановить</button>
-            <button type="button" data-act="save" disabled>Скачать JSON</button>
+            <button class="primary" type="button" data-act="run">Collect the list</button>
+            <button type="button" data-act="stop" disabled>Stop</button>
+            <button type="button" data-act="save" disabled>Download JSON</button>
           </div>
         </div>
       </div>
@@ -631,17 +633,15 @@
   }
 
   /**
+   * The English plural of a word, for the counted lines of the report.
+   *
    * @param {number} count
-   * @param {[string, string, string]} forms
+   * @param {string} one
+   * @param {string} many
    * @returns {string}
    */
-  function plural(count, forms) {
-    const n = Math.abs(count) % 100;
-    if (n > 10 && n < 20) return forms[2];
-    const tail = n % 10;
-    if (tail === 1) return forms[0];
-    if (tail >= 2 && tail <= 4) return forms[1];
-    return forms[2];
+  function plural(count, one, many) {
+    return Math.abs(count) === 1 ? one : many;
   }
 
   /** Escapes text that goes into the panel through `innerHTML`. */
@@ -675,7 +675,7 @@
     panel.run.disabled = true;
     panel.save.disabled = true;
     panel.stop.disabled = false;
-    panel.say('Прокручиваю страницу…');
+    panel.say('Scrolling the page…');
 
     const expected = readExpectedCount();
     let result;
@@ -683,16 +683,16 @@
       result = await collect(
         ({ found, step }) =>
           panel.say(
-            `Прокручиваю страницу: собрано <b>${found}</b> ${plural(found, ['позиция', 'позиции', 'позиций'])}` +
-              `<br><span class="muted">шаг ${step}, страница листается сама — не трогайте её</span>`,
+            `Scrolling the page: <b>${found}</b> ${plural(found, 'item', 'items')} collected` +
+              `<br><span class="muted">step ${step}, the page scrolls itself — do not touch it</span>`,
           ),
         () => cancelled,
       );
     } catch (error) {
       panel.say(
-        `Сбор прервался ошибкой: ${escapeHtml(error.message)}.<br>` +
-          'Перезагрузите страницу и попробуйте ещё раз; если повторяется — вёрстка Steam изменилась, ' +
-          'обновите объект <b>STEAM</b> в начале userscript-а.',
+        `The collection stopped with an error: ${escapeHtml(error.message)}.<br>` +
+          'Reload the page and try again; if it keeps happening, the layout of Steam has changed — ' +
+          'update the <b>STEAM</b> object at the top of the userscript.',
         'error',
       );
       panel.run.disabled = false;
@@ -707,11 +707,11 @@
     // that looks like a successful export is worse than an honest refusal.
     if (result.items.length === 0) {
       panel.say(
-        'На странице не найдено ни одной позиции.<br>' +
-          'Скорее всего, Steam изменил вёрстку wishlist-а. Файл не создан.<br>' +
-          '<span class="muted">Что делать: откройте userscript, найдите объект <b>STEAM</b> в начале файла ' +
-          'и обновите селекторы <b>rows</b> / <b>titles</b> — там же расписано, как это сделать. ' +
-          'Запасной путь без userscript-а описан в README проекта.</span>',
+        'Not a single item was found on the page.<br>' +
+          'Most likely Steam has changed the layout of the wishlist. No file was created.<br>' +
+          '<span class="muted">What to do: open the userscript, find the <b>STEAM</b> object at the top of ' +
+          'the file and update the <b>rows</b> / <b>titles</b> selectors — the instructions are right there. ' +
+          'The way around the userscript is described in the README of the project.</span>',
         'error',
       );
       return;
@@ -721,40 +721,40 @@
 
     const found = result.items.length;
     const lines = [
-      `Собрано <b>${found}</b> ${plural(found, ['позиция', 'позиции', 'позиций'])}.`,
-      `<span class="muted">Разбор: ${escapeHtml(result.route)}; шагов прокрутки: ${result.steps}.</span>`,
+      `<b>${found}</b> ${plural(found, 'item', 'items')} collected.`,
+      `<span class="muted">Parsing: ${escapeHtml(result.route)}; scroll steps: ${result.steps}.</span>`,
     ];
     let tone = 'ok';
 
     if (result.cancelled) {
       tone = 'warn';
-      lines.push('<b>Сбор остановлен вручную</b> — список наверняка неполный.');
+      lines.push('<b>The collection was stopped by hand</b> — the list is certainly incomplete.');
     } else if (result.timedOut) {
       tone = 'warn';
-      lines.push('<b>Сработало ограничение по времени или числу шагов</b> — список может быть неполным.');
+      lines.push('<b>The limit on time or on the number of steps was reached</b> — the list may be incomplete.');
     } else if (!result.reachedBottom) {
       tone = 'warn';
-      lines.push('<b>Низ списка не был достигнут</b> — список может быть неполным.');
+      lines.push('<b>The bottom of the list was not reached</b> — the list may be incomplete.');
     }
 
     if (expected !== null && expected !== found) {
       tone = 'warn';
       lines.push(
-        `Steam на этой странице сообщает про <b>${expected}</b>, а собрано <b>${found}</b>. ` +
-          'Прокрутите список до конца вручную и запустите сбор ещё раз.',
+        `Steam says there are <b>${expected}</b> on this page, and <b>${found}</b> were collected. ` +
+          'Scroll the list to the very end by hand and run the collection again.',
       );
     }
 
     const unknown = result.items.filter((item) => item.kind === 'unknown').length;
     if (unknown > 0) {
       lines.push(
-        `<span class="muted">У ${unknown} ${plural(unknown, ['позиции', 'позиций', 'позиций'])} ` +
-          'тип не определён: страница не показывает пометку «DLC». Это нормально, приложение ' +
-          'считает такой тип неизвестным и не выдумывает его.</span>',
+        `<span class="muted">${unknown} ${plural(unknown, 'item has', 'items have')} no type: the page ` +
+          'shows no “DLC” mark for them. That is fine — the application calls such a type unknown ' +
+          'instead of inventing one.</span>',
       );
     }
 
-    lines.push('Нажмите «Скачать JSON» и загрузите файл в Steam Wishlist Sorter.');
+    lines.push('Press “Download JSON” and load the file into Steam Wishlist Sorter.');
     panel.say(lines.join('<br>'), tone);
     panel.save.disabled = false;
   });
