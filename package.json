@@ -1,0 +1,14 @@
+{
+  "name": "steam-wishlist-sorter",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local web application that ranks a Steam wishlist by pairwise comparisons",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test"
+  }
+}
