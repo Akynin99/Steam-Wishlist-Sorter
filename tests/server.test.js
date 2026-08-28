@@ -13,7 +13,7 @@
 
 import assert from 'node:assert/strict';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { request as httpRequest } from 'node:http';
+import { createServer, request as httpRequest } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join, relative, resolve, sep } from 'node:path';
 import test from 'node:test';
@@ -26,11 +26,12 @@ import { MIME_TYPES, ROOT, contentTypeOf, createStaticServer, resolveRequestPath
  * @param {number} port
  * @param {string} path Raw request target, sent without normalization.
  * @param {string} [method]
+ * @param {object} [headers]
  * @returns {Promise<{ status: number, headers: object, body: string }>}
  */
-function rawRequest(port, path, method = 'GET') {
+function rawRequest(port, path, method = 'GET', headers = {}) {
   return new Promise((settle, fail) => {
-    const call = httpRequest({ host: '127.0.0.1', port, path, method }, (response) => {
+    const call = httpRequest({ host: '127.0.0.1', port, path, method, headers }, (response) => {
       const chunks = [];
       response.on('data', (chunk) => chunks.push(chunk));
       response.on('end', () =>
@@ -214,5 +215,102 @@ test('no request reads a file that lies outside the served folder', async () => 
   } finally {
     await server.close();
     await rm(outsideDir, { recursive: true, force: true });
+  }
+});
+
+
+/* ------------------------------------------------------------- the api */
+
+test('the health endpoint says the local server is there', async () => {
+  const server = await startServer();
+  try {
+    const answer = await rawRequest(server.port, '/api/health');
+    assert.equal(answer.status, 200);
+    assert.equal(answer.headers['content-type'], 'application/json; charset=utf-8');
+    assert.equal(answer.headers['cache-control'], 'no-store');
+    assert.deepEqual(JSON.parse(answer.body), {
+      ok: true,
+      app: 'steam-wishlist-sorter',
+      steamImport: true,
+    });
+
+    // An endpoint that does not exist is a 404 and never a file lookup.
+    const unknown = await rawRequest(server.port, '/api/whatever');
+    assert.equal(unknown.status, 404);
+  } finally {
+    await server.close();
+  }
+});
+
+test('the api answers on localhost only', async () => {
+  const server = await startServer();
+  try {
+    // A page on any site can send a request to localhost, and a hostname that
+    // resolves to 127.0.0.1 is how DNS rebinding is spelled.
+    const foreign = await rawRequest(server.port, '/api/health', 'GET', { Host: 'rebound.example.com' });
+    assert.equal(foreign.status, 403);
+    assert.equal(JSON.parse(foreign.body).code, 'not-local');
+
+    const local = await rawRequest(server.port, '/api/health', 'GET', { Host: `localhost:${server.port}` });
+    assert.equal(local.status, 200);
+  } finally {
+    await server.close();
+  }
+});
+
+test('the wishlist endpoint takes an account, and never an address', async () => {
+  // A server that stands in for anything on the home network. Not one request
+  // may reach it: the assertion of this test is that it stays untouched.
+  const trapHits = [];
+  const trap = createServer((request, response) => {
+    trapHits.push(request.url);
+    response.end('this must never be fetched');
+  });
+  await new Promise((done) => trap.listen(0, '127.0.0.1', done));
+  const trapUrl = `http://127.0.0.1:${trap.address().port}/`;
+
+  const server = await startServer();
+  try {
+    const attempts = [
+      // There is no parameter that takes a URL, so naming one changes nothing.
+      `/api/steam/wishlist?url=${encodeURIComponent(trapUrl)}`,
+      `/api/steam/wishlist?target=${encodeURIComponent(trapUrl)}&account=`,
+      // And an address written into the account is refused as an account.
+      `/api/steam/wishlist?account=${encodeURIComponent(trapUrl)}`,
+      `/api/steam/wishlist?account=${encodeURIComponent(`${trapUrl}id/someone`)}`,
+      `/api/steam/wishlist?account=${encodeURIComponent(`https://steamcommunity.com@127.0.0.1:${trap.address().port}/id/someone`)}`,
+      `/api/steam/wishlist?account=${encodeURIComponent('//127.0.0.1/id/someone')}`,
+      `/api/steam/wishlist?account=${encodeURIComponent('file:///c:/windows/win.ini')}`,
+      `/api/steam/wishlist?account=${encodeURIComponent('https://evil.example.com/id/someone')}`,
+      `/api/steam/wishlist?account=${encodeURIComponent('not an account')}`,
+      // The same for the endpoint that fetches titles: app ids, nothing else.
+      `/api/steam/titles?appids=${encodeURIComponent(trapUrl)}`,
+      '/api/steam/titles?appids=',
+    ];
+
+    for (const attempt of attempts) {
+      const answer = await rawRequest(server.port, attempt);
+      assert.ok(
+        answer.status >= 400 && answer.status < 500,
+        `${attempt} answered ${answer.status} instead of refusing`,
+      );
+      assert.equal(JSON.parse(answer.body).type, 'error');
+    }
+
+    assert.deepEqual(trapHits, [], 'the server was made to call something that is not Steam');
+  } finally {
+    await server.close();
+    await new Promise((done) => trap.close(done));
+  }
+});
+
+test('a HEAD does not start a walk over Steam', async () => {
+  const server = await startServer();
+  try {
+    const answer = await rawRequest(server.port, '/api/steam/wishlist?account=someone', 'HEAD');
+    assert.equal(answer.status, 405);
+    assert.equal(answer.headers.allow, 'GET');
+  } finally {
+    await server.close();
   }
 });

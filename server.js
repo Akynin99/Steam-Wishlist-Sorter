@@ -6,6 +6,13 @@
  * dependency-free, private, local tool, so the twenty lines it actually takes
  * live here, on the standard library of Node alone.
  *
+ * It serves files, and it does one thing more: on `/api/steam/…` it asks Steam
+ * for a wishlist on behalf of the page, because no Steam endpoint sends a CORS
+ * header and the browser is therefore not allowed to ask by itself. That is
+ * the only outbound request this server ever makes, it goes to Steam and
+ * nowhere else, and it happens only when the user presses the button.
+ * `src/steam.js` holds the rules it obeys.
+ *
  * Usage:  node server.js [port]
  */
 
@@ -14,6 +21,8 @@ import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { MAX_APP_IDS, SteamError, collectTitles, collectWishlist } from './src/steam.js';
 
 /** Directory served to the browser: the project root, next to this file. */
 export const ROOT = resolve(fileURLToPath(new URL('.', import.meta.url)));
@@ -119,11 +128,207 @@ async function findFile(target) {
   return null;
 }
 
+/* ---------------------------------------------------------------- api */
+
+/**
+ * Everything under this prefix is answered by the server itself and is never
+ * looked for on disk.
+ */
+export const API_PREFIX = '/api/';
+
+/**
+ * Content type of the progress stream: one JSON event per line. The import of
+ * a wishlist of two hundred entries takes minutes, and the page has to show
+ * what is happening while it does.
+ */
+const NDJSON_TYPE = 'application/x-ndjson; charset=utf-8';
+
+/**
+ * What HTTP status a failure gets when it happens before the stream has
+ * started. Once the first event is out the status is already 200 and the
+ * failure travels as an `error` event instead — the page reads both the same
+ * way, because a lone JSON object is also a stream of one line.
+ *
+ * @type {Readonly<Record<string, number>>}
+ */
+const ERROR_STATUS = Object.freeze({
+  'empty-input': 400,
+  'invalid-account': 400,
+  'account-not-found': 404,
+  'wishlist-empty': 404,
+  'wishlist-private': 403,
+  'rate-limited': 429,
+  'blocked-host': 400,
+  network: 502,
+  'steam-error': 502,
+});
+
+/**
+ * Whether the request came to the loopback name this server is published
+ * under. The server listens on 127.0.0.1 only, so nothing on the network can
+ * reach it — but a page on any site can send a request to `localhost`, and a
+ * hostname that resolves to 127.0.0.1 is how DNS rebinding is spelled. The
+ * check costs one line and closes that door too.
+ *
+ * @param {import('node:http').IncomingMessage} request
+ * @returns {boolean}
+ */
+function isLocalRequest(request) {
+  const host = String(request.headers.host ?? '');
+  if (!host) return false;
+  const name = host.replace(/:\d+$/, '').replace(/^\[|\]$/g, '').toLowerCase();
+  return name === 'localhost' || name === '127.0.0.1' || name === '::1';
+}
+
+/**
+ * Sends a small JSON answer.
+ *
+ * @param {import('node:http').ServerResponse} response
+ * @param {number} status
+ * @param {object} payload
+ */
+function sendJson(response, status, payload) {
+  const body = `${JSON.stringify(payload)}\n`;
+  response.writeHead(status, {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Content-Length': Buffer.byteLength(body),
+    'Cache-Control': 'no-store',
+    'X-Content-Type-Options': 'nosniff',
+  });
+  response.end(body);
+}
+
+/**
+ * Pours a stream of events into the answer, as newline-delimited JSON.
+ *
+ * The head is written only when the first event is ready, so a request that
+ * fails on the input — a malformed account, a closed wishlist — still gets a
+ * telling status code instead of a 200 with bad news inside.
+ *
+ * @param {import('node:http').IncomingMessage} request
+ * @param {import('node:http').ServerResponse} response
+ * @param {(signal: AbortSignal) => AsyncIterable<object>} makeEvents
+ */
+async function sendEventStream(request, response, makeEvents) {
+  // The browser cancels by dropping the connection, and that has to reach the
+  // walk over Steam: otherwise a cancelled import keeps asking for titles.
+  const controller = new AbortController();
+  request.on('close', () => controller.abort());
+
+  let started = false;
+  const write = (event) => {
+    if (response.writableEnded || response.destroyed) return;
+    if (!started) {
+      started = true;
+      response.writeHead(200, {
+        'Content-Type': NDJSON_TYPE,
+        'Cache-Control': 'no-store',
+        'X-Content-Type-Options': 'nosniff',
+      });
+    }
+    response.write(`${JSON.stringify(event)}\n`);
+  };
+
+  try {
+    for await (const event of makeEvents(controller.signal)) write(event);
+    write({ type: 'finished' });
+  } catch (error) {
+    const code = error instanceof SteamError ? error.code : 'steam-error';
+    if (code === 'cancelled') {
+      // The user walked away; there is nobody left to tell.
+      if (!response.writableEnded) response.end();
+      return;
+    }
+    const payload = { type: 'error', code, message: error.message };
+    if (started) write(payload);
+    else sendJson(response, ERROR_STATUS[code] ?? 502, payload);
+  }
+
+  if (!response.writableEnded) response.end();
+}
+
+/**
+ * Answers the endpoints of the application. Returns `false` when the path is
+ * not one of them, so an unknown `/api/…` becomes an ordinary 404 rather than
+ * a file lookup.
+ *
+ * Neither endpoint takes an address: one takes an account, the other a list of
+ * app ids. A local server that forwarded arbitrary URLs would be an open proxy
+ * into the network of whoever is running it, and that is the one thing this
+ * feature must never become.
+ *
+ * @param {import('node:http').IncomingMessage} request
+ * @param {import('node:http').ServerResponse} response
+ * @param {URL} url
+ * @returns {Promise<boolean>} Whether the request was answered here.
+ */
+export async function handleApiRequest(request, response, url) {
+  if (!isLocalRequest(request)) {
+    sendJson(response, 403, {
+      type: 'error',
+      code: 'not-local',
+      message: 'This server answers on localhost only',
+    });
+    return true;
+  }
+
+  // Asked by the page on start: on GitHub Pages there is no server to answer,
+  // and the card explains itself instead of offering a button that cannot work.
+  if (url.pathname === '/api/health') {
+    sendJson(response, 200, { ok: true, app: 'steam-wishlist-sorter', steamImport: true });
+    return true;
+  }
+
+  // A HEAD would start the whole walk over Steam and then throw the answer
+  // away, so the two long endpoints are answered for GET alone.
+  if (request.method === 'HEAD') {
+    response.setHeader('Allow', 'GET');
+    sendJson(response, 405, { type: 'error', code: 'method', message: 'GET only' });
+    return true;
+  }
+
+  if (url.pathname === '/api/steam/wishlist') {
+    const account = url.searchParams.get('account') ?? '';
+    await sendEventStream(request, response, (signal) => collectWishlist(account, { signal }));
+    return true;
+  }
+
+  if (url.pathname === '/api/steam/titles') {
+    const appIds = (url.searchParams.get('appids') ?? '').split(',').filter(Boolean);
+    if (appIds.length > MAX_APP_IDS) {
+      sendJson(response, 400, {
+        type: 'error',
+        code: 'invalid-account',
+        message: `Steam import: more than ${MAX_APP_IDS} app ids at once`,
+      });
+      return true;
+    }
+    await sendEventStream(request, response, (signal) => collectTitles(appIds, { signal }));
+    return true;
+  }
+
+  return false;
+}
+
 /** @type {import('node:http').RequestListener} */
 export async function handleRequest(request, response) {
   if (request.method !== 'GET' && request.method !== 'HEAD') {
     response.setHeader('Allow', 'GET, HEAD');
     sendText(response, 405, 'Method Not Allowed');
+    return;
+  }
+
+  let url;
+  try {
+    url = new URL(request.url ?? '/', 'http://localhost');
+  } catch {
+    sendText(response, 400, 'Bad Request');
+    return;
+  }
+
+  if (url.pathname.startsWith(API_PREFIX)) {
+    if (await handleApiRequest(request, response, url)) return;
+    sendText(response, 404, 'Not Found');
     return;
   }
 
