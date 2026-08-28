@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Steam Wishlist Sorter — carry the order into Steam
 // @namespace    https://github.com/Akynin99/Steam-Wishlist-Sorter
-// @version      2.1.0
+// @version      2.2.0
 // @description  Reads the final JSON of Steam Wishlist Sorter and writes that order into the Steam wishlist: a report first, a backup file second, then one single request. Entries marked for removal are only listed, never deleted.
 // @author       Akynin99
 // @license      MIT
@@ -36,6 +36,22 @@
  * `sessionStorage`, never printed into the panel or the console, and never sent
  * to the local server of the application. There is no `@connect` and no
  * `@grant`, so the script could not reach another host even if it tried.
+ *
+ * ## Whose wishlist is being written
+ *
+ * The address takes a SteamID64 and nothing else, and Steam brings the page to
+ * `/wishlist/id/<custom url>/`, redirecting the numeric form back to it. So the
+ * account is looked for in five places, from the one that cannot be wrong to
+ * the one that merely usually is not: seventeen digits in the path; `g_steamID`
+ * of the old layout; a link on the page to this same wishlist by its numeric
+ * address; that address inside an inline script; a `data-steamid` attribute.
+ *
+ * Every one of them is read, not the first that answers. Sources that disagree
+ * are a refusal and not a choice: a page carries links to wishlists other than
+ * its own, and an order written into the wrong account cannot be taken back.
+ * When nothing answers, the panel asks for the seventeen digits instead of
+ * guessing. The account is named in the report and again at the confirmation —
+ * the last two places where an error is still free.
  *
  * ## What it refuses to do
  *
@@ -886,33 +902,155 @@
   const STEAM_ID_PATTERN = /^\d{17}$/;
 
   /**
+   * Where a page writes down the account a wishlist belongs to.
+   *
+   * Steam brings the address to `/wishlist/id/<custom url>/` and redirects the
+   * numeric form back to it, and the rewritten page defines no `g_steamID` and
+   * carries no miniprofile element — so a single source is no longer a plan.
+   * The list below is the chain, from what cannot be wrong to what merely
+   * usually is not: the address itself, the variable the old layout defined,
+   * the numeric link the new one puts on the page, the scripts, an attribute.
+   */
+  const OWNER = {
+    numericPath: /^\/wishlist\/profiles\/(\d{17})(?:\/|$)/,
+    vanityPath: /^\/wishlist\/id\/([^/?#]+)(?:\/|$)/,
+    profileLinks: 'a[href*="wishlist/profiles/"]',
+    inlineScripts: 'script:not([src])',
+    elements: '[data-steamid]',
+    // `(?!\d)` is not decoration: without it an eighteen digit number reads as a
+    // seventeen digit one with a digit after it, and the id of nobody becomes
+    // the id of somebody.
+    inAddress: /wishlist\/profiles\/(\d{17})(?!\d)/,
+    everyAddress: /wishlist\/profiles\/(\d{17})(?!\d)/g,
+    inScript: /g_steamID\s*=\s*["'](\d{17})["']/,
+  };
+
+  /** What each source is, in words, for the line of the report that names the account. */
+  const OWNER_SOURCE_WORDS = {
+    path: 'the numeric address of this page',
+    g_steamID: 'the account this page says is signed in',
+    'profile-link': 'a link on the page to this wishlist by its numeric address',
+    'inline-script': 'a script of the page',
+    'data-steamid': 'an element of the page',
+    manual: 'the id you typed in yourself',
+  };
+
+  /**
+   * Every account id the page states, each with the source that stated it.
+   *
+   * It collects rather than returns the first hit on purpose. The sources can
+   * disagree — a page carries links to wishlists other than its own — and a
+   * disagreement has to be visible to the caller, because writing an order into
+   * the wrong account is not undoable. Nothing is chosen here; the choosing,
+   * and the refusal to choose, is `resolveReorderTarget`.
+   *
+   * Pure: the document and the globals come in as arguments, so the whole chain
+   * is exercised against a mock page in the tests.
+   *
+   * @param {{ pathname?: string, document?: object|null, globals?: Array<object|null> }} [input]
+   * @returns {{ fromPath: string|null, vanity: string|null,
+   *             candidates: Array<{ source: string, steamId: string }> }}
+   */
+  function collectOwnerCandidates({ pathname = '', document: doc = null, globals = [] } = {}) {
+    const path = String(pathname ?? '');
+    const fromPath = OWNER.numericPath.exec(path)?.[1] ?? null;
+    const vanity = OWNER.vanityPath.exec(path)?.[1] ?? null;
+
+    /** @type {Array<{ source: string, steamId: string }>} */
+    const candidates = [];
+    const add = (source, value) => {
+      const steamId = String(value ?? '');
+      if (STEAM_ID_PATTERN.test(steamId)) candidates.push({ source, steamId });
+    };
+
+    // 1. The address, when the page was opened by the numeric form.
+    if (fromPath) add('path', fromPath);
+
+    // 2. The variable of the old layout, in the page and in the isolated world.
+    for (const scope of globals) {
+      if (scope) add('g_steamID', scope.g_steamID);
+    }
+    const scripts = doc ? [...doc.querySelectorAll(OWNER.inlineScripts)] : [];
+    for (const script of scripts) {
+      add('g_steamID', OWNER.inScript.exec(String(script.textContent ?? ''))?.[1]);
+    }
+
+    // 3. The numeric address of this same wishlist, linked on the page.
+    if (doc) {
+      for (const link of doc.querySelectorAll(OWNER.profileLinks)) {
+        add('profile-link', OWNER.inAddress.exec(link.getAttribute('href') ?? '')?.[1]);
+      }
+    }
+
+    // 4. The same address written into a script of the page.
+    for (const script of scripts) {
+      for (const match of String(script.textContent ?? '').matchAll(OWNER.everyAddress)) {
+        add('inline-script', match[1]);
+      }
+    }
+
+    // 5. An attribute, the way the pages of the community carry one.
+    if (doc) {
+      for (const node of doc.querySelectorAll(OWNER.elements)) add('data-steamid', node.getAttribute('data-steamid'));
+    }
+
+    return { fromPath, vanity, candidates };
+  }
+
+  /**
    * Address of the reorder endpoint of the wishlist that is open.
    *
    * The wishlist is reachable under two addresses: `/wishlist/profiles/<17
    * digits>/` and `/wishlist/id/<custom url>/`. The endpoint takes the numeric
-   * one only, so the second form is answered out of `g_steamID` — the account
-   * the page says is signed in.
+   * one only, so under a custom url the id has to be found on the page —
+   * `collectOwnerCandidates` is the search, and this is what is done with what
+   * it found.
    *
-   * That substitution is named out loud in `note`, because a custom url says
-   * nothing about whose wishlist it is: on someone else's page the request
-   * would be made for the signed-in account, and Steam would refuse it. The
-   * numeric form needs no such note — there the two ids are compared, and a
-   * wishlist that is not yours is refused here rather than by Steam.
+   * The numeric address wins over everything: it names the wishlist that is
+   * open, and nothing read out of the page can outrank it. What the page says
+   * is still read there, for one reason — `g_steamID` names *you*, and a
+   * numeric address that is not yours is refused here rather than by Steam.
+   *
+   * Without a numeric address the page is all there is, and then a disagreement
+   * is a refusal rather than a choice. Two different ids mean the page carries
+   * a link to a wishlist that is not this one, and the write would land in
+   * somebody else's account. Guessing is not on the list of options.
+   *
+   * `manualSteamId` is the last way out: an id the user typed in, used only
+   * when no source produced one at all. Steam refuses a write into a wishlist
+   * that is not yours, so a wrong number there costs a refusal and nothing
+   * else.
    *
    * The id is checked against `STEAM_ID_PATTERN` before it goes anywhere near
    * an address: the same rule the local server of the project follows — an
    * address is built out of values that were validated, never out of text as it
    * came.
    *
-   * @param {{ pathname: string, loggedInSteamId?: string|null }} input
-   * @returns {{ url: string, steamId: string, vanity: string|null, note: string|null }
-   *           |{ error: 'unknown-owner'|'not-yours', message: string }}
+   * @param {{ pathname: string, loggedInSteamId?: string|null,
+   *           candidates?: Array<{ source: string, steamId: string }>,
+   *           manualSteamId?: string|null }} input
+   * @returns {{ url: string, steamId: string, source: string, vanity: string|null, note: string|null }
+   *           |{ error: 'unknown-owner'|'not-yours'|'several-accounts', accounts?: string[], message: string }}
    */
-  function resolveReorderTarget({ pathname, loggedInSteamId = null }) {
+  function resolveReorderTarget({ pathname, loggedInSteamId = null, candidates = [], manualSteamId = null }) {
     const path = String(pathname ?? '');
-    const fromPath = /^\/wishlist\/profiles\/(\d{17})(\/|$)/.exec(path)?.[1] ?? null;
-    const vanity = /^\/wishlist\/id\/([^/?#]+)(\/|$)/.exec(path)?.[1] ?? null;
-    const mine = STEAM_ID_PATTERN.test(String(loggedInSteamId ?? '')) ? String(loggedInSteamId) : null;
+    const fromPath = OWNER.numericPath.exec(path)?.[1] ?? null;
+    const vanity = OWNER.vanityPath.exec(path)?.[1] ?? null;
+
+    // The path is taken from `pathname` and from nowhere else, so a candidate
+    // list that already holds it cannot make it say something different.
+    /** @type {Array<{ source: string, steamId: string }>} */
+    const found = [];
+    const add = (source, value) => {
+      const steamId = String(value ?? '');
+      if (STEAM_ID_PATTERN.test(steamId)) found.push({ source, steamId });
+    };
+    add('g_steamID', loggedInSteamId);
+    for (const candidate of candidates ?? []) {
+      if (candidate && candidate.source !== 'path') add(candidate.source, candidate.steamId);
+    }
+
+    const mine = found.find((candidate) => candidate.source === 'g_steamID')?.steamId ?? null;
 
     if (fromPath && mine && fromPath !== mine) {
       return {
@@ -923,29 +1061,85 @@
       };
     }
 
-    const steamId = fromPath ?? mine;
+    if (fromPath) {
+      return {
+        url: `${STEAM_ORIGIN}/wishlist/profiles/${fromPath}/reorder/`,
+        steamId: fromPath,
+        source: 'path',
+        vanity: null,
+        note: null,
+      };
+    }
+
+    /** @type {Map<string, string[]>} */
+    const bySteamId = new Map();
+    for (const candidate of found) {
+      if (!bySteamId.has(candidate.steamId)) bySteamId.set(candidate.steamId, []);
+      const sources = bySteamId.get(candidate.steamId);
+      if (!sources.includes(candidate.source)) sources.push(candidate.source);
+    }
+
+    if (bySteamId.size > 1) {
+      const listed = [...bySteamId]
+        .map(([steamId, sources]) => `${steamId} (${sources.map((s) => OWNER_SOURCE_WORDS[s] ?? s).join(', ')})`)
+        .join('; ');
+      return {
+        error: 'several-accounts',
+        accounts: [...bySteamId.keys()],
+        message:
+          'This page names more than one account, and they are not the same one: ' +
+          `${listed}. Which of them owns the wishlist that is open cannot be told from here — a page ` +
+          'carries links to wishlists other than its own. Nothing will be written, and there is no way ' +
+          "round it in the panel on purpose: a guess would put your order into somebody else's list, " +
+          'and that cannot be taken back. Opening the numeric address is no help either — Steam ' +
+          'redirects it back to the custom url. If this is your own wishlist, the chain of sources is ' +
+          'what needs fixing: report it with the list above exactly as it is written.',
+      };
+    }
+
+    const automatic = [...bySteamId.keys()][0] ?? null;
+    const typed = STEAM_ID_PATTERN.test(String(manualSteamId ?? '')) ? String(manualSteamId) : null;
+    const steamId = automatic ?? typed;
+    const source = automatic ? bySteamId.get(automatic)[0] : 'manual';
+
     if (!steamId) {
       return {
         error: 'unknown-owner',
         message:
           'The Steam ID of this wishlist could not be worked out: the address carries no 17 digit id ' +
-          `${vanity ? '(it is the custom url form) ' : ''}and the page did not say who is signed in. ` +
-          'Check that you are signed in, or open the wishlist by its numeric address — ' +
-          'store.steampowered.com/wishlist/profiles/&lt;your 17 digits&gt;/ — and try again.',
+          `${vanity ? '(it is the custom url form) ' : ''}and nothing on the page names an account — ` +
+          'no g_steamID, no numeric link to this wishlist, no script and no attribute holding one. ' +
+          'Type your own 17 digits into the field below, or open the wishlist by its numeric address — ' +
+          'store.steampowered.com/wishlist/profiles/&lt;your 17 digits&gt;/ — and pick the file again.',
       };
     }
 
     return {
       url: `${STEAM_ORIGIN}/wishlist/profiles/${steamId}/reorder/`,
       steamId,
-      vanity: fromPath ? null : vanity,
-      note:
-        fromPath || !vanity
-          ? null
-          : `This page is open under a custom url (/wishlist/id/${vanity}/), which does not say whose ` +
-            `wishlist it is. The order will be written for the account signed in here, ${steamId}. ` +
-            'If the page belongs to somebody else, Steam refuses the request and nothing changes.',
+      source,
+      vanity,
+      note: vanity
+        ? `This page is open under a custom url (/wishlist/id/${vanity}/), which does not say whose ` +
+          `wishlist it is. The account was worked out from ${OWNER_SOURCE_WORDS[source] ?? source}: ` +
+          `${steamId}. If the page belongs to somebody else, Steam refuses the request and nothing changes.`
+        : null,
     };
+  }
+
+  /**
+   * The account a write would go to, in words: the id, the name the address
+   * gives if it gives one, and where the id was found.
+   *
+   * It is a function of its own so that the report and the confirmation say the
+   * same thing in the same words — the last place an error is still cheap.
+   *
+   * @param {{ steamId: string, source: string, vanity?: string|null }} resolved
+   * @returns {string}
+   */
+  function describeAccount(resolved) {
+    const nick = resolved.vanity ? ` (${resolved.vanity})` : '';
+    return `${resolved.steamId}${nick} — from ${OWNER_SOURCE_WORDS[resolved.source] ?? resolved.source}`;
   }
 
   /**
@@ -996,25 +1190,18 @@
   }
 
   /**
-   * The Steam id of the signed-in user, the way the page states it.
+   * Every account id the open page states — the chain run against the real
+   * document, with `unsafeWindow` consulted for the case where the userscript
+   * manager isolates the script from the page it runs on.
    *
-   * @returns {string|null}
+   * @returns {Array<{ source: string, steamId: string }>}
    */
-  function findLoggedInSteamId() {
-    const candidates = [
-      window.g_steamID,
-      typeof unsafeWindow === 'undefined' ? null : unsafeWindow?.g_steamID,
-      document.querySelector('[data-miniprofile][data-steamid]')?.getAttribute('data-steamid'),
-    ];
-    for (const candidate of candidates) {
-      const value = String(candidate ?? '');
-      if (STEAM_ID_PATTERN.test(value)) return value;
-    }
-    for (const script of document.querySelectorAll('script:not([src])')) {
-      const match = /g_steamID\s*=\s*["'](\d{17})["']/.exec(script.textContent ?? '');
-      if (match) return match[1];
-    }
-    return null;
+  function findOwnerCandidates() {
+    return collectOwnerCandidates({
+      pathname: location.pathname,
+      document,
+      globals: [window, typeof unsafeWindow === 'undefined' ? null : unsafeWindow],
+    }).candidates;
   }
 
   /**
@@ -1328,6 +1515,11 @@
     button.danger:hover:not(:disabled) { background: #a34545; }
     .close { border: 0; background: transparent; color: #8b97a5; padding: 2px 6px; }
     input[type=file] { font: inherit; color: #8b97a5; max-width: 100%; }
+    input[type=text] {
+      font: inherit; padding: 7px 10px; border-radius: 6px; flex: 1; min-width: 170px;
+      border: 1px solid #33475c; background: #101820; color: #d6dde6; letter-spacing: .04em;
+    }
+    input[type=text]:focus { outline: none; border-color: #3b86c6; }
     label.check { display: flex; gap: 8px; align-items: flex-start; color: #8b97a5; cursor: pointer; }
     ol { margin: 0; padding-left: 20px; display: grid; gap: 3px; }
     .box { border: 1px solid #2a3542; border-radius: 8px; padding: 10px; display: grid; gap: 8px; background: #17202a; }
@@ -1359,7 +1551,26 @@
             The page is read first and a report is shown; nothing is written until you confirm it.
           </div>
           <input type="file" accept=".json,application/json" data-act="file">
-          <div class="status muted"></div>
+          <div class="status muted" data-act="status"></div>
+
+          <div class="box" data-act="owner-box" hidden>
+            <div><b>Which account does this wishlist belong to?</b></div>
+            <div class="muted">
+              Steam brings the address to the custom url form, and this page writes its account id down
+              nowhere the script could find it. Type your own 17 digits and the write can go on.
+              They are in the address of your profile: if it reads
+              steamcommunity.com/profiles/&lt;digits&gt;/, those digits are the id. If your profile has a
+              custom address too, open “Edit Profile” — the numeric form is in the address there.
+              Steam refuses a write into a wishlist that is not yours, so a wrong number costs a refusal
+              and nothing else.
+            </div>
+            <div class="row">
+              <input type="text" inputmode="numeric" maxlength="17" placeholder="76561198000000000"
+                     data-act="owner-id" aria-label="Your 17 digit Steam ID">
+              <button type="button" data-act="owner-use">Use this account</button>
+            </div>
+            <div class="status muted" data-act="owner-status"></div>
+          </div>
 
           <div class="box alert" data-act="write-box" hidden>
             <div class="warn"><b>The next step writes into your Steam wishlist.</b></div>
@@ -1414,6 +1625,9 @@
       preview: query('[data-act="preview"]'),
       clear: query('[data-act="clear"]'),
       copy: query('[data-act="copy"]'),
+      ownerBox: query('[data-act="owner-box"]'),
+      ownerId: query('[data-act="owner-id"]'),
+      ownerUse: query('[data-act="owner-use"]'),
       writeBox: query('[data-act="write-box"]'),
       backup: query('[data-act="backup"]'),
       skipBackup: query('[data-act="skip-backup"]'),
@@ -1430,7 +1644,16 @@
        * @param {'muted'|'ok'|'warn'|'error'} tone
        */
       say(html, tone = 'muted') {
-        const status = query('.status');
+        const status = query('[data-act="status"]');
+        status.className = `status ${tone}`;
+        status.innerHTML = html;
+      },
+      /**
+       * @param {string} html
+       * @param {'muted'|'ok'|'warn'|'error'} tone
+       */
+      ownerSay(html, tone = 'muted') {
+        const status = query('[data-act="owner-status"]');
         status.className = `status ${tone}`;
         status.innerHTML = html;
       },
@@ -1496,7 +1719,9 @@
       buildPageOrder,
       buildReorderBody,
       buildTargetOrder,
+      collectOwnerCandidates,
       compareOrders,
+      describeAccount,
       describeNetworkFailure,
       findRows,
       findScroller,
@@ -1530,6 +1755,10 @@
   /** @type {ReturnType<typeof buildTargetOrder>|null} */
   let target = null;
   let backupTaken = false;
+  /** The 17 digits typed by hand, used only when the page names no account at all. */
+  let manualSteamId = null;
+  /** The account the report named, so that the confirmation names the same one. */
+  let owner = null;
 
   // --------------------------------------------------------------------------
   // The check that survives a reload
@@ -1748,15 +1977,29 @@
     // than after the backup and the confirmation are already behind the user.
     const resolved = resolveReorderTarget({
       pathname: location.pathname,
-      loggedInSteamId: findLoggedInSteamId(),
+      candidates: findOwnerCandidates(),
+      manualSteamId,
     });
     if ('error' in resolved) {
+      owner = null;
       panel.say([...lines, `<b>${resolved.message}</b>`].join('<br>'), 'error');
       panel.preview.disabled = false;
       panel.copy.disabled = false;
+      // Typing an id in helps when nothing was found. It does not help when two
+      // accounts were found and one of them is wrong: there the answer is not a
+      // third guess, so the field stays away.
+      panel.ownerBox.hidden = resolved.error !== 'unknown-owner';
+      panel.writeBox.hidden = true;
       renderPlan();
       return;
     }
+    owner = resolved;
+    panel.ownerBox.hidden = true;
+
+    // The account, named before the write and again at the confirmation. This
+    // is the last place a wrong list can still be noticed for free.
+    lines.push(`The order would be written into the wishlist of <b>${escapeHtml(describeAccount(resolved))}</b>.`);
+
     if (resolved.note) {
       tone = 'warn';
       lines.push(escapeHtml(resolved.note));
@@ -1811,6 +2054,29 @@
     renderRemovals();
     renderPlan();
   }
+
+  // The last way out: the id typed by hand. It is read once, checked here, and
+  // the report is built again — so the account still has to pass everything the
+  // report says about it before the write box comes back.
+  panel.ownerUse.addEventListener('click', () => {
+    const typed = String(panel.ownerId.value ?? '').trim();
+    if (!STEAM_ID_PATTERN.test(typed)) {
+      panel.ownerSay(
+        `<b>That is not a Steam ID.</b> It is exactly 17 digits and nothing else — ` +
+          `what was typed is ${typed.length} ${plural(typed.length, 'character', 'characters')}. ` +
+          'A profile address of the form steamcommunity.com/profiles/&lt;digits&gt;/ holds it.',
+        'error',
+      );
+      return;
+    }
+    manualSteamId = typed;
+    panel.ownerSay(`Taken: <b>${typed}</b>. The report below now says where the write would go.`, 'ok');
+    if (target) showReport();
+  });
+
+  panel.ownerId.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') panel.ownerUse.click();
+  });
 
   /** The entries the user has to take off the wishlist themselves. */
   function renderRemovals() {
@@ -1912,7 +2178,8 @@
     panel.send.disabled = true;
     panel.say(
       `About to write <b>${target.appIds.length}</b> ${plural(target.appIds.length, 'entry', 'entries')} into ` +
-        'the wishlist, in one request, replacing the order you have now. Press “Confirm” to go ahead.',
+        `the wishlist of <b>${escapeHtml(owner ? describeAccount(owner) : 'an account that could not be named')}</b>, ` +
+        'in one request, replacing the order you have now. Press “Confirm” to go ahead.',
       'warn',
     );
   });
@@ -1928,9 +2195,28 @@
     panel.confirmBox.hidden = true;
     panel.confirm.disabled = true;
 
-    const resolved = resolveReorderTarget({ pathname: location.pathname, loggedInSteamId: findLoggedInSteamId() });
+    const resolved = resolveReorderTarget({
+      pathname: location.pathname,
+      candidates: findOwnerCandidates(),
+      manualSteamId,
+    });
     if ('error' in resolved) {
       panel.say(resolved.message, 'error');
+      panel.confirm.disabled = false;
+      updateSendButton();
+      return;
+    }
+    // The account is worked out again here rather than trusted from the report:
+    // the page redraws itself while the panel is open. If it now says something
+    // else, the one thing that must not happen is a write into whichever of the
+    // two came up last.
+    if (owner && resolved.steamId !== owner.steamId) {
+      panel.say(
+        `<b>The account changed between the report and this confirmation.</b> The report named ` +
+          `${escapeHtml(owner.steamId)}, the page now says ${escapeHtml(resolved.steamId)}. Nothing was ` +
+          'written. Reload the page and pick the file again.',
+        'error',
+      );
       panel.confirm.disabled = false;
       updateSendButton();
       return;
