@@ -184,6 +184,45 @@
 > `ranking.js`. Ветку `feat/ui-categorize` я создал сам, изменяющие git-команды не выполняй.
 > В этой сессии делаем интерфейс: экран импорта, этап категоризации и этап попарных сравнений.
 >
+> **Фактическое API ядра — оно уже написано и покрыто тестами, читай его, а не выдумывай**
+>
+> ```js
+> // src/ranking.js
+> const session = createSession({ items });          // либо deserializeSession(data)
+> session.setItems(items) / addItems(items) / removeItem(appId)
+> session.setCategory(appId, 'must'|'want'|'maybe'|'unlikely'|'meh'|'remove'|null)
+> session.setSortedCategories(['must','want'])       // null = сортировать все
+> session.getNextPair()      // { a, b, category, forced, reason, deferredCount } | null
+> session.submitAnswer('a'|'b'|'tie'|'defer', pair?) // алиасы left/right/equal/skip
+> session.defer(pair?) / session.undo() / session.canUndo()
+> session.getProgress()      // { comparisons, deferred, remaining, total, percent, done, categories[] }
+> session.getResult()        // { entries[], removed[], summary }
+> session.serialize()
+>
+> // src/storage.js
+> new StateStorage({ backend })   // backend по умолчанию localStorage
+> storage.has() / load() / save(state) / clear() / newSession(options)
+> storage.exportToJson(state) / importFromJson(input)
+> // состояние: { app, version, savedAt, settings: { loadCovers }, session }
+> ```
+>
+> Решения ядра, от которых зависит интерфейс:
+> - Позиции без категории — не «вне игры», а неявная сортируемая корзина `null` рангом ниже
+>   `meh`. Поэтому «пропустить категоризацию и сразу к сравнениям» работает само собой,
+>   отдельной логики для этого писать не нужно.
+> - `imageUrl: ''` означает «обложки нет» — показывай плейсхолдер. Когда источник обложку
+>   не дал, импорт достраивает URL из `appId` сам, так что пустая строка это осознанное «нет».
+> - Тумблер обложек уже есть в состоянии: `settings.loadCovers`. Читай и пиши именно его,
+>   не заводи своё поле.
+> - Каждая строка `entries[]` несёт `resolved`, `group`, `tiedWithPrevious` и
+>   `linkedToPrevious` — этого достаточно, чтобы отличить надёжную часть списка от запасного
+>   порядка и показать группы равного приоритета.
+> - `getNextPair()` может вернуть пару с `forced: true, reason: 'all-deferred'` — это значит,
+>   что все остальные вопросы отложены и без ответа на этот дальше не пройти. Интерфейс обязан
+>   объяснить это словами, а не молча показать ту же пару снова.
+>
+> Публичное API ядра не меняй. Если чего-то не хватает — скажи мне, а не переписывай `ranking.js`.
+>
 > **Общее**
 > - `index.html` + `styles.css` + модули UI. Тёмная тема, визуально родственная Steam, но не копия.
 > - Экран 1920×1080 и адаптив до узкого окна. Без горизонтальной прокрутки.
