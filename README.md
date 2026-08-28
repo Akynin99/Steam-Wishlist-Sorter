@@ -371,47 +371,69 @@ system ANSI code page and every non-Latin title turns into mojibake.
 
 The second userscript —
 [`userscripts/steam-wishlist-import-order.user.js`](userscripts/steam-wishlist-import-order.user.js)
-— takes the “Order as JSON” file and **shows** on the wishlist page where each entry has to go.
+— takes the “Order as JSON” file and **writes that order into your Steam wishlist**.
 
 It is installed the same way as the first one. Then: open the wishlist → the panel in the bottom
 right corner → pick the file.
 
-The script first reads the page and shows a report:
+### How it goes, step by step
 
-- how many entries of the file were found on the page and how many were not (usually the missing
-  ones are those already bought or taken off the list);
-- whether the page holds duplicates;
-- which entries appeared in the wishlist after the export — the script does not touch their places;
-- how many entries are marked for removal;
-- the whole target order: a line can be clicked, and the page scrolls to that game.
+1. **The file is read and checked.** It has to be the order file: the `kind` field is what tells it
+   from a state dump, and a state dump is refused with a note saying which export is needed. The
+   backup this script writes is a file of the very same kind, so it is accepted as well.
+2. **The page is read.** The script scrolls the wishlist to the end so that every row loads, and
+   collects the App IDs in the order they are shown.
+3. **A report is shown, and nothing has been written yet.** How many entries of the file were found
+   on the page and how many were not (the missing ones are usually already bought), whether the page
+   holds duplicates, which entries appeared after the export, how many are marked for removal, and
+   the whole target order — a line can be clicked, and the page scrolls to that game.
+4. **The backup.** One button downloads the order the wishlist is in *right now*, as a file in this
+   very format. The write button stays out of reach until you take the backup or tick the checkbox
+   saying you do not want one.
+5. **The confirmation.** The write button opens a second, separate confirmation that names the
+   number of entries. Only that one sends anything.
+6. **The request.** The whole list goes to Steam in a single request. Steam then answers, and the
+   answer is read out into one case with one message: accepted, session expired, list too large,
+   too many requests, not JSON at all, or the network never let the request out.
+7. **The check.** The wishlist page does not redraw itself after the write, so the script offers to
+   reload it, reads the order again and compares it with what was sent, entry by entry. A difference
+   is shown as it is — how many entries stand as asked, where the first difference is, what left the
+   list and what appeared in it. It is not swallowed.
 
-**Nothing on the page changes before an explicit confirmation.** On the “Show the order on the page”
-button the script draws marks on the rows: blue is the target number, red is “remove from the
-wishlist”, grey is “not in the file”. The marks live until a reload and touch no data.
+### What it will not do
 
-The matching goes **strictly by App ID**; the titles are shown for you to read, nothing more.
-The file is checked by its `kind` field, so a state dump is never mistaken for an order file — the
-script says that a different export is needed.
+- **It deletes nothing.** The entries you put into “remove from the wishlist” are pushed to the end
+  of the order and listed in the panel with links, so that you take them off yourself. A deletion
+  cannot be undone, and the price of a mistake by a script is too high here.
+- **It loses nothing.** An entry that is on the page but not in the file — added after the export,
+  or left out of the ranking — keeps its place relative to the other such entries and is appended
+  after the ordered part. That is why the request always carries the whole wishlist: Steam takes the
+  order as a whole, and anything left out of it is scattered through the rest.
+- **It does not touch `sessionid`.** The value comes from `g_sessionID`, the variable the wishlist
+  page defines for its own requests, in the page the script already runs in. It goes into the body
+  of that one request, to the same address the page came from, and nowhere else — not into a file,
+  not into the storage of the browser, not into the panel, not into the console, and not to the
+  local server of the application.
 
-### Why the arranging is not automated
+### How to undo it
 
-Openly, because this is the main limitation of the project.
+Pick the backup file with this same script and write it back. That is the whole procedure: the
+backup is an ordinary order file, and the script that wrote your order is the script that puts the
+old one back.
 
-The only supported way to set your own order in Steam is to **drag the rows with the mouse** on the
-wishlist page (with the sorting by your own rank and the filters cleared). Steam provides no
-programmatic interface for “arrange the list like this”; a move goes to the server as a request that
-carries `sessionid` — the session token of the logged-in user.
+### What remains a limitation
 
-Automating that would mean **reading the session token out of the page** and **sending writing
-requests to Steam on your behalf**. This project does neither — not in the userscript, not anywhere
-else. On top of that the list is virtualized (rows are reused while scrolling), so a script
-imitating two hundred drags would almost certainly break somewhere in the middle and leave the
-wishlist in a state nobody asked for.
-
-A tool that has arranged half of a 200 entry list and cannot say where it stopped is worse than no
-tool at all. So instead of imitating a working solution there is a preview mode: a report,
-highlighting and instructions. You do the dragging, and the script never presses the save button.
-
+- **The endpoint is undocumented and unsupported.** `POST /wishlist/profiles/<steamid>/reorder/` is
+  what the page itself uses when a row is dragged; Valve promises nothing about it and may change it
+  any day. When that happens, the script says what came back instead of pretending it worked.
+- **A very large wishlist may not fit into one request.** Steam answers `413`, and the script says
+  so in words. Splitting the list is not a way out — a partial list is not a partial reorder, Steam
+  spreads the entries it was given through the ones it was not — so for such a list the preview mode
+  is still there: “Show the order on the page” marks every row with the number it has to end up at,
+  and the dragging is yours.
+- **The check reads the page.** For it to mean anything the wishlist has to be sorted by **Your
+  rank** with the filters cleared, which is also the sorting that shows the order you have just
+  written. The panel says so next to every difference it reports.
 ---
 
 ## Architecture
@@ -433,7 +455,7 @@ in development.
 | [`src/export.js`](src/export.js) | the result as JSON, CSV and text. No DOM — which is why every format is checked by a test character by character, instead of by eye in a downloaded file |
 | [`src/ui-*.js`](src/) | the screens on top of the core: import, categories, comparisons, result, the card of the direct import, the shared frame of the application and the confirmation dialog |
 | [`server.js`](server.js) | a server on plain Node: it serves the files of the project, is guarded against escaping the root, and answers the three endpoints of the direct import — the health check the card asks about, the wishlist and the missing titles |
-| [`userscripts/`](userscripts/) | two Tampermonkey scripts: the wishlist export and the preview of carrying the order back |
+| [`userscripts/`](userscripts/) | two Tampermonkey scripts: the wishlist export and the writing of the order back into Steam. The half of the second one that decides what gets sent and what an answer means is loaded by `node --test` and covered by [`tests/reorder-userscript.test.js`](tests/reorder-userscript.test.js) |
 
 ### The algorithm: a preference graph, not a merge sort
 
@@ -528,8 +550,12 @@ The manual edits are reset by a button of their own, without touching the compar
   over a public URL** — the import above is done by `server.js` on your machine, not by the page.
   Covers are switched off by the “Load covers” toggle in the header; with the toggle off and no
   import running, nothing reaches outside at all.
-- The userscripts make no network requests whatsoever: `@grant none`, not a single `@connect`. They
-  read neither cookies, nor `sessionid`, nor any other secret.
+- **The export userscript makes no network requests whatsoever**, and the one that carries the order
+  back makes exactly one, to Steam itself: the `POST` that writes the order, to the same address the
+  wishlist page was loaded from, after you have confirmed it. Both have `@grant none` and not a
+  single `@connect`, so neither can reach any other host. Neither reads your cookies. The `sessionid`
+  the write needs is taken from `g_sessionID`, the variable of the page the script is running in,
+  used in the body of that one request, and put nowhere else — no file, no storage, no console.
 - The same holds for the demo on GitHub Pages: the very same static files, only on somebody else's
   hosting. Your data stays in your browser — there is nobody to send it to and nothing to send it
   with.
@@ -541,10 +567,12 @@ from an account, would be untrue, which is why it is not here.
 
 ## Limitations
 
-- **The order is not carried into Steam automatically.** There is no supported mechanism, and the
-  project will not imitate one through a session token and writing requests. The second userscript
-  works in preview mode: a report, highlighting and instructions; the dragging is yours. In detail —
-  in [“Why the arranging is not automated”](#why-the-arranging-is-not-automated).
+- **The order is written into Steam through an endpoint nobody documented.** The second userscript
+  sends what the wishlist page itself sends when a row is dragged, and Valve promises nothing about
+  it: it may change any day, and then the script will report what came back instead of pretending it
+  worked. A very large wishlist can also fail to fit into one request — Steam answers `413`, and the
+  preview mode with the marks on the rows is what is left. In detail — in
+  [“What remains a limitation”](#what-remains-a-limitation).
 - **The Steam selectors will break one day.** The layout of the wishlist has changed more than once,
   and the obfuscated class names of the newer page change by themselves. When that happens, the
   script says “not a single item was found on the page” and stops — it will not hand over a silently
