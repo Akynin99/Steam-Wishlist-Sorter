@@ -87,7 +87,7 @@ docs/                      документация
   `test(storage): ...`, `docs(readme): ...`, `chore(ci): ...`, `refactor(import): ...`.
 - Сообщения коммитов и PR — на английском.
 - Допустимые scope: `ranking`, `import`, `storage`, `ui`, `results`, `export`,
-  `userscripts`, `ci`, `docs`, `git`, `repo`.
+  `userscripts`, `i18n`, `ci`, `docs`, `git`, `repo`.
 - `master` всегда в рабочем состоянии: тесты зелёные, приложение открывается.
 
 ## Соглашения по коду
