@@ -204,7 +204,10 @@ function readRecord(raw, keyAppId) {
   const url = pick(raw, URL_KEYS);
   if (typeof url === 'string' && url.trim()) fields.url = url.trim();
 
-  const image = pick(raw, IMAGE_KEYS);
+  // Our own field name is read even when it is empty: `imageUrl: ''` is how the
+  // model spells "this item has no cover", and an export of ours must survive a
+  // round trip instead of having the cover guessed back from the app id.
+  const image = typeof raw.imageUrl === 'string' ? raw.imageUrl : pick(raw, IMAGE_KEYS);
   if (typeof image === 'string') fields.imageUrl = resolveImageUrl(image, appId);
 
   const position = normalizePosition(pick(raw, POSITION_KEYS));
