@@ -4,7 +4,7 @@
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 **A local web application that turns a 200+ entry Steam wishlist into an honestly ordered list —
-through pairwise comparisons, with no server and with nothing sent anywhere.**
+through pairwise comparisons, with no backend and with your list staying on your own machine.**
 
 🎮 [Live demo](https://akynin99.github.io/Steam-Wishlist-Sorter/)
 (the demo set is already inside, you do not have to load a wishlist of your own)
@@ -89,6 +89,10 @@ node server.js
 
 and open <http://localhost:8080/>.
 
+Running it locally is also what unlocks the import straight from a Steam account: it needs a server
+of its own, and the demo page has none — see
+[Straight from your Steam account](#straight-from-your-steam-account).
+
 **Tests:**
 
 ```bash
@@ -114,11 +118,72 @@ language too — see [What comes out](#what-comes-out).
 
 ---
 
-## Getting the wishlist out of Steam
+## Getting the wishlist into the application
 
-The repository holds two userscripts. The first one is the one that exports the list.
+Three ways in, from the simplest to the most stubborn: straight from your account, with the
+userscript, or from a JSON file you got out of Steam by hand. They all end on the same import
+screen, and they mix freely — a repeated import matches entries by App ID and keeps the work already
+done.
 
-### Step 1. Install Tampermonkey
+### Straight from your Steam account
+
+**The first card on the import screen. It works when you run the application yourself; on the demo
+page it is not available.** Type your SteamID64, the name of your profile or a link to either, and
+press **“Fetch the wishlist”**. All four of these are understood:
+
+```
+76561198093652313
+RogerBulletDodger
+https://steamcommunity.com/id/RogerBulletDodger/
+https://steamcommunity.com/profiles/76561198093652313/
+```
+
+The page asks its own local server, and the server asks Steam, in three steps: a profile name is
+resolved to a SteamID64 through the public XML view of the profile (no API key is involved
+anywhere), the list itself comes from `IWishlistService/GetWishlist`, and then the titles and the
+types are fetched from `store.steampowered.com/api/appdetails` — **one App ID per request**. Steam
+limits how fast it answers that last one, so the requests go one after another with a pause between
+them: 166 entries take about two minutes, with the count of processed entries on the screen and a
+**“Stop”** button next to it.
+
+Two things it does for you when it goes wrong:
+
+- **titles are written into the list as they arrive**, not in one lump at the end. Stopping, closing
+  the tab, or a Steam that stops answering, all keep everything collected up to that moment;
+- **an entry whose title did not arrive is not lost.** It stays in the list as `App 1086940`, with
+  its cover and its store link, and the card offers **“Fetch the remaining titles”**, which asks only
+  for the ones still missing.
+
+**Why through the local server.** Not one Steam endpoint sends a CORS header, so a page in the
+browser is not allowed to read the answer — the request has to be made outside the browser. The path
+of the data is “your browser → your own local server → Steam”, and nothing goes anywhere else. A
+third-party CORS proxy would mean handing your wishlist to somebody else's server, which is the one
+thing this project will not do.
+
+**On the demo page the card explains itself instead of offering a button that cannot work.** GitHub
+Pages serves static files and has no server behind it, and the application asks about that
+(`GET /api/health`) before it draws the card.
+
+**What it can say back**, each with what to do about it: the account was not found; the wishlist was
+not handed over, which almost always means the privacy settings (open Steam → your profile →
+*Edit profile* → *Privacy settings* and set *Game details* to *Public* — the wishlist follows that
+setting; the userscript works either way, because it reads the page you are logged into); the
+wishlist is empty; Steam is limiting the requests; there is no connection.
+
+**The endpoint takes an account, never an address.** A local server that forwarded arbitrary URLs
+would be an open proxy into the home network of whoever runs it, so: the hosts are a closed list of
+three (`api.steampowered.com`, `store.steampowered.com`, `steamcommunity.com`), every address is
+built in code out of a value that was validated first — seventeen digits for a SteamID64, the Steam
+character set for a profile name — redirects are re-checked against the same list instead of being
+followed blindly, and the API answers requests addressed to `localhost` only. The tests run a server
+that must never be called and check that it never is.
+
+### The userscript
+
+The repository holds two userscripts. The first one is the one that exports the list — it reads the
+wishlist page you are logged into, so it works whatever the privacy settings say.
+
+#### Step 1. Install Tampermonkey
 
 [Tampermonkey](https://www.tampermonkey.net/) is an extension that runs user scripts on pages. It
 exists for Chrome, Edge, Firefox and Opera. Violentmonkey does the job as well.
@@ -126,13 +191,13 @@ exists for Chrome, Edge, Firefox and Opera. Violentmonkey does the job as well.
 In Chrome and Edge you have to turn on developer mode in `chrome://extensions`
 (`edge://extensions`) once — without it the extension cannot execute userscripts.
 
-### Step 2. Install the script
+#### Step 2. Install the script
 
 Open [`userscripts/steam-wishlist-export.user.js`](userscripts/steam-wishlist-export.user.js) and
 press **Raw** — Tampermonkey offers the installation itself. Or copy the contents of the file and
 paste them into the Tampermonkey editor (“Create a new script”).
 
-### Step 3. Collect the list
+#### Step 3. Collect the list
 
 1. Open your wishlist: <https://store.steampowered.com/wishlist/>
    (Steam redirects to an address like `/wishlist/profiles/<your SteamID64>/`).
@@ -144,7 +209,7 @@ paste them into the Tampermonkey editor (“Create a new script”).
 4. The script shows a report: how many entries were collected, how many scroll steps it took and
    whether the result disagrees with the number Steam shows itself. Press **“Download JSON”**.
 
-### Step 4. Load the file into the application
+#### Step 4. Load the file into the application
 
 On the import screen, **“JSON file”** — pick the downloaded file. That is it, the categories are next.
 
@@ -152,7 +217,7 @@ Importing again **does not erase the work**: entries are matched by App ID, the 
 comparison answers are kept, and only the titles, the covers and the wishlist positions are
 refreshed. So a month later you can export the list again and continue from the same place.
 
-### What the script does and does not do
+#### What the script does and does not do
 
 - it collects the App ID, the title, the link, the cover URL, the current position in the wishlist
   and the type (game / DLC / `unknown` when the page carries no mark — the type is never guessed);
@@ -190,10 +255,12 @@ Two caveats, both important:
 
 - **the wishlist has to be public** in the privacy settings of the Steam profile, otherwise the
   endpoint returns nothing;
-- **that address cannot be pulled into the application automatically** — CORS. Steam does not give
-  our page the header that would let it read another domain from the browser, and working around
-  that through a proxy would mean sending your wishlist to somebody else's server. So it goes
-  through a file: open, save, load.
+- **the page in the browser cannot fetch that address itself** — CORS. Steam does not give our
+  page the header that would let it read another domain, and working around that through a proxy
+  would mean sending your wishlist to somebody else's server. Locally the application solves it
+  honestly, by asking its own server (see
+  [Straight from your Steam account](#straight-from-your-steam-account)); with no local server, it
+  goes through a file: open, save, load.
 
 The new endpoint returns **App IDs and priorities only**, without titles. That is fine: the
 application shows such entries as `App 1086940`, builds the store link itself and takes the cover
@@ -360,11 +427,12 @@ in development.
 | [`src/model.js`](src/model.js) | the model of an entry (`appId`, title, link, cover, position in the wishlist, type), the six categories, the normalization of anything into that model. It knows about neither the DOM nor the storage |
 | [`src/i18n.js`](src/i18n.js) | the two dictionaries and the lookup around them: `t()`, the plural forms, the current language. No DOM either, so it is tested directly — including the test that the sets of keys of the two languages match exactly |
 | [`src/import.js`](src/import.js) | bringing arbitrary JSON to the model: five shapes on the input, a report with reasons on the output. Merging by `appId`, so a repeated import breeds no duplicates and erases no work |
+| [`src/steam.js`](src/steam.js) | the import straight from an account: what the user typed to a SteamID64, the closed list of hosts every request is checked against, the reading of the Steam answers and the walk over the titles with its pauses and retries. It takes the `fetch` it should use, which is what lets the tests drive all of it without a single real request |
 | [`src/storage.js`](src/storage.js) | `localStorage` behind a wrapper: autosave, the export and import of the state as a file, the check of the signature and of the format version. It does not depend on the DOM — a test replaces it with an in-memory stub |
 | [`src/ranking.js`](src/ranking.js) | the core: the preference graph, the pair scheduler, the layer of manual moves, the building of the result. All the ranking logic lives here, and the interface does not duplicate it |
 | [`src/export.js`](src/export.js) | the result as JSON, CSV and text. No DOM — which is why every format is checked by a test character by character, instead of by eye in a downloaded file |
-| [`src/ui-*.js`](src/) | the screens on top of the core: import, categories, comparisons, result, the shared frame of the application and the confirmation dialog |
-| [`server.js`](server.js) | a static server on plain Node: it serves the files of the project and is guarded against escaping the root |
+| [`src/ui-*.js`](src/) | the screens on top of the core: import, categories, comparisons, result, the card of the direct import, the shared frame of the application and the confirmation dialog |
+| [`server.js`](server.js) | a server on plain Node: it serves the files of the project, is guarded against escaping the root, and answers the three endpoints of the direct import — the health check the card asks about, the wishlist and the missing titles |
 | [`userscripts/`](userscripts/) | two Tampermonkey scripts: the wishlist export and the preview of carrying the order back |
 
 ### The algorithm: a preference graph, not a merge sort
@@ -448,21 +516,26 @@ The manual edits are reset by a button of their own, without touching the compar
 
 ## Privacy
 
-- Nothing is sent anywhere: **no server, no backend, no analytics, no cookies, no tokens.**
-  `server.js` only hands the files of the application to the browser and accepts nothing from it.
+- Nothing is sent anywhere: **no backend, no analytics, no cookies, no tokens.** `server.js` hands
+  the files of the application to the browser, and does one thing besides that: **on your direct
+  request — the button of the import card — it asks Steam for the wishlist of the account you
+  named.** It goes to Steam and to nobody else, only when the button is pressed, and only to the
+  three Steam hosts hard-coded in the source. Your wishlist comes back the same way and stops in
+  your browser.
 - The whole state lies in the `localStorage` of your browser, on your machine, and is erased by the
   “Start over” button or by clearing the site data.
-- **The only external request the application makes at any point is loading game covers from the
-  Steam CDN over a public URL.** It is switched off by the “Load covers” toggle in the header; with
-  the toggle off, the application does not reach outside at all.
+- **The only external request the page itself ever makes is loading game covers from the Steam CDN
+  over a public URL** — the import above is done by `server.js` on your machine, not by the page.
+  Covers are switched off by the “Load covers” toggle in the header; with the toggle off and no
+  import running, nothing reaches outside at all.
 - The userscripts make no network requests whatsoever: `@grant none`, not a single `@connect`. They
   read neither cookies, nor `sessionid`, nor any other secret.
 - The same holds for the demo on GitHub Pages: the very same static files, only on somebody else's
   hosting. Your data stays in your browser — there is nobody to send it to and nothing to send it
   with.
 
-The wording “no external requests”, without the note about the covers, would be untrue, which is why
-it is not here.
+The wording “no external requests”, without the note about the covers and about the import straight
+from an account, would be untrue, which is why it is not here.
 
 ---
 
@@ -489,7 +562,12 @@ it is not here.
 - **The type of an entry is not always known.** When the page shows no “DLC” mark, the type stays
   `unknown` — the script does not guess it, so that no invented data goes into the file.
 - **The public endpoint gives App IDs only.** The application builds the titles and the covers
-  itself; for the real titles you need the userscript or a later import on top.
+  itself; the real titles come from the direct import, from the userscript, or from a later import
+  on top.
+- **The import straight from an account needs a local run**, because the request to Steam has to be
+  made outside the browser. On the demo page the card says so instead of offering a dead button. It
+  also needs the wishlist to be public, and it takes minutes rather than seconds: Steam hands over
+  one title per request and limits how fast it will do even that.
 - **One browser, one state.** There is no synchronization between machines and none is planned: that
   would mean a server. Moving happens through the state file.
 
@@ -502,7 +580,7 @@ index.html                 the entry point of the application
 styles.css                 the styles, a dark theme
 server.js                  the local static server on plain Node
 start.bat                  the launcher for Windows (Node, with Python as a fallback)
-src/                       the source: model, i18n, import, storage, ranking, export, screens
+src/                       the source: model, i18n, import, steam, storage, ranking, export, screens
 tests/                     the tests on node:test; tests/fixtures — the demo set and test data
 userscripts/               two Tampermonkey scripts for the Steam page
 docs/screenshots/          the screenshots for the README
