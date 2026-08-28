@@ -7,10 +7,15 @@
  * because an escaping bug in a CSV is exactly the kind of thing that is only
  * noticed later, in a spreadsheet, by someone who no longer has the tool open.
  *
+ * The files follow the language of the interface: the CSV header, the category
+ * names and the kind of every item are written in it, and so is the field
+ * separator, for the reason spelled out at `CSV_SEPARATORS`.
+ *
  * Nothing here sends anything anywhere: the caller hands the text to the
  * browser as a file to save or to the clipboard.
  */
 
+import { getLanguage, t } from './i18n.js';
 import { categoryLabel } from './model.js';
 
 /** Signature written into the exported order, the same one the state uses. */
@@ -30,42 +35,46 @@ export const ORDER_FORMAT_VERSION = 1;
 export const CSV_BOM = '\uFEFF';
 
 /**
- * Field separator of the CSV.
+ * Field separator of the CSV, per interface language.
  *
- * A semicolon, not a comma. Excel splits a `.csv` by the list separator of the
- * system locale, and on a Russian Windows that is a semicolon: a comma
- * separated file opens there as one long column, which defeats the purpose of
- * exporting a table at all. Everything else — LibreOffice, Google Sheets,
- * pandas, `csv` of the standard library — takes the separator as a parameter,
- * so the semicolon costs them one argument and saves the default case.
+ * A comma for English, the way RFC 4180 asks for, and a semicolon for Russian.
+ * Excel splits a `.csv` by the list separator of the system locale, and on a
+ * Russian Windows that is a semicolon: a comma separated file opens there as
+ * one long column, which defeats the purpose of exporting a table at all.
+ * Everything else — LibreOffice, Google Sheets, pandas, `csv` of the standard
+ * library — takes the separator as a parameter, so following the language of
+ * the export costs those readers one argument and saves the default case on
+ * both sides.
+ *
+ * @type {Readonly<Record<string, string>>}
  */
-export const CSV_SEPARATOR = ';';
+export const CSV_SEPARATORS = Object.freeze({ en: ',', ru: ';' });
+
+/**
+ * Separator used by the CSV of a language.
+ *
+ * @param {string} [language] Defaults to the language of the interface.
+ * @returns {string}
+ */
+export function csvSeparator(language = getLanguage()) {
+  return CSV_SEPARATORS[language] ?? CSV_SEPARATORS.en;
+}
 
 /** Line ending of the CSV, as RFC 4180 asks for. */
 const CSV_EOL = '\r\n';
 
-/** Header row of the CSV. */
-const CSV_HEADER = [
-  '№',
-  'App ID',
-  'Название',
-  'Категория',
-  'Тип',
-  'Место в категории',
-  'Откуда порядок',
-  'Позиция в wishlist',
-  'Ссылка',
+/** Keys of the header row, in the order the columns come. */
+const CSV_HEADER_KEYS = [
+  'export.csv.number',
+  'export.csv.appId',
+  'export.csv.title',
+  'export.csv.category',
+  'export.csv.kind',
+  'export.csv.positionInCategory',
+  'export.csv.origin',
+  'export.csv.wishlistPosition',
+  'export.csv.url',
 ];
-
-/** Russian names of the item kinds, for the files a human reads. */
-const KIND_LABELS = { game: 'Игра', dlc: 'DLC', unknown: 'Неизвестно' };
-
-/** How a line got to where it is, in one word. */
-const ORIGIN_LABELS = {
-  manual: 'вручную',
-  comparisons: 'сравнения',
-  fallback: 'запасной порядок',
-};
 
 /**
  * Where the place of a line comes from. A line the user dragged is `manual`
@@ -81,11 +90,24 @@ export function entryOrigin(entry) {
 }
 
 /**
+ * Name of an item kind in the language of the interface: these files are read
+ * by a human, not by a parser.
+ *
  * @param {import('./model.js').ItemKind} kind
  * @returns {string}
  */
 function kindLabel(kind) {
-  return KIND_LABELS[kind] ?? KIND_LABELS.unknown;
+  return t(`export.kind.${kind === 'game' || kind === 'dlc' ? kind : 'unknown'}`);
+}
+
+/**
+ * How a line got to where it is, in one word.
+ *
+ * @param {import('./ranking.js').ResultEntry} entry
+ * @returns {string}
+ */
+function originLabel(entry) {
+  return t(`export.origin.${entryOrigin(entry)}`);
 }
 
 /**
@@ -167,14 +189,16 @@ export function csvField(value) {
 
 /**
  * @param {Array<unknown>} cells
+ * @param {string} separator
  * @returns {string}
  */
-function csvRow(cells) {
-  return cells.map(csvField).join(CSV_SEPARATOR);
+function csvRow(cells, separator) {
+  return cells.map(csvField).join(separator);
 }
 
 /**
- * The final list as a CSV table, with the BOM Excel needs.
+ * The final list as a CSV table, with the BOM Excel needs, in the language of
+ * the interface.
  *
  * The items marked for removal are part of the table as well — a spreadsheet
  * is where the whole picture is expected — but their number cell is empty, so
@@ -184,37 +208,44 @@ function csvRow(cells) {
  * @returns {string}
  */
 export function toCsv(result) {
-  const rows = [csvRow(CSV_HEADER)];
+  const separator = csvSeparator();
+  const rows = [csvRow(CSV_HEADER_KEYS.map((key) => t(key)), separator)];
 
   for (const entry of result.entries) {
     rows.push(
-      csvRow([
-        entry.position,
-        entry.appId,
-        entry.item.title,
-        categoryLabel(entry.category),
-        kindLabel(entry.item.kind),
-        entry.positionInCategory,
-        ORIGIN_LABELS[entryOrigin(entry)],
-        entry.item.wishlistPosition,
-        entry.item.url,
-      ]),
+      csvRow(
+        [
+          entry.position,
+          entry.appId,
+          entry.item.title,
+          categoryLabel(entry.category),
+          kindLabel(entry.item.kind),
+          entry.positionInCategory,
+          originLabel(entry),
+          entry.item.wishlistPosition,
+          entry.item.url,
+        ],
+        separator,
+      ),
     );
   }
 
   for (const item of result.removed) {
     rows.push(
-      csvRow([
-        '',
-        item.appId,
-        item.title,
-        categoryLabel('remove'),
-        kindLabel(item.kind),
-        '',
-        '',
-        item.wishlistPosition,
-        item.url,
-      ]),
+      csvRow(
+        [
+          '',
+          item.appId,
+          item.title,
+          categoryLabel('remove'),
+          kindLabel(item.kind),
+          '',
+          '',
+          item.wishlistPosition,
+          item.url,
+        ],
+        separator,
+      ),
     );
   }
 

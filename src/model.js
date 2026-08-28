@@ -3,8 +3,11 @@
  * helpers that bring arbitrary input to that model.
  *
  * The module has no dependency on the DOM or on any storage backend, so it is
- * shared as is by the browser code, by the tests and by the userscripts.
+ * shared as is by the browser code and by the tests. The only text it hands
+ * out is the label of a category, and that comes from `i18n.js`.
  */
+
+import { t } from './i18n.js';
 
 /** Base URL of a Steam store page. */
 export const STEAM_STORE_URL = 'https://store.steampowered.com/app/';
@@ -35,15 +38,19 @@ export const STEAM_CDN_URL = 'https://cdn.cloudflare.steamstatic.com/steam/apps/
  * lower one, so the categories are the coarse part of the final ranking and
  * the pairwise comparisons only refine the order inside a single category.
  *
- * @type {ReadonlyArray<{ id: string, label: string, sortable: boolean }>}
+ * A category is an id and a rule, not a caption: the interface is bilingual,
+ * so the words live in the dictionaries of `i18n.js` under `category.<id>` and
+ * are looked up by `categoryLabel()` at the moment of drawing.
+ *
+ * @type {ReadonlyArray<{ id: string, sortable: boolean }>}
  */
 export const CATEGORIES = Object.freeze([
-  Object.freeze({ id: 'must', label: 'Очень хочу', sortable: true }),
-  Object.freeze({ id: 'want', label: 'Хочу', sortable: true }),
-  Object.freeze({ id: 'maybe', label: 'Возможно', sortable: true }),
-  Object.freeze({ id: 'unlikely', label: 'Маловероятно', sortable: true }),
-  Object.freeze({ id: 'meh', label: 'Почти не интересует', sortable: true }),
-  Object.freeze({ id: 'remove', label: 'Удалить из желаемого', sortable: false }),
+  Object.freeze({ id: 'must', sortable: true }),
+  Object.freeze({ id: 'want', sortable: true }),
+  Object.freeze({ id: 'maybe', sortable: true }),
+  Object.freeze({ id: 'unlikely', sortable: true }),
+  Object.freeze({ id: 'meh', sortable: true }),
+  Object.freeze({ id: 'remove', sortable: false }),
 ]);
 
 /** Category ids in priority order. @type {ReadonlyArray<string>} */
@@ -59,8 +66,15 @@ export const CATEGORY_IDS = Object.freeze(CATEGORIES.map((category) => category.
  */
 export const UNCATEGORIZED = null;
 
-/** Human readable label of the implicit "not classified yet" bucket. */
-export const UNCATEGORIZED_LABEL = 'Без категории';
+/**
+ * Human readable label of the implicit "not classified yet" bucket, in the
+ * language the interface is currently in.
+ *
+ * @returns {string}
+ */
+export function uncategorizedLabel() {
+  return t('category.none');
+}
 
 const CATEGORY_BY_ID = new Map(CATEGORIES.map((category) => [category.id, category]));
 
@@ -104,14 +118,17 @@ export function isSortableCategory(categoryId) {
 }
 
 /**
- * Label to show in the interface for a category id.
+ * Label to show for a category id, in the language the interface is currently
+ * in. An id the model does not know is returned as it is rather than replaced
+ * by a guess, so a broken state file is visible instead of silently renamed.
  *
  * @param {string|null} categoryId
  * @returns {string}
  */
 export function categoryLabel(categoryId) {
-  if (categoryId === UNCATEGORIZED) return UNCATEGORIZED_LABEL;
-  return CATEGORY_BY_ID.get(categoryId)?.label ?? String(categoryId);
+  if (categoryId === UNCATEGORIZED) return uncategorizedLabel();
+  if (!CATEGORY_BY_ID.has(categoryId)) return String(categoryId);
+  return t(`category.${categoryId}`);
 }
 
 /**
