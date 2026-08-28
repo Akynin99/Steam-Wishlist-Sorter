@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Steam Wishlist Sorter</title>
+  <meta name="description" content="Локальный инструмент, который упорядочивает список желаемого в Steam попарными сравнениями.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Перейти к содержимому</a>
+
+  <header class="topbar">
+    <div class="topbar__brand">
+      <span class="topbar__mark" aria-hidden="true"></span>
+      <span class="topbar__name">Steam Wishlist Sorter</span>
+    </div>
+
+    <nav class="topbar__nav" aria-label="Этапы работы">
+      <button type="button" class="navbtn" data-screen="import">Импорт</button>
+      <button type="button" class="navbtn" data-screen="categorize" data-needs-items>Категории</button>
+      <button type="button" class="navbtn" data-screen="compare" data-needs-items>Сравнения</button>
+      <button type="button" class="navbtn" data-screen="result" data-needs-items>Результат</button>
+    </nav>
+
+    <div class="topbar__tools">
+      <label class="switch" for="setting-covers">
+        <input type="checkbox" id="setting-covers" checked>
+        <span class="switch__track" aria-hidden="true"><span class="switch__thumb"></span></span>
+        <span class="switch__label">Загружать обложки</span>
+      </label>
+      <button type="button" class="btn btn--ghost" id="action-save-state">Сохранить в файл</button>
+      <button type="button" class="btn btn--ghost btn--danger" id="action-reset">Начать заново</button>
+    </div>
+  </header>
+
+  <p class="privacy-note">
+    Данные не покидают браузер. Единственный внешний запрос за всё время работы приложения —
+    загрузка обложек игр с CDN Steam по публичному URL; он отключается тумблером «Загружать обложки».
+  </p>
+
+  <main id="main" class="main">
+
+    <!-- ===================================================== импорт -->
+    <section class="screen" id="screen-import" hidden aria-labelledby="import-heading">
+      <div class="stage-head">
+        <h1 id="import-heading">Импорт списка желаемого</h1>
+        <p class="stage-head__hint">
+          Загрузите JSON со своим wishlist — или возьмите демо-набор, если хотите просто посмотреть,
+          как это работает.
+        </p>
+      </div>
+
+      <div class="import-grid">
+        <article class="panel">
+          <h2 class="panel__title">Файл JSON</h2>
+          <p class="panel__hint">Выгрузка из Steam или файл, собранный userscript-ом.</p>
+          <label class="filefield">
+            <input type="file" id="import-file" accept=".json,application/json">
+            <span class="filefield__button">Выбрать файл…</span>
+            <span class="filefield__name" id="import-file-name">Файл не выбран</span>
+          </label>
+        </article>
+
+        <article class="panel">
+          <h2 class="panel__title">Вставить JSON</h2>
+          <p class="panel__hint">Можно вставить прямо содержимое ответа Steam.</p>
+          <label class="visually-hidden" for="import-text">JSON списка желаемого</label>
+          <textarea id="import-text" class="textarea" rows="6" spellcheck="false"
+                    placeholder="[ { &quot;appid&quot;: 620, &quot;name&quot;: &quot;Portal 2&quot; }, … ]"></textarea>
+          <button type="button" class="btn btn--primary" id="import-text-run">Импортировать из текста</button>
+        </article>
+
+        <article class="panel">
+          <h2 class="panel__title">Сохранённое состояние</h2>
+          <p class="panel__hint">
+            Файл, который вы раньше сохранили кнопкой «Сохранить в файл»: вернутся и категории,
+            и все ответы.
+          </p>
+          <label class="filefield">
+            <input type="file" id="import-state" accept=".json,application/json">
+            <span class="filefield__button">Выбрать файл состояния…</span>
+            <span class="filefield__name" id="import-state-name">Файл не выбран</span>
+          </label>
+        </article>
+
+        <article class="panel panel--demo">
+          <h2 class="panel__title">Демо-набор</h2>
+          <p class="panel__hint">
+            20 реальных игр из Steam. Хватает, чтобы пройти оба этапа и увидеть результат.
+          </p>
+          <button type="button" class="btn btn--primary" id="import-demo">Загрузить демо-набор</button>
+        </article>
+      </div>
+
+      <div class="import-feedback" id="import-feedback" role="status" aria-live="polite"></div>
+
+      <div class="import-current" id="import-current" hidden>
+        <p class="import-current__text" id="import-current-text"></p>
+        <button type="button" class="btn btn--primary" id="import-continue">Продолжить</button>
+      </div>
+    </section>
+
+    <!-- ============================================== категоризация -->
+    <section class="screen" id="screen-categorize" hidden aria-labelledby="categorize-heading">
+      <div class="stage-head">
+        <div class="stage-head__row">
+          <h1 id="categorize-heading">Шаг 1. Категории</h1>
+          <span class="stage-head__counter" id="cat-counter">0 из 0</span>
+        </div>
+        <p class="stage-head__hint">
+          Насколько сильно вы этого хотите? Клавиши <kbd>1</kbd>–<kbd>6</kbd>,
+          <kbd>←</kbd> — назад, <kbd>→</kbd> или <kbd>Space</kbd> — отложить.
+        </p>
+        <div class="progress">
+          <div class="progress__bar"><span class="progress__fill" id="cat-bar"></span></div>
+          <p class="progress__legend" id="cat-legend"></p>
+        </div>
+      </div>
+
+      <article class="card card--single">
+        <div class="cover cover--large" id="cat-cover"></div>
+        <div class="card__body">
+          <h2 class="card__title" id="cat-title">—</h2>
+          <p class="card__meta">
+            <span class="badge" id="cat-kind">Игра</span>
+            <a class="link" id="cat-link" href="#" target="_blank" rel="noopener noreferrer">Открыть в Steam ↗</a>
+          </p>
+          <p class="card__note" id="cat-current"></p>
+        </div>
+      </article>
+
+      <div class="categories" id="cat-buttons" role="group" aria-label="Категории"></div>
+
+      <div class="stage-actions">
+        <button type="button" class="btn" id="cat-back">← Предыдущая</button>
+        <button type="button" class="btn" id="cat-defer">Отложить</button>
+        <button type="button" class="btn btn--ghost" id="cat-skip">Пропустить этап и перейти к сравнениям</button>
+      </div>
+
+      <p class="stage-done" id="cat-done" hidden>
+        <span id="cat-done-text">Все позиции распределены.</span>
+        <button type="button" class="btn btn--primary" id="cat-to-compare">Перейти к сравнениям</button>
+      </p>
+    </section>
+
+    <!-- ================================================== сравнения -->
+    <section class="screen" id="screen-compare" hidden aria-labelledby="compare-heading">
+      <div class="stage-head">
+        <div class="stage-head__row">
+          <h1 id="compare-heading">Шаг 2. Сравнения</h1>
+          <span class="chip" id="cmp-category">—</span>
+        </div>
+        <div class="statline">
+          <span class="statline__item">сравнений сделано: <b id="cmp-done">0</b></span>
+          <span class="statline__item">осталось примерно: <b id="cmp-left">0</b></span>
+          <span class="statline__item"><b id="cmp-percent">0%</b></span>
+          <span class="statline__item statline__item--muted" id="cmp-deferred" hidden></span>
+        </div>
+        <div class="progress">
+          <div class="progress__bar"><span class="progress__fill" id="cmp-bar"></span></div>
+        </div>
+        <div class="stage-head__row stage-head__row--tools">
+          <button type="button" class="btn" id="cmp-pause">Пауза</button>
+          <button type="button" class="btn" id="cmp-stop">Остановиться и посмотреть результат</button>
+        </div>
+      </div>
+
+      <p class="banner" id="cmp-banner" hidden></p>
+
+      <div class="versus" id="cmp-versus">
+        <article class="card card--versus" id="cmp-card-a">
+          <div class="cover" id="cmp-cover-a"></div>
+          <div class="card__body">
+            <h2 class="card__title" id="cmp-title-a">—</h2>
+            <p class="card__meta">
+              <span class="badge" id="cmp-kind-a">Игра</span>
+              <a class="link" id="cmp-link-a" href="#" target="_blank" rel="noopener noreferrer">Открыть в Steam ↗</a>
+            </p>
+          </div>
+          <div class="card__actions">
+            <button type="button" class="btn btn--primary" data-answer="a">Хочу больше <kbd>A</kbd></button>
+            <button type="button" class="btn btn--ghost btn--danger" data-drop="a">Больше не хочу</button>
+          </div>
+        </article>
+
+        <div class="versus__middle">
+          <span class="versus__or" aria-hidden="true">или</span>
+          <button type="button" class="btn" data-answer="tie">Примерно одинаково <kbd>S</kbd></button>
+          <button type="button" class="btn" data-answer="defer">Не могу решить <kbd>Space</kbd></button>
+          <button type="button" class="btn btn--ghost" id="cmp-undo">Отменить <kbd>Backspace</kbd></button>
+        </div>
+
+        <article class="card card--versus" id="cmp-card-b">
+          <div class="cover" id="cmp-cover-b"></div>
+          <div class="card__body">
+            <h2 class="card__title" id="cmp-title-b">—</h2>
+            <p class="card__meta">
+              <span class="badge" id="cmp-kind-b">Игра</span>
+              <a class="link" id="cmp-link-b" href="#" target="_blank" rel="noopener noreferrer">Открыть в Steam ↗</a>
+            </p>
+          </div>
+          <div class="card__actions">
+            <button type="button" class="btn btn--primary" data-answer="b">Хочу больше <kbd>D</kbd></button>
+            <button type="button" class="btn btn--ghost btn--danger" data-drop="b">Больше не хочу</button>
+          </div>
+        </article>
+      </div>
+
+      <p class="stage-done" id="cmp-done-note" hidden>
+        <span id="cmp-done-text">Сравнивать больше нечего: порядок определён.</span>
+        <button type="button" class="btn btn--primary" id="cmp-to-result">Посмотреть результат</button>
+      </p>
+    </section>
+
+    <!-- =================================================== результат -->
+    <section class="screen" id="screen-result" hidden aria-labelledby="result-heading">
+      <div class="stage-head">
+        <h1 id="result-heading">Результат</h1>
+        <p class="stage-head__hint" id="result-summary"></p>
+        <div class="stage-actions">
+          <button type="button" class="btn btn--primary" id="result-continue">Продолжить сортировку</button>
+          <button type="button" class="btn" id="result-save">Сохранить состояние в файл</button>
+        </div>
+      </div>
+      <ol class="result-list" id="result-list"></ol>
+      <section class="result-removed" id="result-removed" hidden aria-labelledby="result-removed-heading">
+        <h2 class="panel__title" id="result-removed-heading">Помечено «удалить из желаемого»</h2>
+        <ul class="result-removed__list" id="result-removed-list"></ul>
+      </section>
+    </section>
+
+  </main>
+
+  <div class="toast" id="toast" hidden></div>
+  <p class="visually-hidden" id="live-region" role="status" aria-live="polite"></p>
+
+  <script type="module" src="src/ui-app.js"></script>
+</body>
+</html>
