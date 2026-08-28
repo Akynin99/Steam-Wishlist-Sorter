@@ -1,15 +1,27 @@
 <!doctype html>
-<html lang="ru">
+<!--
+  The text of the interface lives in the dictionaries of `src/i18n.js`, never
+  here: an element carries the key and `applyTranslations()` fills it in on
+  start and on every language change. The words written below are the English
+  strings, so the page reads correctly for the fraction of a second before the
+  module runs — and reads correctly for good if scripting is off.
+
+  data-i18n       — the key of the text content
+  data-i18n-html  — the same, for a string that carries inline markup (<kbd>)
+  data-i18n-attr  — `attribute:key` pairs, separated by a semicolon
+-->
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Steam Wishlist Sorter</title>
-  <meta name="description" content="Локальный инструмент, который упорядочивает список желаемого в Steam попарными сравнениями.">
+  <meta name="description" data-i18n-attr="content:meta.description"
+        content="A local tool that puts a Steam wishlist in order through pairwise comparisons.">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <a class="skip-link" href="#main">Перейти к содержимому</a>
+  <a class="skip-link" href="#main" data-i18n="a11y.skipToContent">Skip to the content</a>
 
   <header class="topbar">
     <div class="topbar__brand">
@@ -17,80 +29,101 @@
       <span class="topbar__name">Steam Wishlist Sorter</span>
     </div>
 
-    <nav class="topbar__nav" aria-label="Этапы работы">
-      <button type="button" class="navbtn" data-screen="import">Импорт</button>
-      <button type="button" class="navbtn" data-screen="categorize" data-needs-items>Категории</button>
-      <button type="button" class="navbtn" data-screen="compare" data-needs-items>Сравнения</button>
-      <button type="button" class="navbtn" data-screen="result" data-needs-items>Результат</button>
+    <nav class="topbar__nav" data-i18n-attr="aria-label:nav.aria" aria-label="Stages">
+      <button type="button" class="navbtn" data-screen="import" data-i18n="nav.import">Import</button>
+      <button type="button" class="navbtn" data-screen="categorize" data-needs-items
+              data-i18n="nav.categorize">Categories</button>
+      <button type="button" class="navbtn" data-screen="compare" data-needs-items
+              data-i18n="nav.compare">Comparisons</button>
+      <button type="button" class="navbtn" data-screen="result" data-needs-items
+              data-i18n="nav.result">Result</button>
     </nav>
 
     <div class="topbar__tools">
       <label class="switch" for="setting-covers">
         <input type="checkbox" id="setting-covers" checked>
         <span class="switch__track" aria-hidden="true"><span class="switch__thumb"></span></span>
-        <span class="switch__label">Загружать обложки</span>
+        <span class="switch__label" data-i18n="settings.covers">Load covers</span>
       </label>
-      <button type="button" class="btn btn--ghost" id="action-save-state">Сохранить в файл</button>
-      <button type="button" class="btn btn--ghost btn--danger" id="action-reset">Начать заново</button>
+      <label class="langswitch" for="setting-language">
+        <span class="visually-hidden" data-i18n="settings.language">Interface language</span>
+        <!-- A language names itself: «Русский», not «Russian». -->
+        <select class="select select--language" id="setting-language">
+          <option value="en">English</option>
+          <option value="ru">Русский</option>
+        </select>
+      </label>
+      <button type="button" class="btn btn--ghost" id="action-save-state"
+              data-i18n="actions.saveState">Save to a file</button>
+      <button type="button" class="btn btn--ghost btn--danger" id="action-reset"
+              data-i18n="actions.reset">Start over</button>
     </div>
   </header>
 
-  <p class="privacy-note">
-    Данные не покидают браузер. Единственный внешний запрос за всё время работы приложения —
-    загрузка обложек игр с CDN Steam по публичному URL; он отключается тумблером «Загружать обложки».
+  <p class="privacy-note" data-i18n="privacy.note">
+    Your data never leaves the browser. The only external request the application makes at any point
+    is loading game covers from the Steam CDN over a public URL; it is switched off by the
+    “Load covers” toggle.
   </p>
 
   <main id="main" class="main">
 
-    <!-- ===================================================== импорт -->
+    <!-- ===================================================== import -->
     <section class="screen" id="screen-import" hidden aria-labelledby="import-heading">
       <div class="stage-head">
-        <h1 id="import-heading">Импорт списка желаемого</h1>
-        <p class="stage-head__hint">
-          Загрузите JSON со своим wishlist — или возьмите демо-набор, если хотите просто посмотреть,
-          как это работает.
+        <h1 id="import-heading" data-i18n="import.heading">Import the wishlist</h1>
+        <p class="stage-head__hint" data-i18n="import.hint">
+          Load a JSON file with your wishlist — or take the demo set if you just want to see how
+          this works.
         </p>
       </div>
 
       <div class="import-grid">
         <article class="panel">
-          <h2 class="panel__title">Файл JSON</h2>
-          <p class="panel__hint">Выгрузка из Steam или файл, собранный userscript-ом.</p>
+          <h2 class="panel__title" data-i18n="import.file.title">JSON file</h2>
+          <p class="panel__hint" data-i18n="import.file.hint">
+            An export from Steam or a file collected by the userscript.
+          </p>
           <label class="filefield">
             <input type="file" id="import-file" accept=".json,application/json">
-            <span class="filefield__button">Выбрать файл…</span>
-            <span class="filefield__name" id="import-file-name">Файл не выбран</span>
+            <span class="filefield__button" data-i18n="import.file.button">Choose a file…</span>
+            <span class="filefield__name" id="import-file-name" data-i18n="import.file.none">No file chosen</span>
           </label>
         </article>
 
         <article class="panel">
-          <h2 class="panel__title">Вставить JSON</h2>
-          <p class="panel__hint">Можно вставить прямо содержимое ответа Steam.</p>
-          <label class="visually-hidden" for="import-text">JSON списка желаемого</label>
+          <h2 class="panel__title" data-i18n="import.paste.title">Paste JSON</h2>
+          <p class="panel__hint" data-i18n="import.paste.hint">
+            The body of the Steam response can be pasted as is.
+          </p>
+          <label class="visually-hidden" for="import-text" data-i18n="import.paste.label">Wishlist JSON</label>
           <textarea id="import-text" class="textarea" rows="6" spellcheck="false"
+                    data-i18n-attr="placeholder:import.paste.placeholder"
                     placeholder="[ { &quot;appid&quot;: 620, &quot;name&quot;: &quot;Portal 2&quot; }, … ]"></textarea>
-          <button type="button" class="btn btn--primary" id="import-text-run">Импортировать из текста</button>
+          <button type="button" class="btn btn--primary" id="import-text-run"
+                  data-i18n="import.paste.run">Import from the text</button>
         </article>
 
         <article class="panel">
-          <h2 class="panel__title">Сохранённое состояние</h2>
-          <p class="panel__hint">
-            Файл, который вы раньше сохранили кнопкой «Сохранить в файл»: вернутся и категории,
-            и все ответы.
+          <h2 class="panel__title" data-i18n="import.state.title">Saved state</h2>
+          <p class="panel__hint" data-i18n="import.state.hint">
+            A file you saved earlier with “Save to a file”: both the categories and every answer
+            come back.
           </p>
           <label class="filefield">
             <input type="file" id="import-state" accept=".json,application/json">
-            <span class="filefield__button">Выбрать файл состояния…</span>
-            <span class="filefield__name" id="import-state-name">Файл не выбран</span>
+            <span class="filefield__button" data-i18n="import.state.button">Choose a state file…</span>
+            <span class="filefield__name" id="import-state-name" data-i18n="import.file.none">No file chosen</span>
           </label>
         </article>
 
         <article class="panel panel--demo">
-          <h2 class="panel__title">Демо-набор</h2>
-          <p class="panel__hint">
-            20 реальных игр из Steam. Хватает, чтобы пройти оба этапа и увидеть результат.
+          <h2 class="panel__title" data-i18n="import.demo.title">Demo set</h2>
+          <p class="panel__hint" data-i18n="import.demo.hint">
+            20 real games from Steam. Enough to walk both stages and see the result.
           </p>
-          <button type="button" class="btn btn--primary" id="import-demo">Загрузить демо-набор</button>
+          <button type="button" class="btn btn--primary" id="import-demo"
+                  data-i18n="import.demo.button">Load the demo set</button>
         </article>
       </div>
 
@@ -98,20 +131,21 @@
 
       <div class="import-current" id="import-current" hidden>
         <p class="import-current__text" id="import-current-text"></p>
-        <button type="button" class="btn btn--primary" id="import-continue">Продолжить</button>
+        <button type="button" class="btn btn--primary" id="import-continue"
+                data-i18n="import.continue">Continue</button>
       </div>
     </section>
 
-    <!-- ============================================== категоризация -->
+    <!-- ================================================= categories -->
     <section class="screen" id="screen-categorize" hidden aria-labelledby="categorize-heading">
       <div class="stage-head">
         <div class="stage-head__row">
-          <h1 id="categorize-heading">Шаг 1. Категории</h1>
-          <span class="stage-head__counter" id="cat-counter">0 из 0</span>
+          <h1 id="categorize-heading" data-i18n="categorize.heading">Step 1. Categories</h1>
+          <span class="stage-head__counter" id="cat-counter">0 of 0</span>
         </div>
-        <p class="stage-head__hint">
-          Насколько сильно вы этого хотите? Клавиши <kbd>1</kbd>–<kbd>6</kbd>,
-          <kbd>←</kbd> — назад, <kbd>→</kbd> или <kbd>Space</kbd> — отложить.
+        <p class="stage-head__hint" data-i18n-html="categorize.hint">
+          How badly do you want it? Keys <kbd>1</kbd>–<kbd>6</kbd>, <kbd>←</kbd> — back,
+          <kbd>→</kbd> or <kbd>Space</kbd> — postpone.
         </p>
         <div class="progress">
           <div class="progress__bar"><span class="progress__fill" id="cat-bar"></span></div>
@@ -124,37 +158,41 @@
         <div class="card__body">
           <h2 class="card__title" id="cat-title">—</h2>
           <p class="card__meta">
-            <span class="badge" id="cat-kind">Игра</span>
-            <a class="link" id="cat-link" href="#" target="_blank" rel="noopener noreferrer">Открыть в Steam ↗</a>
+            <span class="badge" id="cat-kind"></span>
+            <a class="link" id="cat-link" href="#" target="_blank" rel="noopener noreferrer"
+               data-i18n="common.openInSteam">Open in Steam ↗</a>
           </p>
           <p class="card__note" id="cat-current"></p>
         </div>
       </article>
 
-      <div class="categories" id="cat-buttons" role="group" aria-label="Категории"></div>
+      <div class="categories" id="cat-buttons" role="group"
+           data-i18n-attr="aria-label:categorize.buttonsAria" aria-label="Categories"></div>
 
       <div class="stage-actions">
-        <button type="button" class="btn" id="cat-back">← Предыдущая</button>
-        <button type="button" class="btn" id="cat-defer">Отложить</button>
-        <button type="button" class="btn btn--ghost" id="cat-skip">Пропустить этап и перейти к сравнениям</button>
+        <button type="button" class="btn" id="cat-back" data-i18n="categorize.back">← Previous</button>
+        <button type="button" class="btn" id="cat-defer" data-i18n="categorize.defer">Postpone</button>
+        <button type="button" class="btn btn--ghost" id="cat-skip" data-i18n="categorize.skip">
+          Skip the stage and go to the comparisons
+        </button>
       </div>
 
       <p class="stage-done" id="cat-done" hidden>
-        <span id="cat-done-text">Все позиции распределены.</span>
-        <button type="button" class="btn btn--primary" id="cat-to-compare">Перейти к сравнениям</button>
+        <span id="cat-done-text">Every item has a category.</span>
+        <button type="button" class="btn btn--primary" id="cat-to-compare">Go to the comparisons</button>
       </p>
     </section>
 
-    <!-- ================================================== сравнения -->
+    <!-- ================================================ comparisons -->
     <section class="screen" id="screen-compare" hidden aria-labelledby="compare-heading">
       <div class="stage-head">
         <div class="stage-head__row">
-          <h1 id="compare-heading">Шаг 2. Сравнения</h1>
+          <h1 id="compare-heading" data-i18n="compare.heading">Step 2. Comparisons</h1>
           <span class="chip" id="cmp-category">—</span>
         </div>
         <div class="statline">
-          <span class="statline__item">сравнений сделано: <b id="cmp-done">0</b></span>
-          <span class="statline__item">осталось примерно: <b id="cmp-left">0</b></span>
+          <span class="statline__item"><span data-i18n="compare.doneLabel">comparisons made: </span><b id="cmp-done">0</b></span>
+          <span class="statline__item"><span data-i18n="compare.leftLabel">about this many left: </span><b id="cmp-left">0</b></span>
           <span class="statline__item"><b id="cmp-percent">0%</b></span>
           <span class="statline__item statline__item--muted" id="cmp-deferred" hidden></span>
         </div>
@@ -162,8 +200,10 @@
           <div class="progress__bar"><span class="progress__fill" id="cmp-bar"></span></div>
         </div>
         <div class="stage-head__row stage-head__row--tools">
-          <button type="button" class="btn" id="cmp-pause">Пауза</button>
-          <button type="button" class="btn" id="cmp-stop">Остановиться и посмотреть результат</button>
+          <button type="button" class="btn" id="cmp-pause" data-i18n="compare.pause">Pause</button>
+          <button type="button" class="btn" id="cmp-stop" data-i18n="compare.stop">
+            Stop and see the result
+          </button>
         </div>
       </div>
 
@@ -175,21 +215,27 @@
           <div class="card__body">
             <h2 class="card__title" id="cmp-title-a">—</h2>
             <p class="card__meta">
-              <span class="badge" id="cmp-kind-a">Игра</span>
-              <a class="link" id="cmp-link-a" href="#" target="_blank" rel="noopener noreferrer">Открыть в Steam ↗</a>
+              <span class="badge" id="cmp-kind-a"></span>
+              <a class="link" id="cmp-link-a" href="#" target="_blank" rel="noopener noreferrer"
+                 data-i18n="common.openInSteam">Open in Steam ↗</a>
             </p>
           </div>
           <div class="card__actions">
-            <button type="button" class="btn btn--primary" data-answer="a">Хочу больше <kbd>A</kbd></button>
-            <button type="button" class="btn btn--ghost btn--danger" data-drop="a">Больше не хочу</button>
+            <button type="button" class="btn btn--primary" data-answer="a"
+                    data-i18n-html="compare.preferA">Want it more <kbd>A</kbd></button>
+            <button type="button" class="btn btn--ghost btn--danger" data-drop="a"
+                    data-i18n="compare.drop">Do not want it any more</button>
           </div>
         </article>
 
         <div class="versus__middle">
-          <span class="versus__or" aria-hidden="true">или</span>
-          <button type="button" class="btn" data-answer="tie">Примерно одинаково <kbd>S</kbd></button>
-          <button type="button" class="btn" data-answer="defer">Не могу решить <kbd>Space</kbd></button>
-          <button type="button" class="btn btn--ghost" id="cmp-undo">Отменить <kbd>Backspace</kbd></button>
+          <span class="versus__or" aria-hidden="true" data-i18n="compare.or">or</span>
+          <button type="button" class="btn" data-answer="tie"
+                  data-i18n-html="compare.tie">About the same <kbd>S</kbd></button>
+          <button type="button" class="btn" data-answer="defer"
+                  data-i18n-html="compare.defer">Cannot decide <kbd>Space</kbd></button>
+          <button type="button" class="btn btn--ghost" id="cmp-undo"
+                  data-i18n-html="compare.undo">Undo <kbd>Backspace</kbd></button>
         </div>
 
         <article class="card card--versus" id="cmp-card-b">
@@ -197,77 +243,101 @@
           <div class="card__body">
             <h2 class="card__title" id="cmp-title-b">—</h2>
             <p class="card__meta">
-              <span class="badge" id="cmp-kind-b">Игра</span>
-              <a class="link" id="cmp-link-b" href="#" target="_blank" rel="noopener noreferrer">Открыть в Steam ↗</a>
+              <span class="badge" id="cmp-kind-b"></span>
+              <a class="link" id="cmp-link-b" href="#" target="_blank" rel="noopener noreferrer"
+                 data-i18n="common.openInSteam">Open in Steam ↗</a>
             </p>
           </div>
           <div class="card__actions">
-            <button type="button" class="btn btn--primary" data-answer="b">Хочу больше <kbd>D</kbd></button>
-            <button type="button" class="btn btn--ghost btn--danger" data-drop="b">Больше не хочу</button>
+            <button type="button" class="btn btn--primary" data-answer="b"
+                    data-i18n-html="compare.preferB">Want it more <kbd>D</kbd></button>
+            <button type="button" class="btn btn--ghost btn--danger" data-drop="b"
+                    data-i18n="compare.drop">Do not want it any more</button>
           </div>
         </article>
       </div>
 
       <p class="stage-done" id="cmp-done-note" hidden>
-        <span id="cmp-done-text">Сравнивать больше нечего: порядок определён.</span>
-        <button type="button" class="btn btn--primary" id="cmp-to-result">Посмотреть результат</button>
+        <span id="cmp-done-text">There is nothing left to compare: the order is settled.</span>
+        <button type="button" class="btn btn--primary" id="cmp-to-result">See the result</button>
       </p>
     </section>
 
-    <!-- =================================================== результат -->
+    <!-- ===================================================== result -->
     <section class="screen" id="screen-result" hidden aria-labelledby="result-heading">
       <div class="stage-head">
         <div class="stage-head__row">
-          <h1 id="result-heading">Результат</h1>
-          <button type="button" class="btn btn--primary" id="result-continue">Продолжить сортировку</button>
+          <h1 id="result-heading" data-i18n="result.heading">Result</h1>
+          <button type="button" class="btn btn--primary" id="result-continue">Continue the sorting</button>
         </div>
         <p class="stage-head__hint" id="result-summary"></p>
         <ul class="legend" id="result-legend">
-          <li class="legend__item legend__item--sorted">порядок подтверждён сравнениями</li>
-          <li class="legend__item legend__item--fallback">запасной порядок — по позиции в wishlist</li>
-          <li class="legend__item legend__item--manual">переставлено вручную</li>
+          <li class="legend__item legend__item--sorted" data-i18n="result.legend.sorted">
+            the order is confirmed by comparisons
+          </li>
+          <li class="legend__item legend__item--fallback" data-i18n="result.legend.fallback">
+            fallback order — by the position in the wishlist
+          </li>
+          <li class="legend__item legend__item--manual" data-i18n="result.legend.manual">
+            moved by hand
+          </li>
         </ul>
       </div>
 
       <div class="result-tools">
         <div class="result-tools__row">
-          <label class="visually-hidden" for="result-search">Поиск по названию или App ID</label>
-          <input type="search" class="input" id="result-search" placeholder="Поиск по названию или App ID"
-                 autocomplete="off" spellcheck="false">
-          <div class="segmented" role="group" aria-label="Что показывать">
-            <button type="button" class="segmented__btn" data-filter="all" aria-pressed="true">Все</button>
-            <button type="button" class="segmented__btn" data-filter="game" aria-pressed="false">Игры</button>
-            <button type="button" class="segmented__btn" data-filter="dlc" aria-pressed="false">DLC</button>
+          <label class="visually-hidden" for="result-search" data-i18n="result.search">
+            Search by title or App ID
+          </label>
+          <input type="search" class="input" id="result-search"
+                 data-i18n-attr="placeholder:result.search"
+                 placeholder="Search by title or App ID" autocomplete="off" spellcheck="false">
+          <div class="segmented" role="group" data-i18n-attr="aria-label:result.filterAria"
+               aria-label="What to show">
+            <button type="button" class="segmented__btn" data-filter="all" aria-pressed="true"
+                    data-i18n="result.filter.all">All</button>
+            <button type="button" class="segmented__btn" data-filter="game" aria-pressed="false"
+                    data-i18n="result.filter.game">Games</button>
+            <button type="button" class="segmented__btn" data-filter="dlc" aria-pressed="false"
+                    data-i18n="result.filter.dlc">DLC</button>
           </div>
           <span class="result-tools__count" id="result-shown"></span>
         </div>
         <div class="result-tools__row result-tools__row--exports">
-          <button type="button" class="btn btn--primary" id="result-export-json">Итог в JSON</button>
-          <button type="button" class="btn" id="result-export-csv">Итог в CSV</button>
-          <button type="button" class="btn" id="result-copy-text">Скопировать списком</button>
-          <button type="button" class="btn btn--ghost" id="result-save">Резервная копия состояния</button>
+          <button type="button" class="btn btn--primary" id="result-export-json"
+                  data-i18n="result.exportJson">Order as JSON</button>
+          <button type="button" class="btn" id="result-export-csv"
+                  data-i18n="result.exportCsv">List as CSV</button>
+          <button type="button" class="btn" id="result-copy-text"
+                  data-i18n="result.copyText">Copy as a list</button>
+          <button type="button" class="btn btn--ghost" id="result-save"
+                  data-i18n="result.saveState">Backup of the state</button>
         </div>
       </div>
 
-      <p class="hint" id="result-hint">
-        Строку можно перетащить мышью или выбрать её и нажать <kbd>Ctrl</kbd> + <kbd>↑</kbd> /
-        <kbd>Ctrl</kbd> + <kbd>↓</kbd>. Перестановки сохраняются и переживают перезагрузку.
+      <p class="hint" id="result-hint" data-i18n-html="result.hint">
+        A row can be dragged with the mouse, or selected and moved with <kbd>Ctrl</kbd> +
+        <kbd>↑</kbd> / <kbd>Ctrl</kbd> + <kbd>↓</kbd>. The moves are saved and survive a reload.
       </p>
 
       <ol class="result-list" id="result-list"></ol>
       <p class="result-empty" id="result-empty" hidden></p>
 
       <section class="result-removed" id="result-removed" hidden aria-labelledby="result-removed-heading">
-        <h2 class="panel__title" id="result-removed-heading">Удалить из желаемого</h2>
-        <p class="panel__hint">Эти позиции не входят в нумерацию итогового списка.</p>
+        <h2 class="panel__title" id="result-removed-heading" data-i18n="category.remove">
+          Remove from the wishlist
+        </h2>
+        <p class="panel__hint" data-i18n="result.removed.hint">
+          These items are not part of the numbering of the final list.
+        </p>
         <ul class="result-removed__list" id="result-removed-list"></ul>
       </section>
 
       <div class="stage-actions stage-actions--footer">
-        <button type="button" class="btn btn--ghost" id="result-reset-manual">Сбросить ручные правки</button>
-        <button type="button" class="btn btn--ghost btn--danger" id="result-reset-answers">
-          Сбросить ответы сравнений
-        </button>
+        <button type="button" class="btn btn--ghost" id="result-reset-manual"
+                data-i18n="result.resetManual">Reset the manual edits</button>
+        <button type="button" class="btn btn--ghost btn--danger" id="result-reset-answers"
+                data-i18n="result.resetAnswers">Reset the comparison answers</button>
       </div>
     </section>
 
@@ -280,11 +350,11 @@
   -->
   <dialog class="dialog" id="confirm-dialog" aria-labelledby="confirm-title">
     <form method="dialog" class="dialog__form">
-      <h2 class="dialog__title" id="confirm-title">Подтвердите действие</h2>
+      <h2 class="dialog__title" id="confirm-title">Confirm the action</h2>
       <p class="dialog__text" id="confirm-text"></p>
       <div class="dialog__actions">
-        <button type="submit" class="btn" value="cancel" id="confirm-cancel">Отмена</button>
-        <button type="submit" class="btn btn--primary" value="confirm" id="confirm-ok">Продолжить</button>
+        <button type="submit" class="btn" value="cancel" id="confirm-cancel">Cancel</button>
+        <button type="submit" class="btn btn--primary" value="confirm" id="confirm-ok">Continue</button>
       </div>
     </form>
   </dialog>

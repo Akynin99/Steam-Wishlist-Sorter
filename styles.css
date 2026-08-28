@@ -1,14 +1,14 @@
 /*
- * Steam Wishlist Sorter — оформление.
+ * Steam Wishlist Sorter — styles.
  *
- * Тёмная тема, родственная Steam по настроению: глубокий сине-серый фон и
- * светлый текст. Акцент свой, бирюзовый, чтобы приложение не выдавало себя за
- * часть магазина.
+ * A dark theme, related to Steam in mood: a deep blue-grey background and
+ * light text. The accent is its own, turquoise, so that the application never
+ * passes itself off as a part of the store.
  *
- * Порядок разделов: переменные, база, шапка, общие элементы, экраны.
+ * Order of the sections: variables, base, header, shared elements, screens.
  */
 
-/* ------------------------------------------------------- переменные */
+/* -------------------------------------------------------- variables */
 
 :root {
   --bg: #0e141b;
@@ -44,7 +44,7 @@
   color-scheme: dark;
 }
 
-/* ------------------------------------------------------------- база */
+/* ------------------------------------------------------------- base */
 
 *,
 *::before,
@@ -143,7 +143,7 @@ kbd {
   top: 0;
 }
 
-/* ------------------------------------------------------------ шапка */
+/* ----------------------------------------------------------- header */
 
 .topbar {
   display: flex;
@@ -274,6 +274,24 @@ kbd {
   outline-offset: 2px;
 }
 
+/* Language switch of the interface: it sits next to the covers toggle,
+   because it is the same kind of setting, not a stage of the work. */
+
+.langswitch {
+  display: inline-flex;
+  align-items: center;
+}
+
+.select--language {
+  padding-block: 6px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.select--language:hover {
+  color: var(--text);
+}
+
 .privacy-note {
   max-width: 1100px;
   margin: 14px auto 0;
@@ -283,7 +301,7 @@ kbd {
   text-align: center;
 }
 
-/* -------------------------------------------------- общие элементы */
+/* -------------------------------------------------- shared elements */
 
 .main {
   max-width: 1240px;
@@ -537,8 +555,8 @@ kbd {
   border-color: var(--accent);
 }
 
-/* Поля ввода и выпадающие списки. Собственные стрелки и фон нужны потому,
-   что системный виджет на тёмной теме остаётся светлым. */
+/* Inputs and dropdowns. They need an arrow and a background of their own,
+   because the system widget stays light on a dark theme. */
 
 .input,
 .select {
@@ -581,7 +599,7 @@ kbd {
   color: var(--text);
 }
 
-/* Переключатель из нескольких кнопок: выбран ровно один вариант. */
+/* A switch made of several buttons: exactly one option is chosen. */
 
 .segmented {
   display: flex;
@@ -620,7 +638,7 @@ kbd {
   font-size: 0.88rem;
 }
 
-/* Легенда: те же три состояния строки, что и в самом списке. */
+/* Legend: the same three states of a row as in the list itself. */
 
 .legend {
   display: flex;
@@ -639,8 +657,8 @@ kbd {
   gap: 8px;
 }
 
-/* Образец — кусочек строки списка, а не квадратик: так легенда читается
-   как «вот такая строка», а не как флажок, который можно нажать. */
+/* The sample is a piece of a list row rather than a small square, so that
+   the legend reads as "a row looks like this", not as a clickable box. */
 .legend__item::before {
   width: 26px;
   height: 12px;
@@ -662,7 +680,7 @@ kbd {
   background: rgb(95 212 196 / 12%);
 }
 
-/* Диалог подтверждения опасных действий. */
+/* Confirmation dialog of the irreversible actions. */
 
 .dialog {
   max-width: 460px;
@@ -704,7 +722,7 @@ kbd {
   margin-top: 6px;
 }
 
-/* ---------------------------------------------------------- обложки */
+/* ----------------------------------------------------------- covers */
 
 .cover {
   position: relative;
@@ -744,7 +762,7 @@ kbd {
   font-size: 0.8rem;
 }
 
-/* ------------------------------------------------------------ карта */
+/* ------------------------------------------------------------- card */
 
 .card {
   display: flex;
@@ -797,7 +815,7 @@ kbd {
   flex: 1 1 auto;
 }
 
-/* ------------------------------------------------- экран: импорт */
+/* --------------------------------------------------- screen: import */
 
 .import-grid {
   display: grid;
@@ -924,7 +942,7 @@ kbd {
   color: var(--text-muted);
 }
 
-/* ------------------------------------------ экран: категоризация */
+/* ----------------------------------------------- screen: categories */
 
 .categories {
   display: grid;
@@ -984,7 +1002,7 @@ kbd {
   overflow-wrap: anywhere;
 }
 
-/* ---------------------------------------------- экран: сравнения */
+/* ---------------------------------------------- screen: comparisons */
 
 .versus {
   display: grid;
@@ -1012,7 +1030,7 @@ kbd {
   letter-spacing: 0.14em;
 }
 
-/* ---------------------------------------------- экран: результат */
+/* --------------------------------------------------- screen: result */
 
 .result-tools {
   display: flex;
@@ -1070,16 +1088,16 @@ kbd {
   background: var(--bg-elevated);
 }
 
-/* Строка, порядок которой не подтверждён сравнениями: пунктир и прозрачный
-   фон отличают её от надёжной части списка. */
+/* A row whose order is not confirmed by comparisons: the dashed border and
+   the transparent background tell it apart from the reliable part. */
 .result-row--fallback {
   border-style: dashed;
   border-color: var(--border-strong);
   background: transparent;
 }
 
-/* Строка, переставленная руками: не «отсортировано», но и не «запасной
-   порядок» — это решение пользователя, и выглядит оно так же уверенно. */
+/* A row moved by hand: not "sorted", but not "fallback order" either — it
+   is the decision of the user, and it looks just as confident. */
 .result-row--manual {
   border-color: var(--accent);
   background: linear-gradient(90deg, rgb(95 212 196 / 12%) 0%, var(--bg-elevated) 220px);
@@ -1093,7 +1111,7 @@ kbd {
   opacity: 0.45;
 }
 
-/* Куда встанет строка, если отпустить её здесь. */
+/* Where the row will land if it is dropped here. */
 .result-row--drop-before {
   box-shadow: inset 0 3px 0 0 var(--accent);
 }
@@ -1222,7 +1240,7 @@ kbd {
   justify-content: flex-end;
 }
 
-/* ------------------------------------------------------- адаптив */
+/* ------------------------------------------------------- responsive */
 
 @media (max-width: 900px) {
   .versus {
@@ -1249,7 +1267,7 @@ kbd {
     gap: 10px 14px;
   }
 
-  /* Узкая шапка складывается в три строки: имя, этапы, инструменты. */
+  /* The narrow header folds into three rows: name, stages, tools. */
   .topbar__nav {
     order: 2;
     width: 100%;
@@ -1261,8 +1279,8 @@ kbd {
     width: 100%;
   }
 
-  /* На узком экране номер и обложка остаются в первой строке, а картинка
-     и выпадающий список категории переезжают под них. */
+  /* On a narrow screen the number and the title stay in the first row,
+     while the cover and the category dropdown move below them. */
   .result-row {
     grid-template-columns: 18px 38px 68px 1fr;
   }

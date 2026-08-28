@@ -9,7 +9,9 @@
  * Russian keyboard layout, where A/S/D sit under ф/ы/в.
  */
 
-import { categoryTitle, plural, renderItemCard } from './ui-common.js';
+import { plural, t } from './i18n.js';
+import { categoryLabel } from './model.js';
+import { renderItemCard } from './ui-common.js';
 
 /**
  * @param {object} app
@@ -61,7 +63,7 @@ export function createCompareScreen(app) {
     } catch (error) {
       // The scheduler never offers a pair it would refuse, so this only fires
       // when the state changed under the screen; re-rendering resolves it.
-      app.toast(`Ответ не принят: ${error.message}`, 'error');
+      app.toast(t('compare.rejected', { message: error.message }), 'error');
       render();
       return;
     }
@@ -71,7 +73,7 @@ export function createCompareScreen(app) {
   }
 
   /**
-   * Moves one side of the pair to «Удалить из желаемого».
+   * Moves one side of the pair to the removal bucket.
    *
    * The item stays in the session with its answers: it simply leaves the
    * sorting and shows up in a separate list in the result, so the choice is
@@ -84,18 +86,18 @@ export function createCompareScreen(app) {
     const item = pair[side];
     app.session.setCategory(item.appId, 'remove');
     app.save();
-    app.toast(`«${item.title}» — в списке на удаление из желаемого.`);
+    app.toast(t('compare.dropped', { title: item.title }));
     render();
   }
 
   function undo() {
     if (!app.session.canUndo()) {
-      app.toast('Отменять нечего.');
+      app.toast(t('compare.nothingToUndo'));
       return;
     }
     app.session.undo();
     app.save();
-    app.announce('Последний ответ отменён.');
+    app.announce(t('compare.undone'));
     render();
   }
 
@@ -105,10 +107,10 @@ export function createCompareScreen(app) {
    * @returns {string}
    */
   function describeAnswer(verdict, shown) {
-    if (verdict === 'a') return `Выбрано: ${shown.a.title}.`;
-    if (verdict === 'b') return `Выбрано: ${shown.b.title}.`;
-    if (verdict === 'tie') return `${shown.a.title} и ${shown.b.title} — примерно одинаково.`;
-    return 'Пара отложена.';
+    if (verdict === 'a') return t('compare.chosen', { title: shown.a.title });
+    if (verdict === 'b') return t('compare.chosen', { title: shown.b.title });
+    if (verdict === 'tie') return t('compare.tied', { a: shown.a.title, b: shown.b.title });
+    return t('compare.postponed');
   }
 
   for (const button of document.querySelectorAll('#screen-compare [data-answer]')) {
@@ -125,7 +127,7 @@ export function createCompareScreen(app) {
   nodes.stop.addEventListener('click', () => app.show('result'));
   nodes.pause.addEventListener('click', () => {
     app.show('import');
-    app.toast('Пауза. Всё сохранено — можно закрыть вкладку и вернуться позже.', 'ok');
+    app.toast(t('compare.paused'), 'ok');
   });
 
   /**
@@ -175,9 +177,8 @@ export function createCompareScreen(app) {
     nodes.banner.hidden = false;
     nodes.banner.textContent =
       next.reason === 'all-deferred'
-        ? `Все остальные вопросы отложены (${next.deferredCount}), и без ответа на этот дальше не пройти. ` +
-          'Можно ответить «примерно одинаково» — это тоже ответ, и сортировка пойдёт дальше.'
-        : 'Эта пара нужна, чтобы двигаться дальше.';
+        ? t('compare.banner.allDeferred', { count: next.deferredCount })
+        : t('compare.banner.forced');
   }
 
   function render() {
@@ -193,23 +194,21 @@ export function createCompareScreen(app) {
     nodes.deferred.hidden = progress.deferred === 0;
     nodes.deferred.textContent = progress.deferred === 0
       ? ''
-      : `отложено: ${progress.deferred} ${plural(progress.deferred, ['пара', 'пары', 'пар'])}`;
+      : t('compare.deferred', { pairs: plural('count.pairs', progress.deferred) });
 
     if (!pair) {
       nodes.versus.hidden = true;
       nodes.banner.hidden = true;
       nodes.doneNote.hidden = false;
       nodes.category.textContent = '—';
-      nodes.doneText.textContent = app.session.itemCount === 0
-        ? 'Сравнивать нечего: список пуст.'
-        : 'Сравнивать больше нечего: порядок определён.';
-      nodes.toResult.textContent = app.session.itemCount === 0 ? 'Перейти к импорту' : 'Посмотреть результат';
+      nodes.doneText.textContent = t(app.session.itemCount === 0 ? 'compare.empty' : 'compare.done');
+      nodes.toResult.textContent = t(app.session.itemCount === 0 ? 'compare.toImport' : 'compare.toResult');
       return;
     }
 
     nodes.versus.hidden = false;
     nodes.doneNote.hidden = true;
-    nodes.category.textContent = `Категория: ${categoryTitle(pair.category)}`;
+    nodes.category.textContent = t('compare.category', { category: categoryLabel(pair.category) });
 
     renderItemCard(nodes.a, pair.a, app.loadCovers);
     renderItemCard(nodes.b, pair.b, app.loadCovers);

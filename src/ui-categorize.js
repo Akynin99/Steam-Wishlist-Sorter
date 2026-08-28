@@ -10,8 +10,9 @@
  * jumps straight to the comparisons needs no special logic behind it.
  */
 
-import { CATEGORIES } from './model.js';
-import { categoryTitle, element, plural, renderItemCard } from './ui-common.js';
+import { plural, t } from './i18n.js';
+import { CATEGORIES, categoryLabel } from './model.js';
+import { element, renderItemCard } from './ui-common.js';
 
 /**
  * @param {object} app
@@ -43,7 +44,11 @@ export function createCategorizeScreen(app) {
   /** @type {Map<string, HTMLButtonElement>} */
   const categoryButtons = new Map();
 
+  /** The label span of each button, refilled on every render. @type {Map<string, HTMLElement>} */
+  const categoryLabels = new Map();
+
   CATEGORIES.forEach((category, index) => {
+    const label = element('span', { className: 'catbtn__label' });
     const button = element(
       'button',
       {
@@ -53,12 +58,13 @@ export function createCategorizeScreen(app) {
       },
       [
         element('span', { className: 'catbtn__key', text: String(index + 1), attrs: { 'aria-hidden': 'true' } }),
-        element('span', { className: 'catbtn__label', text: category.label }),
+        label,
       ],
     );
     button.style.setProperty('--cat-color', `var(--cat-${category.id})`);
     button.addEventListener('click', () => choose(category.id));
     categoryButtons.set(category.id, button);
+    categoryLabels.set(category.id, label);
     nodes.buttons.append(button);
   });
 
@@ -92,7 +98,7 @@ export function createCategorizeScreen(app) {
 
     app.session.setCategory(item.appId, categoryId);
     app.save();
-    app.announce(`${item.title}: ${categoryTitle(categoryId)}`);
+    app.announce(t('categorize.announce', { title: item.title, category: categoryLabel(categoryId) }));
     advance();
   }
 
@@ -105,7 +111,7 @@ export function createCategorizeScreen(app) {
 
   function goBack() {
     if (cursor === 0) {
-      app.toast('Это первая позиция списка.');
+      app.toast(t('categorize.firstItem'));
       return;
     }
     cursor -= 1;
@@ -116,10 +122,10 @@ export function createCategorizeScreen(app) {
     const list = items();
     const next = nextUnclassified(cursor);
     if (next === -1 || next === cursor) {
-      app.toast('Больше нераспределённых позиций нет.');
+      app.toast(t('categorize.noneLeft'));
       return;
     }
-    app.announce(`${list[cursor].title} отложена, вернёмся к ней в конце круга.`);
+    app.announce(t('categorize.postponed', { title: list[cursor].title }));
     cursor = next;
     render();
   }
@@ -127,7 +133,7 @@ export function createCategorizeScreen(app) {
   /**
    * Called when the stage is opened: the cursor goes to the first item that
    * still needs a category. Inside the stage the cursor is only ever moved by
-   * the user, so «предыдущая» really shows the previous position instead of
+   * the user, so "previous" really shows the previous position instead of
    * bouncing back to the first unclassified one.
    */
   function activate() {
@@ -175,18 +181,22 @@ export function createCategorizeScreen(app) {
     const list = items();
     const total = list.length;
 
+    // The buttons are built once and renamed on every draw, which is what
+    // makes a language change on this screen a redraw and not a rebuild.
+    for (const [id, label] of categoryLabels) label.textContent = categoryLabel(id);
+
     if (total === 0) {
       nodes.card.hidden = true;
       nodes.buttons.hidden = true;
       nodes.back.disabled = true;
       nodes.defer.disabled = true;
       nodes.skip.disabled = true;
-      nodes.counter.textContent = '0 из 0';
+      nodes.counter.textContent = t('categorize.counter', { index: 0, total: 0 });
       nodes.bar.style.width = '0%';
       nodes.legend.textContent = '';
       nodes.done.hidden = false;
-      nodes.doneText.textContent = 'Список пуст: сначала импортируйте wishlist.';
-      nodes.doneButton.textContent = 'Перейти к импорту';
+      nodes.doneText.textContent = t('categorize.empty');
+      nodes.doneButton.textContent = t('categorize.toImport');
       return;
     }
 
@@ -208,22 +218,23 @@ export function createCategorizeScreen(app) {
 
     renderItemCard(nodes, item, app.loadCovers);
     nodes.current.textContent = category === null
-      ? `Позиция в вашем wishlist: ${item.wishlistPosition}`
-      : `Сейчас: ${categoryTitle(category)}. Выберите другую категорию, чтобы изменить.`;
+      ? t('categorize.position', { position: item.wishlistPosition })
+      : t('categorize.current', { category: categoryLabel(category) });
 
     for (const [id, button] of categoryButtons) {
       button.setAttribute('aria-pressed', String(id === category));
     }
 
-    nodes.counter.textContent = `${cursor + 1} из ${total}`;
+    nodes.counter.textContent = t('categorize.counter', { index: cursor + 1, total });
     nodes.bar.style.width = `${Math.round((classified / total) * 100)}%`;
     nodes.legend.textContent =
-      `Распределено ${classified} из ${total}` +
-      (left > 0 ? `, осталось ${left} ${plural(left, ['позиция', 'позиции', 'позиций'])}.` : '.');
+      left > 0
+        ? t('categorize.legendLeft', { classified, total, items: plural('count.items', left) })
+        : t('categorize.legend', { classified, total });
 
     nodes.done.hidden = left > 0;
-    nodes.doneText.textContent = 'Все позиции распределены.';
-    nodes.doneButton.textContent = 'Перейти к сравнениям';
+    nodes.doneText.textContent = t('categorize.done');
+    nodes.doneButton.textContent = t('categorize.toCompare');
   }
 
   return { render, handleKey, activate };

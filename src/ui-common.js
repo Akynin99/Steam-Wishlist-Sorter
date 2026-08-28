@@ -3,10 +3,11 @@
  *
  * Everything here is presentation only: no screen state, no ranking logic and
  * no storage. The rules of the application live in `ranking.js`, and the
- * screens read them from there.
+ * screens read them from there. The words live in `i18n.js`, and this module
+ * is what puts them into elements.
  */
 
-import { UNCATEGORIZED_LABEL, categoryLabel } from './model.js';
+import { t } from './i18n.js';
 
 /**
  * Creates an element in one call.
@@ -43,42 +44,47 @@ export function clear(node) {
 }
 
 /**
- * Russian label of an item kind.
+ * Attributes of the markup that carry a dictionary key.
+ *
+ * `data-i18n-html` exists for the handful of strings that hold inline markup —
+ * the `<kbd>` of a hotkey hint. What is written is a dictionary string of this
+ * application and never user data, so there is nothing here to inject.
+ */
+const I18N_TEXT = 'data-i18n';
+const I18N_HTML = 'data-i18n-html';
+const I18N_ATTR = 'data-i18n-attr';
+
+/**
+ * Translates every element of a subtree that carries a key, in the language
+ * that is currently set. Called on start and again on every language change:
+ * the markup holds keys, so re-running this is all it takes to redraw the
+ * static part of the page.
+ *
+ * @param {ParentNode} [root]
+ */
+export function applyTranslations(root = document) {
+  for (const node of root.querySelectorAll(`[${I18N_TEXT}]`)) {
+    node.textContent = t(node.getAttribute(I18N_TEXT));
+  }
+  for (const node of root.querySelectorAll(`[${I18N_HTML}]`)) {
+    node.innerHTML = t(node.getAttribute(I18N_HTML));
+  }
+  for (const node of root.querySelectorAll(`[${I18N_ATTR}]`)) {
+    for (const pair of node.getAttribute(I18N_ATTR).split(';')) {
+      const [attribute, key] = pair.split(':').map((part) => part.trim());
+      if (attribute && key) node.setAttribute(attribute, t(key));
+    }
+  }
+}
+
+/**
+ * Label of an item kind, in the language of the interface.
  *
  * @param {import('./model.js').ItemKind} kind
  * @returns {string}
  */
 export function kindLabel(kind) {
-  if (kind === 'dlc') return 'DLC';
-  if (kind === 'game') return 'Игра';
-  return 'Тип неизвестен';
-}
-
-/**
- * Label of a category, including the implicit bucket of items the user has not
- * classified yet.
- *
- * @param {string|null} category
- * @returns {string}
- */
-export function categoryTitle(category) {
-  return category === null ? UNCATEGORIZED_LABEL : categoryLabel(category);
-}
-
-/**
- * Picks the grammatical form Russian needs for a count.
- *
- * @param {number} count
- * @param {[string, string, string]} forms `[1, 2, 5]`, e.g. позиция/позиции/позиций.
- * @returns {string} The form alone, without the number.
- */
-export function plural(count, forms) {
-  const n = Math.abs(count) % 100;
-  const last = n % 10;
-  if (n > 10 && n < 20) return forms[2];
-  if (last > 1 && last < 5) return forms[1];
-  if (last === 1) return forms[0];
-  return forms[2];
+  return t(`kind.${kind === 'game' || kind === 'dlc' ? kind : 'unknown'}`);
 }
 
 /**
@@ -114,7 +120,7 @@ export function renderCover(box, item, loadCovers) {
     box.classList.add('cover--empty');
     box.append(
       element('span', { className: 'cover__monogram', text: monogram(item.title), attrs: { 'aria-hidden': 'true' } }),
-      element('span', { className: 'cover__caption', text: loadCovers ? 'Без обложки' : 'Обложки выключены' }),
+      element('span', { className: 'cover__caption', text: t(loadCovers ? 'cover.none' : 'cover.off') }),
     );
     return;
   }
@@ -130,7 +136,7 @@ export function renderCover(box, item, loadCovers) {
       box.classList.add('cover--empty');
       box.append(
         element('span', { className: 'cover__monogram', text: monogram(item.title), attrs: { 'aria-hidden': 'true' } }),
-        element('span', { className: 'cover__caption', text: 'Обложка не загрузилась' }),
+        element('span', { className: 'cover__caption', text: t('cover.failed') }),
       );
     },
     { once: true },
@@ -219,6 +225,6 @@ export function renderItemCard(nodes, item, loadCovers) {
   nodes.kind.textContent = kindLabel(item.kind);
   nodes.kind.classList.toggle('badge--dlc', item.kind === 'dlc');
   nodes.link.href = item.url;
-  nodes.link.setAttribute('aria-label', `Открыть «${item.title}» в Steam, в новой вкладке`);
+  nodes.link.setAttribute('aria-label', t('common.openInSteamAria', { title: item.title }));
   renderCover(nodes.cover, item, loadCovers);
 }

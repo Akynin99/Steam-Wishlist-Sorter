@@ -4,12 +4,18 @@
  *
  * Nothing here parses JSON by hand: `import.js` accepts every shape and
  * `storage.js` validates a state file. This module only turns their reason
- * codes into Russian sentences.
+ * codes into sentences.
+ *
+ * What the feedback block says is kept as data — which report, which numbers,
+ * which failure — and drawn from that on every render. A report that was read
+ * in one language is therefore rewritten when the language changes, instead of
+ * staying behind as the one Russian paragraph on an English screen.
  */
 
+import { plural, t } from './i18n.js';
 import { ImportError, SKIP_REASONS, importItemsSorted } from './import.js';
 import { StorageError } from './storage.js';
-import { clear, element, plural } from './ui-common.js';
+import { clear, element } from './ui-common.js';
 
 /** Where the demo set lives, relative to `index.html`. */
 const DEMO_URL = 'tests/fixtures/sample-wishlist.json';
@@ -17,30 +23,28 @@ const DEMO_URL = 'tests/fixtures/sample-wishlist.json';
 /** How many problem records the report lists before it stops. */
 const MAX_ISSUES_SHOWN = 6;
 
-/** @type {Record<string, string>} */
-const IMPORT_ERRORS = {
-  'empty-input': 'Импортировать нечего: файл или поле пустые.',
-  'invalid-json':
-    'Это не JSON. Похоже, текст скопирован не целиком или в него попало что-то лишнее.',
-  'unrecognized-format':
-    'JSON прочитан, но на список желаемого он не похож. Нужен массив позиций, объект вида { "440": { … } } или ответ Steam с полем response.items.',
+/** Dictionary key for every reason `import.js` can refuse an input for. */
+const IMPORT_ERROR_KEYS = {
+  'empty-input': 'import.error.emptyInput',
+  'invalid-json': 'import.error.invalidJson',
+  'unrecognized-format': 'import.error.unrecognizedFormat',
 };
 
-/** @type {Record<string, string>} */
-const STATE_ERRORS = {
-  'invalid-json': 'Файл состояния не читается как JSON.',
-  'foreign-state': 'Это JSON другого приложения: в нём нет подписи Steam Wishlist Sorter.',
-  'unsupported-version': 'Файл сохранён другой версией формата и не поддерживается.',
-  'invalid-state': 'Файл похож на состояние, но в нём нет сессии.',
-  'write-failed': 'Состояние прочитано, но браузер отказался его сохранить.',
+/** The same for a state file, refused by `storage.js`. */
+const STATE_ERROR_KEYS = {
+  'invalid-json': 'state.error.invalidJson',
+  'foreign-state': 'state.error.foreignState',
+  'unsupported-version': 'state.error.unsupportedVersion',
+  'invalid-state': 'state.error.invalidState',
+  'write-failed': 'state.error.writeFailed',
 };
 
-/** @type {Record<string, string>} */
-const SKIP_LABELS = {
-  [SKIP_REASONS.NOT_AN_OBJECT]: 'запись не похожа ни на позицию, ни на app id',
-  [SKIP_REASONS.MISSING_APP_ID]: 'нет идентификатора приложения',
-  [SKIP_REASONS.INVALID_APP_ID]: 'идентификатор приложения не число',
-  [SKIP_REASONS.DUPLICATE_IN_INPUT]: 'позиция уже встречалась в этом же файле',
+/** Why a record of the input did not become an item. */
+const SKIP_KEYS = {
+  [SKIP_REASONS.NOT_AN_OBJECT]: 'import.skip.notAnObject',
+  [SKIP_REASONS.MISSING_APP_ID]: 'import.skip.missingAppId',
+  [SKIP_REASONS.INVALID_APP_ID]: 'import.skip.invalidAppId',
+  [SKIP_REASONS.DUPLICATE_IN_INPUT]: 'import.skip.duplicateInInput',
 };
 
 /**
@@ -63,38 +67,51 @@ export function createImportScreen(app) {
   };
 
   /**
+   * What the feedback block says, as data.
+   *
+   * @type {null
+   *   | { kind: 'report', report: object, sourceKey: string, sourceParams: object }
+   *   | { kind: 'state', items: number, comparisons: number, moves: number }
+   *   | { kind: 'failure', titleKey: string, textKey?: string, params?: object, text?: string }}
+   */
+  let feedback = null;
+
+  /**
    * Imports a wishlist and merges it into the session.
    *
    * `setItems` keeps the categories and the answers of the items that survive,
    * so re-importing a refreshed wishlist never throws away the work already
    * done.
    *
-   * @param {string} input   JSON text.
-   * @param {string} source  What is being imported, for the message.
+   * @param {string} input       JSON text.
+   * @param {string} sourceKey   Dictionary key naming what is being imported.
+   * @param {object} [sourceParams]
    */
-  function runImport(input, source) {
+  function runImport(input, sourceKey, sourceParams = {}) {
     let result;
     try {
       result = importItemsSorted(input, { existing: app.session.getItems() });
     } catch (error) {
-      showError(error, IMPORT_ERRORS);
+      showError(error, IMPORT_ERROR_KEYS);
       return;
     }
 
     if (result.items.length === 0) {
-      showFailure(
-        'Импорт прошёл, но список пуст',
-        'Ни одной позиции прочитать не удалось. Проверьте, что в файле действительно список желаемого.',
-      );
+      showFailure({
+        titleKey: 'import.error.emptyResultTitle',
+        textKey: 'import.error.emptyResultText',
+      });
       return;
     }
 
     app.session.setItems(result.items);
     app.save();
     app.refreshNav();
-    showReport(result.report, source);
+    feedback = { kind: 'report', report: result.report, sourceKey, sourceParams };
     render();
-    app.announce(`Импортировано ${result.report.total}. Всего в списке ${app.session.itemCount}.`);
+    app.announce(
+      t('import.announce', { count: result.report.total, total: app.session.itemCount }),
+    );
   }
 
   /**
@@ -108,18 +125,16 @@ export function createImportScreen(app) {
     if (app.session.itemCount > 0) {
       const { comparisons } = app.session.getProgress();
       const confirmed = await app.confirm({
-        title: 'Загрузить состояние поверх текущего?',
-        text:
-          `Сейчас в списке ${app.session.itemCount} ` +
-          `${plural(app.session.itemCount, ['позиция', 'позиции', 'позиций'])} и ${comparisons} ` +
-          `${plural(comparisons, ['сделанное сравнение', 'сделанных сравнения', 'сделанных сравнений'])}. ` +
-          'Файл заменит всё это целиком: список, категории, ответы и ручные перестановки. ' +
-          'Отменить это будет нельзя.',
-        confirmLabel: 'Заменить текущее состояние',
+        title: t('state.confirm.title'),
+        text: t('state.confirm.text', {
+          items: plural('count.items', app.session.itemCount),
+          comparisons: plural('count.comparisonsMade', comparisons),
+        }),
+        confirmLabel: t('state.confirm.confirm'),
         danger: true,
       });
       if (!confirmed) {
-        app.toast('Импорт состояния отменён — ничего не изменилось.');
+        app.toast(t('state.confirm.cancelled'));
         return;
       }
     }
@@ -135,50 +150,41 @@ export function createImportScreen(app) {
     try {
       app.importStateJson(text);
     } catch (error) {
-      showError(error, STATE_ERRORS);
+      showError(error, STATE_ERROR_KEYS);
       return;
     }
 
-    clear(nodes.feedback);
-    nodes.feedback.append(
-      element('div', { className: 'report' }, [
-        element('p', { className: 'report__title', text: 'Состояние восстановлено' }),
-        element('div', { className: 'report__numbers' }, [
-          element('span', {}, [
-            document.createTextNode('позиций: '),
-            element('b', { text: String(app.session.itemCount) }),
-          ]),
-          element('span', {}, [
-            document.createTextNode('сравнений сделано: '),
-            element('b', { text: String(app.session.getProgress().comparisons) }),
-          ]),
-          element('span', {}, [
-            document.createTextNode('ручных перестановок: '),
-            element('b', { text: String(app.session.manualMoveCount) }),
-          ]),
-        ]),
-      ]),
-    );
+    feedback = {
+      kind: 'state',
+      items: app.session.itemCount,
+      comparisons: app.session.getProgress().comparisons,
+      moves: app.session.manualMoveCount,
+    };
     render();
-    app.toast('Состояние восстановлено из файла.', 'ok');
+    app.toast(t('state.restored.toast'), 'ok');
   }
 
   /**
-   * @param {import('./import.js').ImportReport} report
-   * @param {string} source
+   * @param {object} report
+   * @param {string} sourceKey
+   * @param {object} sourceParams
+   * @returns {HTMLElement}
    */
-  function showReport(report, source) {
+  function reportBlock(report, sourceKey, sourceParams) {
     const numbers = element('div', { className: 'report__numbers' }, [
-      counter('добавлено', report.added),
-      counter('обновлено', report.updated),
-      counter('дубликатов', report.duplicates),
-      counter('пропущено', report.skipped),
+      counter(t('import.report.added'), report.added),
+      counter(t('import.report.updated'), report.updated),
+      counter(t('import.report.duplicates'), report.duplicates),
+      counter(t('import.report.skipped'), report.skipped),
     ]);
 
     const block = element('div', { className: 'report' }, [
       element('p', {
         className: 'report__title',
-        text: `${source}: прочитано ${report.total} ${plural(report.total, ['запись', 'записи', 'записей'])}`,
+        text: t('import.report.title', {
+          source: t(sourceKey, sourceParams),
+          records: plural('count.records', report.total),
+        }),
       }),
       numbers,
     ]);
@@ -186,22 +192,39 @@ export function createImportScreen(app) {
     if (report.issues.length > 0) {
       const list = element('ul', { className: 'report__issues' });
       for (const issue of report.issues.slice(0, MAX_ISSUES_SHOWN)) {
-        const where = typeof issue.key === 'number' ? `запись №${issue.key + 1}` : `ключ «${issue.key}»`;
-        const what = SKIP_LABELS[issue.reason] ?? issue.reason;
-        list.append(element('li', { text: `${where}: ${what}` }));
+        const where =
+          typeof issue.key === 'number'
+            ? t('import.issue.entry', { number: issue.key + 1 })
+            : t('import.issue.key', { key: issue.key });
+        const what = SKIP_KEYS[issue.reason] ? t(SKIP_KEYS[issue.reason]) : issue.reason;
+        list.append(element('li', { text: t('import.issue.line', { where, what }) }));
       }
       if (report.issues.length > MAX_ISSUES_SHOWN) {
         list.append(
           element('li', {
-            text: `…и ещё ${report.issues.length - MAX_ISSUES_SHOWN}`,
+            text: t('import.issue.more', { count: report.issues.length - MAX_ISSUES_SHOWN }),
           }),
         );
       }
       block.append(list);
     }
 
-    clear(nodes.feedback);
-    nodes.feedback.append(block);
+    return block;
+  }
+
+  /**
+   * @param {{ items: number, comparisons: number, moves: number }} restored
+   * @returns {HTMLElement}
+   */
+  function stateBlock(restored) {
+    return element('div', { className: 'report' }, [
+      element('p', { className: 'report__title', text: t('state.restored.title') }),
+      element('div', { className: 'report__numbers' }, [
+        counter(t('state.restored.items'), restored.items),
+        counter(t('state.restored.comparisons'), restored.comparisons),
+        counter(t('state.restored.moves'), restored.moves),
+      ]),
+    ]);
   }
 
   /**
@@ -218,27 +241,55 @@ export function createImportScreen(app) {
 
   /**
    * @param {unknown} error
-   * @param {Record<string, string>} messages
+   * @param {Record<string, string>} keys Reason code to dictionary key.
    */
-  function showError(error, messages) {
+  function showError(error, keys) {
     const known = error instanceof ImportError || error instanceof StorageError;
-    const text = (known && messages[error.code]) || (error instanceof Error ? error.message : String(error));
-    showFailure('Импортировать не удалось', text);
+    const key = known ? keys[error.code] : undefined;
+    showFailure({
+      titleKey: 'import.error.title',
+      textKey: key,
+      text: key ? undefined : error instanceof Error ? error.message : String(error),
+    });
   }
 
   /**
-   * @param {string} title
-   * @param {string} text
+   * @param {{ titleKey: string, textKey?: string, params?: object, text?: string }} failure
    */
-  function showFailure(title, text) {
+  function showFailure(failure) {
+    feedback = { kind: 'failure', ...failure };
+    render();
+    app.announce(`${t(failure.titleKey)}. ${failureText(feedback)}`);
+  }
+
+  /**
+   * @param {{ textKey?: string, params?: object, text?: string }} failure
+   * @returns {string}
+   */
+  function failureText(failure) {
+    return failure.textKey ? t(failure.textKey, failure.params ?? {}) : (failure.text ?? '');
+  }
+
+  /** Draws the feedback block from whatever it currently says. */
+  function renderFeedback() {
     clear(nodes.feedback);
+    if (feedback === null) return;
+
+    if (feedback.kind === 'report') {
+      nodes.feedback.append(reportBlock(feedback.report, feedback.sourceKey, feedback.sourceParams));
+      return;
+    }
+    if (feedback.kind === 'state') {
+      nodes.feedback.append(stateBlock(feedback));
+      return;
+    }
+
     nodes.feedback.append(
       element('div', { className: 'report report--error' }, [
-        element('p', { className: 'report__title', text: title }),
-        element('p', { text }),
+        element('p', { className: 'report__title', text: t(feedback.titleKey) }),
+        element('p', { text: failureText(feedback) }),
       ]),
     );
-    app.announce(`${title}. ${text}`);
   }
 
   /**
@@ -251,11 +302,16 @@ export function createImportScreen(app) {
   function readPickedFile(input, nameNode, handler) {
     const file = input.files?.[0];
     if (!file) return;
+    // The name of a picked file is not a translatable string, so the element
+    // stops following the dictionary once it holds one.
+    nameNode.removeAttribute('data-i18n');
     nameNode.textContent = file.name;
     file
       .text()
       .then((text) => handler(text, file.name))
-      .catch((error) => showFailure('Файл не прочитался', error.message))
+      .catch((error) =>
+        showFailure({ titleKey: 'import.error.fileRead', text: error.message }),
+      )
       .finally(() => {
         // Cleared so that picking the same file again fires the event.
         input.value = '';
@@ -263,7 +319,9 @@ export function createImportScreen(app) {
   }
 
   nodes.file.addEventListener('change', () => {
-    readPickedFile(nodes.file, nodes.fileName, (text, name) => runImport(text, `Файл ${name}`));
+    readPickedFile(nodes.file, nodes.fileName, (text, name) =>
+      runImport(text, 'import.source.file', { name }),
+    );
   });
 
   nodes.state.addEventListener('change', () => {
@@ -271,22 +329,25 @@ export function createImportScreen(app) {
   });
 
   nodes.textRun.addEventListener('click', () => {
-    runImport(nodes.text.value, 'Вставленный текст');
+    runImport(nodes.text.value, 'import.source.pasted');
   });
 
   nodes.demo.addEventListener('click', () => {
     nodes.demo.disabled = true;
     fetch(DEMO_URL)
       .then((response) => {
-        if (!response.ok) throw new Error(`сервер ответил ${response.status}`);
+        if (!response.ok) {
+          throw new Error(t('import.demo.httpError', { status: response.status }));
+        }
         return response.text();
       })
-      .then((text) => runImport(text, 'Демо-набор'))
+      .then((text) => runImport(text, 'import.source.demo'))
       .catch((error) =>
-        showFailure(
-          'Демо-набор не загрузился',
-          `${error.message}. Файл ${DEMO_URL} должен лежать рядом с index.html — и страница должна быть открыта по http(s), а не как file://.`,
-        ),
+        showFailure({
+          titleKey: 'import.demo.failedTitle',
+          textKey: 'import.demo.failedText',
+          params: { message: error.message, url: DEMO_URL },
+        }),
       )
       .finally(() => {
         nodes.demo.disabled = false;
@@ -299,6 +360,8 @@ export function createImportScreen(app) {
   });
 
   function render() {
+    renderFeedback();
+
     const count = app.session.itemCount;
     nodes.current.hidden = count === 0;
     if (count === 0) return;
@@ -307,10 +370,12 @@ export function createImportScreen(app) {
     const sorted = items.filter((item) => app.session.getCategory(item.appId) !== null).length;
     const comparisons = app.session.getProgress().comparisons;
 
-    nodes.currentText.textContent =
-      `Сейчас в списке ${count} ${plural(count, ['позиция', 'позиции', 'позиций'])}: ` +
-      `${sorted} с категорией, ${count - sorted} без. Сравнений сделано: ${comparisons}. ` +
-      'Повторный импорт обновит позиции и сохранит уже проделанную работу.';
+    nodes.currentText.textContent = t('import.current', {
+      items: plural('count.items', count),
+      sorted,
+      plain: count - sorted,
+      comparisons,
+    });
   }
 
   return { render };

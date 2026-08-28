@@ -17,18 +17,10 @@
  * to the browser.
  */
 
-import { CATEGORIES, UNCATEGORIZED_LABEL, isSortableCategory } from './model.js';
+import { plural, t } from './i18n.js';
+import { CATEGORIES, categoryLabel, isSortableCategory, uncategorizedLabel } from './model.js';
 import { exportFileName, toCsv, toOrderJson, toPlainText } from './export.js';
-import {
-  categoryTitle,
-  clear,
-  copyText,
-  downloadText,
-  element,
-  kindLabel,
-  plural,
-  renderCover,
-} from './ui-common.js';
+import { clear, copyText, downloadText, element, kindLabel, renderCover } from './ui-common.js';
 
 /** What the kind filter can be set to. */
 const FILTERS = { all: 'all', game: 'game', dlc: 'dlc' };
@@ -89,11 +81,11 @@ export function createResultScreen(app) {
   function categorySelect(appId, current, title) {
     const select = element('select', {
       className: 'select select--category',
-      attrs: { 'aria-label': `Категория: ${title}` },
+      attrs: { 'aria-label': t('result.row.categoryAria', { title }) },
     });
-    select.append(element('option', { text: UNCATEGORIZED_LABEL, attrs: { value: '' } }));
+    select.append(element('option', { text: uncategorizedLabel(), attrs: { value: '' } }));
     for (const category of CATEGORIES) {
-      select.append(element('option', { text: category.label, attrs: { value: category.id } }));
+      select.append(element('option', { text: categoryLabel(category.id), attrs: { value: category.id } }));
     }
     select.value = current ?? '';
     select.addEventListener('change', () => {
@@ -117,30 +109,33 @@ export function createResultScreen(app) {
 
     const marks = element('div', { className: 'result-row__marks' });
     if (entry.tiedWithPrevious) {
-      marks.append(element('span', { className: 'mark', text: '= как предыдущая' }));
+      marks.append(element('span', { className: 'mark', text: t('result.mark.tied') }));
     }
     if (entry.manual) {
-      marks.append(element('span', { className: 'mark mark--manual', text: 'переставлено вручную' }));
+      marks.append(element('span', { className: 'mark mark--manual', text: t('result.mark.manual') }));
     } else if (!entry.resolved) {
-      marks.append(element('span', { className: 'mark mark--fallback', text: 'запасной порядок' }));
+      marks.append(element('span', { className: 'mark mark--fallback', text: t('result.mark.fallback') }));
     }
 
     const meta = element('div', { className: 'result-row__meta' }, [
       element('span', { className: 'badge', text: kindLabel(entry.item.kind) }),
-      element('span', { className: 'result-row__id', text: `App ID ${entry.appId}` }),
+      element('span', { className: 'result-row__id', text: t('result.row.appId', { appId: entry.appId }) }),
       element('a', {
         className: 'link',
-        text: 'Открыть в Steam ↗',
+        text: t('common.openInSteam'),
         attrs: {
           href: entry.item.url,
           target: '_blank',
           rel: 'noopener noreferrer',
-          'aria-label': `Открыть «${entry.item.title}» в Steam, в новой вкладке`,
+          'aria-label': t('common.openInSteamAria', { title: entry.item.title }),
         },
       }),
       element('span', {
         className: 'result-row__where',
-        text: `${categoryTitle(entry.category)} · ${entry.positionInCategory} в категории`,
+        text: t('result.row.where', {
+          category: categoryLabel(entry.category),
+          position: entry.positionInCategory,
+        }),
       }),
     ]);
 
@@ -158,10 +153,17 @@ export function createResultScreen(app) {
         attrs: {
           draggable: 'true',
           tabindex: '-1',
-          'aria-label':
-            `${entry.position}. ${entry.item.title}. ${categoryTitle(entry.category)}. ` +
-            `${kindLabel(entry.item.kind)}. ` +
-            (entry.manual ? 'Переставлено вручную.' : entry.resolved ? '' : 'Запасной порядок.'),
+          'aria-label': t('result.row.aria', {
+            position: entry.position,
+            title: entry.item.title,
+            category: categoryLabel(entry.category),
+            kind: kindLabel(entry.item.kind),
+            note: entry.manual
+              ? t('result.row.ariaManual')
+              : entry.resolved
+                ? ''
+                : t('result.row.ariaFallback'),
+          }),
         },
         dataset: { appId: String(entry.appId) },
       },
@@ -198,10 +200,10 @@ export function createResultScreen(app) {
           element('div', { className: 'result-removed__main' }, [
             element('div', { text: item.title }),
             element('div', { className: 'result-row__meta' }, [
-              element('span', { className: 'result-row__id', text: `App ID ${item.appId}` }),
+              element('span', { className: 'result-row__id', text: t('result.row.appId', { appId: item.appId }) }),
               element('a', {
                 className: 'link',
-                text: 'Открыть в Steam ↗',
+                text: t('common.openInSteam'),
                 attrs: { href: item.url, target: '_blank', rel: 'noopener noreferrer' },
               }),
             ]),
@@ -233,7 +235,7 @@ export function createResultScreen(app) {
       if (changed) app.session.setCategory(appId, category);
       app.session.moveItem(appId, anchorId, side);
     } catch (error) {
-      app.toast(`Не удалось переставить: ${error.message}`, 'error');
+      app.toast(t('result.move.failed', { message: error.message }), 'error');
       render();
       return;
     }
@@ -244,13 +246,16 @@ export function createResultScreen(app) {
     focusRow(appId);
 
     const entry = entriesById.get(appId);
-    const where = entry ? `на место ${entry.position}` : 'на новое место';
+    const title = app.session.getItem(appId).title;
     app.announce(
-      `«${app.session.getItem(appId).title}» ${where}` +
-        (changed ? `, категория: ${categoryTitle(category)}` : '') + '.',
+      t('result.move.announce', {
+        title,
+        where: entry ? t('result.move.place', { position: entry.position }) : t('result.move.newPlace'),
+        category: changed ? t('result.move.categorySuffix', { category: categoryLabel(category) }) : '',
+      }),
     );
     if (changed) {
-      app.toast(`«${app.session.getItem(appId).title}» переехала в «${categoryTitle(category)}».`);
+      app.toast(t('result.move.categoryToast', { title, category: categoryLabel(category) }));
     }
   }
 
@@ -272,8 +277,10 @@ export function createResultScreen(app) {
     const entry = entriesById.get(appId);
     if (neighbour === undefined || entriesById.get(neighbour)?.category !== entry?.category) {
       app.toast(
-        `Это ${direction === -1 ? 'первая' : 'последняя'} строка категории ` +
-          `«${categoryTitle(entry?.category ?? null)}». Категорию меняет список в самой строке.`,
+        t('result.move.edge', {
+          edge: t(direction === -1 ? 'result.move.edgeFirst' : 'result.move.edgeLast'),
+          category: categoryLabel(entry?.category ?? null),
+        }),
       );
       return;
     }
@@ -290,7 +297,7 @@ export function createResultScreen(app) {
     try {
       app.session.setCategory(appId, categoryId);
     } catch (error) {
-      app.toast(`Не удалось сменить категорию: ${error.message}`, 'error');
+      app.toast(t('result.category.failed', { message: error.message }), 'error');
       render();
       return;
     }
@@ -298,7 +305,7 @@ export function createResultScreen(app) {
     app.save();
     render();
     if (selectedAppId !== null) focusRow(appId);
-    app.toast(`«${item.title}» — ${categoryTitle(categoryId)}.`);
+    app.toast(t('result.category.toast', { title: item.title, category: categoryLabel(categoryId) }));
   }
 
   /* ------------------------------------------------- drag and drop */
@@ -453,14 +460,14 @@ export function createResultScreen(app) {
       total === 0
         ? ''
         : shown === total
-          ? `${total} ${plural(total, ['строка', 'строки', 'строк'])}`
-          : `показано ${shown} из ${total}`;
+          ? t('result.shown.all', { rows: plural('count.rows', total) })
+          : t('result.shown.filtered', { shown, total });
 
     // An empty list has its own message, put there by `render`; this one is
     // only about a filter that matched nothing.
     if (total > 0) {
       nodes.empty.hidden = shown > 0;
-      if (shown === 0) nodes.empty.textContent = 'Под фильтр и поиск не попала ни одна позиция.';
+      if (shown === 0) nodes.empty.textContent = t('result.empty.filter');
     }
     setTabStop(selectedAppId);
   }
@@ -485,14 +492,14 @@ export function createResultScreen(app) {
    */
   function exportFile(build, done) {
     if (app.session.itemCount === 0) {
-      app.toast('Экспортировать нечего: список пуст.');
+      app.toast(t('result.export.empty'));
       return;
     }
     let file;
     try {
       file = build();
     } catch (error) {
-      app.toast(`Не удалось собрать файл: ${error.message}`, 'error');
+      app.toast(t('result.export.failed', { message: error.message }), 'error');
       return;
     }
     downloadText(file.name, file.text, file.type);
@@ -506,7 +513,7 @@ export function createResultScreen(app) {
         text: toOrderJson(app.session.getResult()),
         type: 'application/json',
       }),
-      'Итоговый порядок сохранён в JSON.',
+      t('result.export.jsonDone'),
     );
   });
 
@@ -517,23 +524,23 @@ export function createResultScreen(app) {
         text: toCsv(app.session.getResult()),
         type: 'text/csv;charset=utf-8',
       }),
-      'Итоговый список сохранён в CSV.',
+      t('result.export.csvDone'),
     );
   });
 
   nodes.copyText.addEventListener('click', async () => {
     if (app.session.itemCount === 0) {
-      app.toast('Копировать нечего: список пуст.');
+      app.toast(t('result.copy.empty'));
       return;
     }
     const text = toPlainText(app.session.getResult());
     if (await copyText(text)) {
-      app.toast('Нумерованный список скопирован в буфер обмена.', 'ok');
+      app.toast(t('result.copy.done'), 'ok');
       return;
     }
     // The browser may simply refuse the clipboard; the list is not lost then.
     downloadText(exportFileName('wishlist-list', 'txt'), text, 'text/plain;charset=utf-8');
-    app.toast('Браузер не дал доступ к буферу обмена — список сохранён файлом.', 'error');
+    app.toast(t('result.copy.failed'), 'error');
   });
 
   nodes.saveButton.addEventListener('click', () => {
@@ -545,15 +552,13 @@ export function createResultScreen(app) {
   nodes.resetManual.addEventListener('click', async () => {
     const count = app.session.manualMoveCount;
     if (count === 0) {
-      app.toast('Ручных перестановок нет.');
+      app.toast(t('result.resetManual.none'));
       return;
     }
     const confirmed = await app.confirm({
-      title: 'Сбросить ручные правки?',
-      text:
-        `${count} ${plural(count, ['перестановка', 'перестановки', 'перестановок'])} будет забыто, ` +
-        'и список вернётся к тому порядку, который дают сравнения. Ответы на сравнения останутся.',
-      confirmLabel: 'Сбросить перестановки',
+      title: t('result.resetManual.title'),
+      text: t('result.resetManual.text', { moves: plural('count.moves', count) }),
+      confirmLabel: t('result.resetManual.confirm'),
       danger: true,
     });
     if (!confirmed) return;
@@ -561,21 +566,19 @@ export function createResultScreen(app) {
     app.session.clearManualMoves();
     app.save();
     render();
-    app.toast('Ручные перестановки сброшены.', 'ok');
+    app.toast(t('result.resetManual.done'), 'ok');
   });
 
   nodes.resetAnswers.addEventListener('click', async () => {
     const { comparisons } = app.session.getProgress();
     if (comparisons === 0) {
-      app.toast('Ответов пока нет.');
+      app.toast(t('result.resetAnswers.none'));
       return;
     }
     const confirmed = await app.confirm({
-      title: 'Сбросить ответы сравнений?',
-      text:
-        `${comparisons} ${plural(comparisons, ['ответ', 'ответа', 'ответов'])} будет удалено, и сравнения ` +
-        'начнутся с нуля. Список позиций, категории и ручные перестановки останутся. Отменить это будет нельзя.',
-      confirmLabel: 'Сбросить ответы',
+      title: t('result.resetAnswers.title'),
+      text: t('result.resetAnswers.text', { answers: plural('count.answers', comparisons) }),
+      confirmLabel: t('result.resetAnswers.confirm'),
       danger: true,
     });
     if (!confirmed) return;
@@ -583,7 +586,7 @@ export function createResultScreen(app) {
     app.session.clearAnswers();
     app.save();
     render();
-    app.toast('Ответы сравнений сброшены.', 'ok');
+    app.toast(t('result.resetAnswers.done'), 'ok');
   });
 
   nodes.continueButton.addEventListener('click', () => {
@@ -599,31 +602,23 @@ export function createResultScreen(app) {
     if (summary.total === 0) {
       nodes.summary.textContent =
         summary.removed === 0
-          ? 'Список пуст: пока нечего показывать.'
-          : `Все ${summary.removed} ${plural(summary.removed, ['позиция помечена', 'позиции помечены', 'позиций помечено'])} ` +
-            'на удаление из желаемого, упорядочивать нечего.';
+          ? t('result.summary.empty')
+          : t('result.summary.allRemoved', { marked: plural('count.marked', summary.removed) });
       return;
     }
 
     const parts = [
-      `Всего ${summary.total} ${plural(summary.total, ['позиция', 'позиции', 'позиций'])}.`,
-      `Порядок подтверждён сравнениями у ${summary.resolved}, ` +
-        `остальные ${summary.fallback} стоят в запасном порядке — по позиции в вашем wishlist.`,
+      t('result.summary.total', { items: plural('count.items', summary.total) }),
+      t('result.summary.resolved', { resolved: summary.resolved, fallback: summary.fallback }),
     ];
     if (summary.manual > 0) {
-      parts.push(
-        `Вручную переставлено ${summary.manual} ` +
-          `${plural(summary.manual, ['позиция', 'позиции', 'позиций'])}.`,
-      );
+      parts.push(t('result.summary.manual', { items: plural('count.items', summary.manual) }));
     }
     if (summary.removed > 0) {
-      parts.push(
-        `Ещё ${summary.removed} ${plural(summary.removed, ['позиция помечена', 'позиции помечены', 'позиций помечено'])} ` +
-          'на удаление из желаемого — они идут отдельным списком.',
-      );
+      parts.push(t('result.summary.removed', { marked: plural('count.marked', summary.removed) }));
     }
-    parts.push(`Сравнений сделано: ${summary.comparisons}.`);
-    parts.push(summary.complete ? 'Сортировка завершена.' : 'Сортировка не завершена, её можно продолжить.');
+    parts.push(t('result.summary.comparisons', { count: summary.comparisons }));
+    parts.push(t(summary.complete ? 'result.summary.complete' : 'result.summary.incomplete'));
 
     nodes.summary.textContent = parts.join(' ');
   }
@@ -650,21 +645,21 @@ export function createResultScreen(app) {
     nodes.hint.hidden = entries.length < 2;
     nodes.empty.hidden = entries.length > 0;
     if (entries.length === 0) {
-      nodes.empty.textContent =
-        app.session.itemCount === 0
-          ? 'Импортируйте список желаемого, и здесь появится результат.'
-          : 'Все позиции помечены на удаление — упорядочивать нечего.';
+      nodes.empty.textContent = t(
+        app.session.itemCount === 0 ? 'result.empty.noItems' : 'result.empty.allRemoved',
+      );
     }
 
     applyFilter();
 
     nodes.continueButton.disabled = summary.complete && app.session.itemCount > 0;
-    nodes.continueButton.textContent =
+    nodes.continueButton.textContent = t(
       app.session.itemCount === 0
-        ? 'Перейти к импорту'
+        ? 'result.toImport'
         : summary.complete
-          ? 'Сортировка завершена'
-          : 'Продолжить сортировку';
+          ? 'result.complete'
+          : 'result.continue',
+    );
   }
 
   /** Called when the screen is opened: the search of the last visit is dropped. */

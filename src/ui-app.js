@@ -11,9 +11,10 @@
  */
 
 import { exportFileName } from './export.js';
+import { LANGUAGE_NAMES, getLanguage, plural, setLanguage, t } from './i18n.js';
 import { deserializeSession, createSession } from './ranking.js';
 import { StateStorage, StorageError, createEmptyState } from './storage.js';
-import { downloadText, isTypingTarget, plural } from './ui-common.js';
+import { applyTranslations, downloadText, isTypingTarget } from './ui-common.js';
 import { createImportScreen } from './ui-import.js';
 import { createCategorizeScreen } from './ui-categorize.js';
 import { createCompareScreen } from './ui-compare.js';
@@ -43,6 +44,7 @@ function createApp() {
   const toastNode = document.getElementById('toast');
   const liveRegion = document.getElementById('live-region');
   const coversToggle = document.getElementById('setting-covers');
+  const languageSelect = document.getElementById('setting-language');
 
   let state;
   let loadError = null;
@@ -63,6 +65,10 @@ function createApp() {
     loadError = loadError ?? error;
   }
 
+  // The language is decided before a single word is drawn, so no screen is
+  // ever rendered in one language and then repainted in another.
+  applyLanguage(state.settings.language);
+
   let toastTimer = 0;
   let current = null;
 
@@ -78,6 +84,11 @@ function createApp() {
     /** @returns {boolean} Whether covers may be fetched from the Steam CDN. */
     get loadCovers() {
       return state.settings.loadCovers !== false;
+    },
+
+    /** @returns {string} The language of the interface. */
+    get language() {
+      return getLanguage();
     },
 
     /** @returns {string} The screen currently shown. */
@@ -100,8 +111,8 @@ function createApp() {
       } catch (error) {
         app.toast(
           error instanceof StorageError
-            ? 'Не удалось сохранить состояние в браузере. Сохраните его в файл, чтобы не потерять.'
-            : `Не удалось сохранить состояние: ${error.message}`,
+            ? t('app.saveFailed')
+            : t('app.saveFailedReason', { message: error.message }),
           'error',
         );
         return false;
@@ -117,6 +128,10 @@ function createApp() {
       state = nextState;
       session = deserializeSession(state.session);
       coversToggle.checked = app.loadCovers;
+      // A state file carries the language of whoever saved it; following it
+      // silently would answer a question the user did not ask, so the language
+      // of the interface stays as it is and the file is brought to it.
+      state.settings.language = getLanguage();
       app.refreshNav();
     },
 
@@ -124,6 +139,7 @@ function createApp() {
     resetAll() {
       storage.clear();
       state = createEmptyState();
+      state.settings.language = getLanguage();
       session = deserializeSession(state.session);
       coversToggle.checked = true;
       app.refreshNav();
@@ -171,6 +187,15 @@ function createApp() {
     /** Re-renders the screen that is open. */
     refresh() {
       if (current) screens[current].render();
+    },
+
+    /**
+     * Re-renders every screen, not only the one on top. Used when the language
+     * changes: a hidden screen keeps the words of its last draw, and the user
+     * must not walk into a screen that is still in the previous language.
+     */
+    refreshAll() {
+      for (const id of SCREEN_IDS) screens[id].render();
     },
 
     /** Enables the stages that need items and disables the ones that do not. */
@@ -233,11 +258,16 @@ function createApp() {
     state.settings.loadCovers = coversToggle.checked;
     app.save();
     app.refresh();
-    app.toast(
-      coversToggle.checked
-        ? 'Обложки включены: приложение загружает картинки с CDN Steam.'
-        : 'Обложки выключены: приложение не делает ни одного внешнего запроса.',
-    );
+    app.toast(t(coversToggle.checked ? 'app.covers.on' : 'app.covers.off'));
+  });
+
+  // Changing the language redraws, it does not restart: the session object is
+  // untouched, so not one answer and not one position in the sorting is lost.
+  languageSelect.addEventListener('change', () => {
+    state.settings.language = applyLanguage(languageSelect.value);
+    app.save();
+    app.refreshAll();
+    app.toast(t('app.language.changed', { language: LANGUAGE_NAMES[app.language] }));
   });
 
   document.getElementById('action-save-state').addEventListener('click', () => {
@@ -246,18 +276,14 @@ function createApp() {
 
   document.getElementById('action-reset').addEventListener('click', async () => {
     const confirmed = await app.confirm({
-      title: 'Начать заново?',
-      text:
-        `Будут удалены все ${session.itemCount} ` +
-        `${plural(session.itemCount, ['позиция', 'позиции', 'позиций'])}, категории, ответы ` +
-        'на сравнения и ручные перестановки. ' +
-        'Отменить это будет нельзя — если работа может пригодиться, сначала сохраните её в файл.',
-      confirmLabel: 'Удалить всё и начать заново',
+      title: t('app.reset.title'),
+      text: t('app.reset.text', { items: plural('count.items', session.itemCount) }),
+      confirmLabel: t('app.reset.confirm'),
       danger: true,
     });
     if (!confirmed) return;
     app.resetAll();
-    app.toast('Состояние очищено.');
+    app.toast(t('app.reset.done'));
   });
 
   for (const button of document.querySelectorAll('.navbtn')) {
@@ -274,13 +300,31 @@ function createApp() {
   app.show(session.itemCount === 0 ? 'import' : rememberedScreen());
 
   if (loadError) {
-    app.toast(
-      `Сохранённое состояние не удалось прочитать (${loadError.message}). Начинаем с пустого списка.`,
-      'error',
-    );
+    app.toast(t('app.loadFailed', { message: loadError.message }), 'error');
   }
 
   return app;
+}
+
+/**
+ * Puts the whole page into a language: the dictionaries, the `lang` of the
+ * document (screen readers and hyphenation read it), the switch in the header
+ * and every element of the markup that carries a key.
+ *
+ * The dynamic parts are not touched here — a screen redraws them itself with
+ * `app.refresh()`, which is also what keeps the current position in the
+ * sorting: nothing is reloaded, only re-rendered.
+ *
+ * @param {string} code
+ * @returns {string} The language that is now in use.
+ */
+function applyLanguage(code) {
+  const language = setLanguage(code);
+  document.documentElement.lang = language;
+  const select = document.getElementById('setting-language');
+  if (select) select.value = language;
+  applyTranslations();
+  return language;
 }
 
 /**
@@ -294,12 +338,12 @@ function downloadStateFile(app) {
   try {
     text = app.exportStateJson();
   } catch (error) {
-    app.toast(`Не удалось собрать файл состояния: ${error.message}`, 'error');
+    app.toast(t('app.state.buildFailed', { message: error.message }), 'error');
     return;
   }
 
   downloadText(exportFileName('wishlist-state', 'json'), text, 'application/json');
-  app.toast('Состояние сохранено в файл.', 'ok');
+  app.toast(t('app.state.saved'), 'ok');
 }
 
 /**
@@ -326,8 +370,8 @@ function askConfirmation(options) {
 
   document.getElementById('confirm-title').textContent = options.title;
   document.getElementById('confirm-text').textContent = options.text;
-  okButton.textContent = options.confirmLabel ?? 'Продолжить';
-  cancelButton.textContent = options.cancelLabel ?? 'Отмена';
+  okButton.textContent = options.confirmLabel ?? t('dialog.confirm');
+  cancelButton.textContent = options.cancelLabel ?? t('dialog.cancel');
   okButton.classList.toggle('btn--danger', options.danger === true);
 
   // A browser without <dialog> still has to be able to say no to a deletion.
