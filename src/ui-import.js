@@ -98,6 +98,35 @@ export function createImportScreen(app) {
   }
 
   /**
+   * Asks before a state file is loaded over work that is already here. An
+   * import of a wishlist merges into the session and loses nothing; an import
+   * of a state replaces it whole, so it is the one that has to be confirmed.
+   *
+   * @param {string} text
+   */
+  async function confirmStateImport(text) {
+    if (app.session.itemCount > 0) {
+      const { comparisons } = app.session.getProgress();
+      const confirmed = await app.confirm({
+        title: 'Загрузить состояние поверх текущего?',
+        text:
+          `Сейчас в списке ${app.session.itemCount} ` +
+          `${plural(app.session.itemCount, ['позиция', 'позиции', 'позиций'])} и ${comparisons} ` +
+          `${plural(comparisons, ['сделанное сравнение', 'сделанных сравнения', 'сделанных сравнений'])}. ` +
+          'Файл заменит всё это целиком: список, категории, ответы и ручные перестановки. ' +
+          'Отменить это будет нельзя.',
+        confirmLabel: 'Заменить текущее состояние',
+        danger: true,
+      });
+      if (!confirmed) {
+        app.toast('Импорт состояния отменён — ничего не изменилось.');
+        return;
+      }
+    }
+    runStateImport(text);
+  }
+
+  /**
    * Restores a previously saved state file: items, categories and answers.
    *
    * @param {string} text
@@ -122,6 +151,10 @@ export function createImportScreen(app) {
           element('span', {}, [
             document.createTextNode('сравнений сделано: '),
             element('b', { text: String(app.session.getProgress().comparisons) }),
+          ]),
+          element('span', {}, [
+            document.createTextNode('ручных перестановок: '),
+            element('b', { text: String(app.session.manualMoveCount) }),
           ]),
         ]),
       ]),
@@ -234,7 +267,7 @@ export function createImportScreen(app) {
   });
 
   nodes.state.addEventListener('change', () => {
-    readPickedFile(nodes.state, nodes.stateName, (text) => runStateImport(text));
+    readPickedFile(nodes.state, nodes.stateName, (text) => confirmStateImport(text));
   });
 
   nodes.textRun.addEventListener('click', () => {

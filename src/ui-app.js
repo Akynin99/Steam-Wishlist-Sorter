@@ -10,9 +10,10 @@
  * most one action behind.
  */
 
+import { exportFileName } from './export.js';
 import { deserializeSession, createSession } from './ranking.js';
 import { StateStorage, StorageError, createEmptyState } from './storage.js';
-import { isTypingTarget } from './ui-common.js';
+import { downloadText, isTypingTarget, plural } from './ui-common.js';
 import { createImportScreen } from './ui-import.js';
 import { createCategorizeScreen } from './ui-categorize.js';
 import { createCompareScreen } from './ui-compare.js';
@@ -205,6 +206,19 @@ function createApp() {
     announce(message) {
       liveRegion.textContent = message;
     },
+
+    /**
+     * Asks before doing something that cannot be undone. Every such action in
+     * the application goes through here, so none of them can quietly grow a
+     * different, softer wording than the others.
+     *
+     * @param {{ title: string, text: string, confirmLabel?: string,
+     *           cancelLabel?: string, danger?: boolean }} options
+     * @returns {Promise<boolean>} Whether the user agreed. Escape means no.
+     */
+    confirm(options) {
+      return askConfirmation(options);
+    },
   };
 
   screens.import = createImportScreen(app);
@@ -230,10 +244,17 @@ function createApp() {
     downloadStateFile(app);
   });
 
-  document.getElementById('action-reset').addEventListener('click', () => {
-    const confirmed = window.confirm(
-      'Удалить список, категории и все ответы и начать заново? Отменить это будет нельзя.',
-    );
+  document.getElementById('action-reset').addEventListener('click', async () => {
+    const confirmed = await app.confirm({
+      title: 'Начать заново?',
+      text:
+        `Будут удалены все ${session.itemCount} ` +
+        `${plural(session.itemCount, ['позиция', 'позиции', 'позиций'])}, категории, ответы ` +
+        'на сравнения и ручные перестановки. ' +
+        'Отменить это будет нельзя — если работа может пригодиться, сначала сохраните её в файл.',
+      confirmLabel: 'Удалить всё и начать заново',
+      danger: true,
+    });
     if (!confirmed) return;
     app.resetAll();
     app.toast('Состояние очищено.');
@@ -277,16 +298,64 @@ function downloadStateFile(app) {
     return;
   }
 
-  const stamp = new Date().toISOString().slice(0, 10);
-  const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `wishlist-state-${stamp}.json`;
-  document.body.append(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
+  downloadText(exportFileName('wishlist-state', 'json'), text, 'application/json');
   app.toast('Состояние сохранено в файл.', 'ok');
+}
+
+/**
+ * Shows the confirmation dialog and resolves with the answer.
+ *
+ * `<dialog>` does the hard parts itself: the page behind it stops taking
+ * clicks, the focus stays inside, and Escape closes it — which counts as "no",
+ * like every other way out that is not the confirm button.
+ *
+ * The answer is taken from the buttons themselves rather than from the `close`
+ * event alone. A dialog that closes without ever telling us would leave the
+ * caller waiting forever, and the caller here is "delete everything": pressing
+ * it and having nothing happen at all is the one outcome worth engineering
+ * around.
+ *
+ * @param {{ title: string, text: string, confirmLabel?: string,
+ *           cancelLabel?: string, danger?: boolean }} options
+ * @returns {Promise<boolean>}
+ */
+function askConfirmation(options) {
+  const dialog = document.getElementById('confirm-dialog');
+  const okButton = document.getElementById('confirm-ok');
+  const cancelButton = document.getElementById('confirm-cancel');
+
+  document.getElementById('confirm-title').textContent = options.title;
+  document.getElementById('confirm-text').textContent = options.text;
+  okButton.textContent = options.confirmLabel ?? 'Продолжить';
+  cancelButton.textContent = options.cancelLabel ?? 'Отмена';
+  okButton.classList.toggle('btn--danger', options.danger === true);
+
+  // A browser without <dialog> still has to be able to say no to a deletion.
+  if (typeof dialog.showModal !== 'function') {
+    return Promise.resolve(window.confirm(`${options.title}\n\n${options.text}`));
+  }
+
+  return new Promise((resolve) => {
+    const finish = (answer) => {
+      okButton.removeEventListener('click', onConfirm);
+      cancelButton.removeEventListener('click', onCancel);
+      dialog.removeEventListener('close', onClose);
+      if (dialog.open) dialog.close();
+      resolve(answer);
+    };
+    const onConfirm = () => finish(true);
+    const onCancel = () => finish(false);
+    const onClose = () => finish(dialog.returnValue === 'confirm');
+
+    okButton.addEventListener('click', onConfirm);
+    cancelButton.addEventListener('click', onCancel);
+    dialog.addEventListener('close', onClose);
+
+    dialog.returnValue = '';
+    dialog.showModal();
+    // The safe answer keeps the focus, so Enter on an unread dialog cancels.
+    cancelButton.focus();
+  });
 }
 
 /**

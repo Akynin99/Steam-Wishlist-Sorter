@@ -139,6 +139,62 @@ export function renderCover(box, item, loadCovers) {
 }
 
 /**
+ * Hands a text file to the browser to save.
+ *
+ * The file is built in the page out of data that is already there, and the
+ * link is clicked and thrown away in the same breath: nothing is uploaded
+ * anywhere, and the user picks the folder in their own save dialog.
+ *
+ * @param {string} fileName
+ * @param {string} text
+ * @param {string} mimeType
+ */
+export function downloadText(fileName, text, mimeType) {
+  const url = URL.createObjectURL(new Blob([text], { type: mimeType }));
+  const link = element('a', { attrs: { href: url, download: fileName } });
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Puts text on the clipboard.
+ *
+ * The clipboard API is the way this is done, but it needs a secure context and
+ * a permission the browser may refuse. When it does, the old selection trick
+ * still works, and only if that fails too does the caller hear about it — the
+ * user is then offered the list as a file instead.
+ *
+ * @param {string} text
+ * @returns {Promise<boolean>} Whether the text really made it to the clipboard.
+ */
+export async function copyText(text) {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // Refused or unavailable: fall through to the selection based way.
+  }
+
+  const field = element('textarea', { attrs: { readonly: true, 'aria-hidden': 'true' } });
+  field.value = text;
+  field.style.cssText = 'position:fixed;top:0;left:-9999px;opacity:0';
+  document.body.append(field);
+  field.select();
+  let copied = false;
+  try {
+    copied = document.execCommand('copy');
+  } catch {
+    copied = false;
+  }
+  field.remove();
+  return copied;
+}
+
+/**
  * Whether a keyboard event happens inside a field, where the hotkeys of the
  * screens must not fire.
  *

@@ -217,21 +217,77 @@
     <!-- =================================================== результат -->
     <section class="screen" id="screen-result" hidden aria-labelledby="result-heading">
       <div class="stage-head">
-        <h1 id="result-heading">Результат</h1>
-        <p class="stage-head__hint" id="result-summary"></p>
-        <div class="stage-actions">
+        <div class="stage-head__row">
+          <h1 id="result-heading">Результат</h1>
           <button type="button" class="btn btn--primary" id="result-continue">Продолжить сортировку</button>
-          <button type="button" class="btn" id="result-save">Сохранить состояние в файл</button>
+        </div>
+        <p class="stage-head__hint" id="result-summary"></p>
+        <ul class="legend" id="result-legend">
+          <li class="legend__item legend__item--sorted">порядок подтверждён сравнениями</li>
+          <li class="legend__item legend__item--fallback">запасной порядок — по позиции в wishlist</li>
+          <li class="legend__item legend__item--manual">переставлено вручную</li>
+        </ul>
+      </div>
+
+      <div class="result-tools">
+        <div class="result-tools__row">
+          <label class="visually-hidden" for="result-search">Поиск по названию или App ID</label>
+          <input type="search" class="input" id="result-search" placeholder="Поиск по названию или App ID"
+                 autocomplete="off" spellcheck="false">
+          <div class="segmented" role="group" aria-label="Что показывать">
+            <button type="button" class="segmented__btn" data-filter="all" aria-pressed="true">Все</button>
+            <button type="button" class="segmented__btn" data-filter="game" aria-pressed="false">Игры</button>
+            <button type="button" class="segmented__btn" data-filter="dlc" aria-pressed="false">DLC</button>
+          </div>
+          <span class="result-tools__count" id="result-shown"></span>
+        </div>
+        <div class="result-tools__row result-tools__row--exports">
+          <button type="button" class="btn btn--primary" id="result-export-json">Итог в JSON</button>
+          <button type="button" class="btn" id="result-export-csv">Итог в CSV</button>
+          <button type="button" class="btn" id="result-copy-text">Скопировать списком</button>
+          <button type="button" class="btn btn--ghost" id="result-save">Резервная копия состояния</button>
         </div>
       </div>
+
+      <p class="hint" id="result-hint">
+        Строку можно перетащить мышью или выбрать её и нажать <kbd>Ctrl</kbd> + <kbd>↑</kbd> /
+        <kbd>Ctrl</kbd> + <kbd>↓</kbd>. Перестановки сохраняются и переживают перезагрузку.
+      </p>
+
       <ol class="result-list" id="result-list"></ol>
+      <p class="result-empty" id="result-empty" hidden></p>
+
       <section class="result-removed" id="result-removed" hidden aria-labelledby="result-removed-heading">
-        <h2 class="panel__title" id="result-removed-heading">Помечено «удалить из желаемого»</h2>
+        <h2 class="panel__title" id="result-removed-heading">Удалить из желаемого</h2>
+        <p class="panel__hint">Эти позиции не входят в нумерацию итогового списка.</p>
         <ul class="result-removed__list" id="result-removed-list"></ul>
       </section>
+
+      <div class="stage-actions stage-actions--footer">
+        <button type="button" class="btn btn--ghost" id="result-reset-manual">Сбросить ручные правки</button>
+        <button type="button" class="btn btn--ghost btn--danger" id="result-reset-answers">
+          Сбросить ответы сравнений
+        </button>
+      </div>
     </section>
 
   </main>
+
+  <!--
+    One dialog serves every irreversible action: erasing the state, starting
+    over, loading a state file over the current one. `<dialog>` gives the focus
+    trap and the Escape key for free, and Escape means "no".
+  -->
+  <dialog class="dialog" id="confirm-dialog" aria-labelledby="confirm-title">
+    <form method="dialog" class="dialog__form">
+      <h2 class="dialog__title" id="confirm-title">Подтвердите действие</h2>
+      <p class="dialog__text" id="confirm-text"></p>
+      <div class="dialog__actions">
+        <button type="submit" class="btn" value="cancel" id="confirm-cancel">Отмена</button>
+        <button type="submit" class="btn btn--primary" value="confirm" id="confirm-ok">Продолжить</button>
+      </div>
+    </form>
+  </dialog>
 
   <div class="toast" id="toast" hidden></div>
   <p class="visually-hidden" id="live-region" role="status" aria-live="polite"></p>
