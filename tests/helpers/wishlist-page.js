@@ -61,16 +61,88 @@ function currentRow(index, { draggableId, dlc = false, appId = appIdAt(index), t
 }
 
 /**
+ * The made-up account the mock pages belong to. Seventeen digits, and the
+ * account of nobody: Steam ids of real people are not written into this repo.
+ */
+export const OWNER_STEAM_ID = '76561198000000001';
+
+/** A second one, for the pages that name two accounts and must be refused. */
+export const OTHER_STEAM_ID = '76561198000000002';
+
+/**
+ * The bits of a page that say whose wishlist it is, each of them separately.
+ *
+ * Every option is one source of the chain and nothing else, so a test can build
+ * a page that carries exactly one of them — which is the only way to tell that
+ * the source under test is the one that answered.
+ *
+ * @param {{ gSteamID?: string|null, profileLinks?: string[],
+ *           scriptAddresses?: string[], dataSteamIds?: string[], junk?: boolean }} [options]
+ *   `gSteamID` is the variable of the old layout, written into a script the way
+ *   Steam wrote it. `scriptAddresses` are numeric wishlist addresses inside an
+ *   inline script — what the rewritten page actually carries. `junk` adds ids
+ *   of the wrong shape everywhere, which are to be picked up by nothing.
+ * @returns {object[]}
+ */
+export function ownerMarkup({
+  gSteamID = null,
+  profileLinks = [],
+  scriptAddresses = [],
+  dataSteamIds = [],
+  junk = false,
+} = {}) {
+  const nodes = [];
+
+  if (gSteamID !== null) {
+    nodes.push(el('script', { $text: `var g_sessionID = "b6f2c1d4e5a60718"; var g_steamID = "${gSteamID}";` }));
+  }
+  for (const steamId of profileLinks) {
+    nodes.push(
+      el('a', { class: 'Nn2v-', href: `/wishlist/profiles/${steamId}/` }, [el('span', { $text: 'Wishlist' })]),
+    );
+  }
+  for (const steamId of scriptAddresses) {
+    nodes.push(
+      el('script', {
+        $text:
+          '(function(){window.__PRELOADED__={"canonical":' +
+          `"https://store.steampowered.com/wishlist/profiles/${steamId}/","rgWishlist":[]};}())`,
+      }),
+    );
+  }
+  for (const steamId of dataSteamIds) {
+    nodes.push(el('div', { class: 'playerAvatar', 'data-steamid': steamId }));
+  }
+
+  if (junk) {
+    // Everything here is the right shape at a glance and the wrong one on a
+    // count: sixteen digits, eighteen, letters, an empty attribute.
+    nodes.push(
+      el('a', { href: '/wishlist/profiles/7656119800000000/' }),
+      el('a', { href: '/wishlist/profiles/765611980000000012/' }),
+      el('script', { $text: 'var g_steamID = "not-an-id"; /* wishlist/profiles/12345/ */' }),
+      el('div', { 'data-steamid': 'abcdefghijklmnopq' }),
+      el('div', { 'data-steamid': '' }),
+    );
+  }
+
+  return nodes;
+}
+
+/**
  * The wishlist page as it is now.
  *
  * @param {{ indexes?: number[], dlcIndexes?: number[], draggableIds?: Record<number, string|null>,
  *           scrollerId?: string|null, scrollHeight?: number, clientHeight?: number,
- *           decoy?: boolean, stackFromTop?: boolean }} [options]
+ *           decoy?: boolean, stackFromTop?: boolean, owner?: object|null }} [options]
  *   `indexes` are the places whose rows are in the markup right now — a
  *   virtualized list renders a window, not the list. `scrollerId` set to `null`
  *   leaves the scrolling container with nothing but a generated class name,
  *   which is what the next redesign looks like from here. `decoy` adds a second
- *   scrolling element that matches a known selector but holds no rows.
+ *   scrolling element that matches a known selector but holds no rows. `owner`
+ *   is handed to `ownerMarkup()` and says what the page states about the
+ *   account it belongs to; left out, the page states nothing — which is the
+ *   page Steam serves.
  * @returns {{ document: object, scroller: object, rows: object[] }}
  */
 export function currentLayout({
@@ -82,6 +154,7 @@ export function currentLayout({
   clientHeight = 720,
   decoy = false,
   stackFromTop = false,
+  owner = null,
 } = {}) {
   const rows = indexes.map((index, position) =>
     currentRow(index, {
@@ -109,6 +182,8 @@ export function currentLayout({
       ]),
     );
   }
+
+  if (owner) children.push(...ownerMarkup(owner));
 
   return { document: createDocument(children), scroller, rows };
 }

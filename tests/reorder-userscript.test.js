@@ -18,7 +18,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { appIdAt, currentLayout, oldLayout } from './helpers/wishlist-page.js';
+import { OTHER_STEAM_ID, appIdAt, currentLayout, oldLayout } from './helpers/wishlist-page.js';
 
 await import('../userscripts/steam-wishlist-import-order.user.js');
 
@@ -30,7 +30,9 @@ const {
   buildPageOrder,
   buildReorderBody,
   buildTargetOrder,
+  collectOwnerCandidates,
   compareOrders,
+  describeAccount,
   describeNetworkFailure,
   findRows,
   findScroller,
@@ -346,6 +348,199 @@ test('nothing but 17 digits ever reaches the address', () => {
     const resolved = resolveReorderTarget({ pathname: '/wishlist/id/someone/', loggedInSteamId: junk });
     assert.equal(resolved.error, 'unknown-owner', `accepted ${JSON.stringify(junk)}`);
   }
+});
+
+// ============================================================================
+// Whose wishlist is this
+// ============================================================================
+//
+// Steam brings the address to `/wishlist/id/<custom url>/` and redirects the
+// numeric form back to it, so the id has to be found on the page. Every test
+// here builds a page carrying exactly one of the sources — that is the only way
+// to know which one answered — and then the two cases that matter more than any
+// single source: a page that names nobody, and a page that names two.
+
+/** The page as Steam serves it, opened under a custom url. */
+function pageOf(owner) {
+  return currentLayout({ indexes: [0, 1, 2], owner }).document;
+}
+
+/**
+ * @param {object|null} owner What the page states about the account.
+ * @param {{ pathname?: string, globals?: object[], manualSteamId?: string|null }} [options]
+ */
+function resolveOn(owner, { pathname = '/wishlist/id/someone/', globals = [], manualSteamId = null } = {}) {
+  const collected = collectOwnerCandidates({ pathname, document: owner === null ? null : pageOf(owner), globals });
+  return { collected, resolved: resolveReorderTarget({ pathname, candidates: collected.candidates, manualSteamId }) };
+}
+
+test('a custom url page is read for the account: the numeric link to this same wishlist', () => {
+  const { collected, resolved } = resolveOn({ profileLinks: [STEAM_ID] });
+
+  assert.deepEqual(collected.candidates, [{ source: 'profile-link', steamId: STEAM_ID }]);
+  assert.equal(collected.fromPath, null);
+  assert.equal(collected.vanity, 'someone');
+  assert.equal(resolved.url, REORDER_URL);
+  assert.equal(resolved.source, 'profile-link');
+});
+
+test('a custom url page is read for the account: the address inside an inline script', () => {
+  const { collected, resolved } = resolveOn({ scriptAddresses: [STEAM_ID] });
+
+  assert.deepEqual(collected.candidates, [{ source: 'inline-script', steamId: STEAM_ID }]);
+  assert.equal(resolved.url, REORDER_URL);
+  assert.equal(resolved.source, 'inline-script');
+});
+
+test('a custom url page is read for the account: g_steamID of the old layout', () => {
+  const { collected, resolved } = resolveOn({ gSteamID: STEAM_ID });
+
+  assert.deepEqual(collected.candidates, [{ source: 'g_steamID', steamId: STEAM_ID }]);
+  assert.equal(resolved.url, REORDER_URL);
+  assert.equal(resolved.source, 'g_steamID');
+});
+
+test('a custom url page is read for the account: g_steamID of the window, and of unsafeWindow', () => {
+  for (const globals of [[{ g_steamID: STEAM_ID }], [null, { g_steamID: STEAM_ID }]]) {
+    const { resolved } = resolveOn({}, { globals });
+    assert.equal(resolved.url, REORDER_URL);
+    assert.equal(resolved.source, 'g_steamID');
+  }
+});
+
+test('a custom url page is read for the account: a data-steamid attribute', () => {
+  const { collected, resolved } = resolveOn({ dataSteamIds: [STEAM_ID] });
+
+  assert.deepEqual(collected.candidates, [{ source: 'data-steamid', steamId: STEAM_ID }]);
+  assert.equal(resolved.url, REORDER_URL);
+  assert.equal(resolved.source, 'data-steamid');
+});
+
+test('the page Steam serves — a custom url, a numeric link and one script — resolves to one account', () => {
+  const { collected, resolved } = resolveOn({ profileLinks: [STEAM_ID], scriptAddresses: [STEAM_ID] });
+
+  assert.equal(collected.candidates.length, 2);
+  assert.equal(resolved.url, REORDER_URL);
+  assert.match(resolved.note, /custom url/i);
+  assert.match(resolved.note, new RegExp(STEAM_ID));
+});
+
+test('a page that states nothing about the account gives up and points at the field', () => {
+  const { collected, resolved } = resolveOn({});
+
+  assert.deepEqual(collected.candidates, []);
+  assert.equal(resolved.error, 'unknown-owner');
+  assert.match(resolved.message, /Steam ID/);
+  assert.match(resolved.message, /type your own 17 digits/i);
+});
+
+test('two different accounts on one page are a refusal, not a choice', () => {
+  const { resolved } = resolveOn({ gSteamID: STEAM_ID, profileLinks: [OTHER_STEAM_ID] });
+
+  assert.equal(resolved.error, 'several-accounts');
+  assert.deepEqual(resolved.accounts, [STEAM_ID, OTHER_STEAM_ID]);
+  assert.equal(resolved.url, undefined);
+  assert.match(resolved.message, /more than one account/i);
+  assert.match(resolved.message, new RegExp(STEAM_ID));
+  assert.match(resolved.message, new RegExp(OTHER_STEAM_ID));
+});
+
+test('a refusal survives the account being named first by the source that would have won', () => {
+  // The order of the sources is no help here: whichever of them is consulted
+  // first, the other one says something else, and the write must not go out.
+  const { resolved } = resolveOn({ profileLinks: [OTHER_STEAM_ID, STEAM_ID] });
+  assert.equal(resolved.error, 'several-accounts');
+});
+
+test('the same account stated by every source at once is one account, not four', () => {
+  const { collected, resolved } = resolveOn(
+    { gSteamID: STEAM_ID, profileLinks: [STEAM_ID], scriptAddresses: [STEAM_ID], dataSteamIds: [STEAM_ID] },
+    { globals: [{ g_steamID: STEAM_ID }] },
+  );
+
+  assert.equal(collected.candidates.length, 5);
+  assert.equal(resolved.url, REORDER_URL);
+});
+
+test('nothing of the wrong shape is taken for an account id', () => {
+  const { collected, resolved } = resolveOn({ junk: true }, { globals: [{ g_steamID: '../../evil' }] });
+
+  assert.deepEqual(collected.candidates, []);
+  assert.equal(resolved.error, 'unknown-owner');
+});
+
+test('junk on the page does not turn one good source into a disagreement', () => {
+  const { resolved } = resolveOn({ junk: true, profileLinks: [STEAM_ID] });
+  assert.equal(resolved.url, REORDER_URL);
+});
+
+test('a numeric address wins over everything the page says', () => {
+  const pathname = `/wishlist/profiles/${STEAM_ID}/`;
+  const { collected, resolved } = resolveOn(
+    { profileLinks: [OTHER_STEAM_ID], scriptAddresses: [OTHER_STEAM_ID], dataSteamIds: [OTHER_STEAM_ID] },
+    { pathname },
+  );
+
+  assert.equal(collected.fromPath, STEAM_ID);
+  assert.equal(resolved.url, REORDER_URL);
+  assert.equal(resolved.source, 'path');
+  assert.equal(resolved.note, null);
+});
+
+test('a numeric address of somebody else is still refused against the signed-in account', () => {
+  // The one thing the page can say that outranks the address: `g_steamID` names
+  // *you*, and a wishlist that is not yours is refused here rather than by Steam.
+  const { resolved } = resolveOn({ gSteamID: OTHER_STEAM_ID }, { pathname: `/wishlist/profiles/${STEAM_ID}/` });
+  assert.equal(resolved.error, 'not-yours');
+});
+
+test('an id typed in by hand is the last way out, and only when the page named none', () => {
+  const { resolved } = resolveOn({}, { manualSteamId: STEAM_ID });
+
+  assert.equal(resolved.url, REORDER_URL);
+  assert.equal(resolved.source, 'manual');
+  assert.match(resolved.note, /you typed in yourself/i);
+});
+
+test('a typed id of the wrong shape is refused the same as any other', () => {
+  for (const junk of ['7656119800000000', 'abcdefghijklmnopq', '765611980000000012', ' ', null]) {
+    const { resolved } = resolveOn({}, { manualSteamId: junk });
+    assert.equal(resolved.error, 'unknown-owner', `accepted ${JSON.stringify(junk)}`);
+  }
+});
+
+test('a typed id does not override an account the page states', () => {
+  const { resolved } = resolveOn({ profileLinks: [STEAM_ID] }, { manualSteamId: OTHER_STEAM_ID });
+
+  assert.equal(resolved.steamId, STEAM_ID);
+  assert.equal(resolved.source, 'profile-link');
+});
+
+test('a typed id does not settle a page that names two accounts', () => {
+  const { resolved } = resolveOn({ gSteamID: STEAM_ID, profileLinks: [OTHER_STEAM_ID] }, { manualSteamId: STEAM_ID });
+  assert.equal(resolved.error, 'several-accounts');
+});
+
+test('the account the write would go to is named: the id, the nick and where it came from', () => {
+  const { resolved } = resolveOn({ profileLinks: [STEAM_ID] });
+  const said = describeAccount(resolved);
+
+  assert.match(said, new RegExp(STEAM_ID));
+  assert.match(said, /someone/);
+  assert.match(said, /link on the page/i);
+});
+
+test('a page opened by its numeric address is named without a nick it does not have', () => {
+  const { resolved } = resolveOn({}, { pathname: `/wishlist/profiles/${STEAM_ID}/` });
+  const said = describeAccount(resolved);
+
+  assert.match(said, new RegExp(STEAM_ID));
+  assert.doesNotMatch(said, /\(/);
+});
+
+test('collecting reads a page with no document at all without throwing', () => {
+  const collected = collectOwnerCandidates();
+  assert.deepEqual(collected, { fromPath: null, vanity: null, candidates: [] });
 });
 
 test('the body carries the session id and the app ids in order', () => {
