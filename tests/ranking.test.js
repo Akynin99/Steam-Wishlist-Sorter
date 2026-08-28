@@ -550,3 +550,189 @@ test('the scheduler never asks a pair the graph already implies', () => {
 
   assert.deepEqual(idsOf(session.getResult()), oracle.order);
 });
+
+/* --------------------------------------------------- manual placement */
+
+test('a hand made placement lands where it was dropped and is marked as manual', () => {
+  const { session, items } = sessionOf(5);
+  const before = idsOf(session.getResult());
+  assert.deepEqual(before, items.map((item) => item.appId), 'the fallback order to start from');
+
+  session.moveItem(items[4], items[0], 'before');
+  const result = session.getResult();
+
+  assert.deepEqual(idsOf(result), [items[4], items[0], items[1], items[2], items[3]].map((i) => i.appId));
+  assert.equal(result.entries[0].manual, true);
+  assert.equal(result.entries[1].manual, false);
+  assert.equal(result.summary.manual, 1);
+  assert.deepEqual(result.entries.map((entry) => entry.position), [1, 2, 3, 4, 5]);
+});
+
+test('dropping after an anchor and dropping before it are different places', () => {
+  const { session, items } = sessionOf(4);
+
+  session.moveItem(items[3], items[0], 'after');
+  assert.deepEqual(idsOf(session.getResult()), [items[0], items[3], items[1], items[2]].map((i) => i.appId));
+
+  session.moveItem(items[3], items[0], 'before');
+  assert.deepEqual(idsOf(session.getResult()), [items[3], items[0], items[1], items[2]].map((i) => i.appId));
+
+  assert.equal(session.manualMoveCount, 1, 'only the latest placement of an item is kept');
+});
+
+test('a placement refuses what cannot stand next to each other', () => {
+  const { session, items } = sessionOf(3);
+  const outsider = createItem({ appId: 999999, title: 'Not in the session', wishlistPosition: 9 });
+  session.setCategory(items[2].appId, 'remove');
+
+  assert.throws(() => session.moveItem(items[0], items[0]), (error) => error.code === 'same-item');
+  assert.throws(() => session.moveItem(items[0], outsider.appId), (error) => error.code === 'unknown-item');
+  assert.throws(() => session.moveItem(items[0], items[2]), (error) => error.code === 'cross-category');
+  assert.throws(
+    () => session.moveItem(items[0], items[1], 'sideways'),
+    (error) => error instanceof RankingError && error.code === 'invalid-side',
+  );
+  assert.equal(session.manualMoveCount, 0, 'a refused move is not recorded');
+});
+
+test('a hand made placement survives a reload', () => {
+  const { session, items } = sessionOf(5);
+  session.moveItem(items[4], items[0], 'before');
+  session.moveItem(items[1], items[3], 'after');
+  const expected = idsOf(session.getResult());
+
+  const restored = deserializeSession(JSON.parse(JSON.stringify(session.serialize())));
+
+  assert.deepEqual(idsOf(restored.getResult()), expected);
+  assert.deepEqual(restored.getManualMoves(), session.getManualMoves());
+  assert.equal(restored.getResult().summary.manual, 2);
+});
+
+test('new comparisons rebuild the list without wiping the hand made placements', () => {
+  const { session, items } = sessionOf(6);
+  // The last item is put right above the first one by hand, before anything
+  // has been compared.
+  session.moveItem(items[5], items[0], 'before');
+  assert.equal(idsOf(session.getResult())[0], items[5].appId);
+
+  // The user then goes back to the comparisons and sorts the other five. The
+  // moved item is answered for as the least wanted of all, which is the exact
+  // opposite of where it was dragged.
+  const oracle = createOracle(items.slice(0, 5), mulberry32(7));
+  runSorting(session, (pair) => {
+    if (pair.a.appId === items[5].appId) return 'b';
+    if (pair.b.appId === items[5].appId) return 'a';
+    return oracle.answer(pair.a, pair.b);
+  });
+
+  const result = session.getResult();
+  const order = idsOf(result);
+
+  // The placement is relative, so it did not stay at position one — it stayed
+  // where it was made: immediately above its anchor, wherever the comparisons
+  // moved that anchor to.
+  assert.equal(order[order.indexOf(items[0].appId) - 1], items[5].appId);
+  assert.equal(result.entries[order.indexOf(items[5].appId)].manual, true);
+  assert.equal(result.summary.manual, 1);
+
+  // Everything else follows the comparisons, in the order the oracle wanted.
+  assert.deepEqual(order.filter((appId) => appId !== items[5].appId), oracle.order);
+});
+
+test('a placement whose anchor left the category waits instead of being lost', () => {
+  const { session, items } = sessionOf(4);
+  session.moveItem(items[3], items[0], 'before');
+  assert.equal(idsOf(session.getResult())[0], items[3].appId);
+
+  session.setCategory(items[0].appId, 'want');
+  assert.deepEqual(
+    idsOf(session.getResult()),
+    [items[1], items[2], items[3], items[0]].map((i) => i.appId),
+    'without its anchor the move does not apply, and the category order takes over',
+  );
+  assert.equal(session.getResult().summary.manual, 0);
+
+  session.setCategory(items[0].appId, 'must');
+  assert.equal(idsOf(session.getResult())[0], items[3].appId, 'the anchor is back and so is the placement');
+  assert.equal(session.manualMoveCount, 1);
+});
+
+test('removing an item forgets the placements that mention it', () => {
+  const { session, items } = sessionOf(4);
+  session.moveItem(items[3], items[0], 'before');
+  session.moveItem(items[2], items[1], 'before');
+
+  session.removeItem(items[0]);
+
+  assert.equal(session.manualMoveCount, 1, 'the move anchored on the removed item is gone');
+  assert.deepEqual(idsOf(session.getResult()), [items[2], items[1], items[3]].map((i) => i.appId));
+});
+
+test('a placement that contradicts an answer wins the list but is not called sorted', () => {
+  const { session, items } = sessionOf(3);
+  session.submitAnswer('a', { a: items[0].appId, b: items[1].appId });
+  session.submitAnswer('a', { a: items[1].appId, b: items[2].appId });
+  assert.deepEqual(idsOf(session.getResult()), [items[0], items[1], items[2]].map((i) => i.appId));
+
+  // The user drags the last item over the first one, against what they said.
+  session.moveItem(items[2], items[0], 'before');
+  const result = session.getResult();
+
+  assert.deepEqual(idsOf(result), [items[2], items[0], items[1]].map((i) => i.appId));
+  assert.equal(result.entries[0].manual, true);
+  assert.equal(result.entries[1].linkedToPrevious, false, 'the graph does not back this neighbourhood');
+  assert.equal(result.entries[1].resolved, false);
+  // The answers themselves are untouched: the comparisons still know the truth.
+  assert.equal(session.getProgress().comparisons, 2);
+});
+
+test('clearing the placements brings the computed order back', () => {
+  const { session, items } = sessionOf(4);
+  session.moveItem(items[3], items[0], 'before');
+  assert.equal(session.clearManualMoves(), true);
+  assert.equal(session.clearManualMoves(), false, 'there is nothing left to clear');
+  assert.deepEqual(idsOf(session.getResult()), items.map((item) => item.appId));
+});
+
+test('clearing the answers keeps the items, the categories and the placements', () => {
+  const { session, items } = sessionOf(5);
+  runSorting(session, () => 'a', { limit: 50 });
+  session.moveItem(items[0], items[1], 'after');
+  const placement = session.getManualMoves();
+
+  assert.equal(session.clearAnswers(), true);
+  assert.equal(session.clearAnswers(), false, 'there is nothing left to clear');
+
+  assert.equal(session.itemCount, 5);
+  assert.equal(session.getCategory(items[0].appId), 'must');
+  assert.equal(session.getProgress().comparisons, 0);
+  assert.equal(session.canUndo(), false);
+  assert.deepEqual(session.getManualMoves(), placement);
+  assert.ok(session.getNextPair(), 'the sorting can start over');
+});
+
+test('a session file written before manual placements existed still loads', () => {
+  const { session } = sessionOf(3);
+  const data = session.serialize();
+  delete data.moves;
+
+  const restored = deserializeSession(data);
+  assert.equal(restored.manualMoveCount, 0);
+  assert.equal(restored.getResult().summary.manual, 0);
+});
+
+test('a placement in a file that is damaged or duplicated is cleaned up on load', () => {
+  const { session, items } = sessionOf(3);
+  const data = session.serialize();
+  data.moves = [
+    null,
+    { appId: 'nonsense', anchor: items[0].appId, side: 'after' },
+    { appId: items[2].appId, anchor: items[2].appId, side: 'after' },
+    { appId: items[2].appId, anchor: items[0].appId, side: 'sideways' },
+    { appId: items[2].appId, anchor: items[0].appId, side: 'before' },
+  ];
+
+  const restored = deserializeSession(data);
+  assert.deepEqual(restored.getManualMoves(), [{ appId: items[2].appId, anchor: items[0].appId, side: 'before' }]);
+  assert.equal(idsOf(restored.getResult())[0], items[2].appId);
+});

@@ -39,6 +39,32 @@
  * scheduler position — is derived from it by a deterministic replay. That is
  * what makes `serialize()`/`deserialize()` lossless and `undo()` exact: after a
  * reload the scheduler offers exactly the same pair it offered before.
+ *
+ * ## Manual order
+ *
+ * Dragging a line in the final list is an edit of the list, not an answer to a
+ * question, and the two are kept apart on purpose:
+ *
+ *  - an answer is a statement about a pair and goes into the graph, which is
+ *    append-only and must stay free of contradictions;
+ *  - a drag is a statement about the list itself, and it may well contradict
+ *    an answer given ten minutes earlier. Feeding it to the graph would mean
+ *    either refusing the drag or deleting edges, and both are worse than
+ *    keeping the two layers separate.
+ *
+ * So a move is recorded as `ManualMove` — "this item goes right after that one"
+ * — and the moves are replayed on top of whatever the comparisons produce, in
+ * the order they were made. Consequences, all intended:
+ *
+ *  - new answers keep improving the list, and the hand-made placements are
+ *    re-applied over the new order instead of being wiped by it;
+ *  - a move whose anchor left the category is not lost, it simply does not
+ *    apply until the anchor comes back, exactly like an answer;
+ *  - where a move disagrees with the comparisons, the move wins in the list
+ *    and the line is marked as placed by hand, so nothing is passed off as
+ *    a result of the sorting;
+ *  - the scheduler is not affected: it goes on asking the same questions,
+ *    because a drag never claimed to answer one.
  */
 
 import {
@@ -330,6 +356,20 @@ function appIdOf(value) {
  *                                       from the comparisons, not the fallback.
  * @property {boolean} resolved          Both neighbours are settled by comparisons;
  *                                       the interface marks the rest as not sorted yet.
+ * @property {boolean} manual            The user put this line here by hand.
+ */
+
+/**
+ * An explicit placement made by hand in the final list.
+ *
+ * The move is stored relative to a neighbour rather than as a number, which is
+ * what lets it survive: the list is renumbered by every new answer, but "right
+ * after Portal 2" keeps meaning the same thing.
+ *
+ * @typedef {Object} ManualMove
+ * @property {number} appId  The item that was moved.
+ * @property {number} anchor The item it was dropped next to.
+ * @property {'before'|'after'} side Which side of the anchor it landed on.
  */
 
 /**
@@ -339,6 +379,7 @@ export class RankingSession {
   /** @type {Map<number, import('./model.js').WishlistItem>} */ #items = new Map();
   /** @type {Map<number, string|null>} */ #categories = new Map();
   /** @type {Array<{type: string, a: number, b: number, verdict?: string}>} */ #history = [];
+  /** @type {ManualMove[]} */ #moves = [];
   /** @type {string[]|null} */ #selection = null;
   /** @type {PreferenceGraph} */ #graph;
   /** @type {string[]} */ #deferred = [];
@@ -350,7 +391,8 @@ export class RankingSession {
    * @param {{ items?: import('./model.js').WishlistItem[],
    *           categories?: Iterable<[number, string|null]>,
    *           sortedCategories?: string[]|null,
-   *           history?: Array<{type: string, a: number, b: number, verdict?: string}> }} [options]
+   *           history?: Array<{type: string, a: number, b: number, verdict?: string}>,
+   *           moves?: ManualMove[] }} [options]
    */
   constructor(options = {}) {
     for (const item of options.items ?? []) {
@@ -362,6 +404,7 @@ export class RankingSession {
     }
     this.#selection = normalizeSelection(options.sortedCategories);
     this.#history = sanitizeHistory(options.history);
+    this.#moves = sanitizeMoves(options.moves);
     this.#rebuild();
   }
 
@@ -427,6 +470,7 @@ export class RankingSession {
     this.#items.delete(appId);
     this.#categories.delete(appId);
     this.#history = this.#history.filter((entry) => entry.a !== appId && entry.b !== appId);
+    this.#moves = this.#moves.filter((move) => move.appId !== appId && move.anchor !== appId);
     this.#rebuild();
     return true;
   }
@@ -589,6 +633,71 @@ export class RankingSession {
   }
 
   /**
+   * Drops every answer, keeping the items and their categories. What the user
+   * asks for when the sorting went wrong early and redoing it is cheaper than
+   * undoing forty comparisons one by one.
+   *
+   * @returns {boolean} `false` when there was nothing to drop.
+   */
+  clearAnswers() {
+    if (this.#history.length === 0) return false;
+    this.#history = [];
+    this.#rebuild();
+    return true;
+  }
+
+  /* --------------------------------------------------- manual order */
+
+  /**
+   * Records that the user put an item right next to another one in the final
+   * list. See the note on the manual order at the top of the module for what
+   * this does and does not mean.
+   *
+   * @param {number|import('./model.js').WishlistItem} item
+   * @param {number|import('./model.js').WishlistItem} anchor The neighbour it was dropped on.
+   * @param {'before'|'after'} [side] Which side of the anchor it lands on.
+   * @returns {void}
+   * @throws {RankingError} When the two cannot stand next to each other: one of
+   *         them is unknown, they are the same item, they are in different
+   *         categories or the category is not part of the list.
+   */
+  moveItem(item, anchor, side = 'after') {
+    if (side !== 'before' && side !== 'after') {
+      throw new RankingError('invalid-side', `Ranking: unknown side ${JSON.stringify(side)}`);
+    }
+    const appId = appIdOf(item);
+    const anchorId = appIdOf(anchor);
+    this.#assertComparable(appId, anchorId);
+
+    // Only the latest placement of an item counts, so dragging the same line
+    // back and forth leaves one move behind instead of a trail of them.
+    this.#moves = this.#moves.filter((move) => move.appId !== appId);
+    this.#moves.push({ appId, anchor: anchorId, side });
+  }
+
+  /** @returns {ManualMove[]} The placements made by hand, oldest first. */
+  getManualMoves() {
+    return this.#moves.map((move) => ({ ...move }));
+  }
+
+  /** @returns {number} How many items were placed by hand. */
+  get manualMoveCount() {
+    return this.#moves.length;
+  }
+
+  /**
+   * Forgets every manual placement, so the list goes back to what the
+   * comparisons and the fallback order say.
+   *
+   * @returns {boolean} `false` when there was nothing to forget.
+   */
+  clearManualMoves() {
+    if (this.#moves.length === 0) return false;
+    this.#moves = [];
+    return true;
+  }
+
+  /**
    * @returns {{ comparisons: number, deferred: number, remaining: number,
    *             total: number, percent: number, done: boolean,
    *             categories: Array<object> }}
@@ -631,12 +740,19 @@ export class RankingSession {
    * finished one: whatever the graph implies is ordered topologically, and
    * everything it does not imply falls back to the original wishlist order.
    *
+   * Placements made by hand are replayed on top of that order, so the list the
+   * user arranged is the list they get back after a reload.
+   *
    * @returns {{ entries: ResultEntry[],
    *             removed: import('./model.js').WishlistItem[],
    *             summary: { total: number, resolved: number, fallback: number,
-   *                        removed: number, comparisons: number, complete: boolean } }}
+   *                        manual: number, removed: number, comparisons: number,
+   *                        complete: boolean } }}
    *          `removed` holds the items of the `remove` bucket, which is never
-   *          numbered together with the rest.
+   *          numbered together with the rest. `manual` counts the lines the
+   *          user placed by hand; they are counted by `resolved`/`fallback` as
+   *          well, according to whether the comparisons agree with where they
+   *          ended up.
    */
   getResult() {
     const buckets = new Map();
@@ -655,14 +771,16 @@ export class RankingSession {
     }
 
     const order = [...buckets.keys()].sort((a, b) => categoryRank(a) - categoryRank(b));
+    const ordered = new Map(
+      order.map((category) => [category, this.#orderCategory(buckets.get(category))]),
+    );
+    const moved = this.#applyManualMoves(ordered);
     const entries = [];
 
     for (const category of order) {
-      const items = buckets.get(category);
-      const ordered = this.#orderCategory(items);
       let previous = null;
 
-      ordered.forEach((item, indexInCategory) => {
+      for (const [indexInCategory, item] of ordered.get(category).entries()) {
         const relationToPrevious = previous === null ? null : this.#graph.relation(previous.appId, item.appId);
         entries.push({
           position: entries.length + 1,
@@ -672,11 +790,16 @@ export class RankingSession {
           category,
           group: this.#graph.find(item.appId),
           tiedWithPrevious: relationToPrevious === 'equal',
-          linkedToPrevious: previous === null || relationToPrevious !== 'unknown',
+          // A manual move can put a line above something the comparisons put
+          // below it, so "the graph knows about this pair" is not enough: the
+          // graph has to agree with the order actually shown.
+          linkedToPrevious:
+            previous === null || relationToPrevious === 'above' || relationToPrevious === 'equal',
+          manual: moved.has(item.appId),
           resolved: false,
         });
         previous = item;
-      });
+      }
     }
 
     // An entry is trusted when its place relative to both neighbours inside its
@@ -695,6 +818,7 @@ export class RankingSession {
         total: entries.length,
         resolved,
         fallback: entries.length - resolved,
+        manual: moved.size,
         removed: removed.length,
         comparisons: this.#comparisons,
         complete: this.#plan().questions.length === 0,
@@ -721,6 +845,7 @@ export class RankingSession {
           ? { type: 'answer', a: entry.a, b: entry.b, verdict: entry.verdict }
           : { type: 'defer', a: entry.a, b: entry.b },
       ),
+      moves: this.getManualMoves(),
     };
   }
 
@@ -915,6 +1040,37 @@ export class RankingSession {
   }
 
   /**
+   * Replays the manual placements over the ordered categories, in the order
+   * they were made. A move whose item or anchor is not in the same category
+   * any more is skipped rather than dropped: putting the anchor back makes it
+   * apply again, the same way a category change re-enables an old answer.
+   *
+   * @param {Map<string|null, import('./model.js').WishlistItem[]>} ordered
+   *        Category lists, modified in place.
+   * @returns {Set<number>} App ids that really were placed by hand.
+   */
+  #applyManualMoves(ordered) {
+    const moved = new Set();
+
+    for (const move of this.#moves) {
+      const category = this.#categoryOf(move.appId);
+      if (category !== this.#categoryOf(move.anchor)) continue;
+      const list = ordered.get(category);
+      if (!list) continue;
+
+      const from = list.findIndex((item) => item.appId === move.appId);
+      if (from === -1 || !list.some((item) => item.appId === move.anchor)) continue;
+
+      const [item] = list.splice(from, 1);
+      const anchorIndex = list.findIndex((candidate) => candidate.appId === move.anchor);
+      list.splice(move.side === 'before' ? anchorIndex : anchorIndex + 1, 0, item);
+      moved.add(move.appId);
+    }
+
+    return moved;
+  }
+
+  /**
    * Orders one category: a topological sort of the tie groups, where every
    * choice between groups that the graph leaves open is settled by the stable
    * fallback order. That is what makes a half finished session usable.
@@ -1039,6 +1195,9 @@ export function deserializeSession(data) {
     categories: Array.isArray(data.categories) ? data.categories : [],
     sortedCategories: data.sortedCategories ?? null,
     history: Array.isArray(data.history) ? data.history : [],
+    // Files written before the final list could be edited by hand simply have
+    // no moves in them, which is exactly an empty manual order.
+    moves: Array.isArray(data.moves) ? data.moves : [],
   });
 }
 
@@ -1067,6 +1226,29 @@ function sanitizeHistory(history) {
     result.push({ type: 'answer', a, b, verdict });
   }
   return result;
+}
+
+/**
+ * Drops manual placements that are not well formed and keeps only the latest
+ * one per item, the same rule `moveItem` applies while recording them.
+ *
+ * @param {unknown} moves
+ * @returns {ManualMove[]}
+ */
+function sanitizeMoves(moves) {
+  if (!Array.isArray(moves)) return [];
+  const byItem = new Map();
+  for (const move of moves) {
+    if (!move || typeof move !== 'object') continue;
+    const appId = Number(move.appId);
+    const anchor = Number(move.anchor);
+    if (!Number.isSafeInteger(appId) || appId <= 0) continue;
+    if (!Number.isSafeInteger(anchor) || anchor <= 0 || anchor === appId) continue;
+    const side = move.side === 'before' ? 'before' : 'after';
+    byItem.delete(appId);
+    byItem.set(appId, { appId, anchor, side });
+  }
+  return [...byItem.values()];
 }
 
 /**
