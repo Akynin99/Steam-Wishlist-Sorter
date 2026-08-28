@@ -1,0 +1,29 @@
+{
+  "440": {
+    "name": "Team Fortress 2",
+    "capsule": "capsule_231x87.jpg",
+    "type": "Game",
+    "priority": 2,
+    "added": 1451606400
+  },
+  "620": {
+    "name": "Portal 2",
+    "capsule": "https://cdn.cloudflare.steamstatic.com/steam/apps/620/capsule_231x87.jpg",
+    "type": "Game",
+    "priority": 1,
+    "added": 1451606401
+  },
+  "323180": {
+    "name": "Portal 2 - Soundtrack",
+    "capsule": "capsule_231x87.jpg",
+    "type": "DLC",
+    "priority": 3,
+    "added": 1451606402
+  },
+  "570": {
+    "name": "Dota 2",
+    "type": "Game",
+    "priority": 0,
+    "added": 1451606403
+  }
+}
