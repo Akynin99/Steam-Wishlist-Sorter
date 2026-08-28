@@ -1,0 +1,22 @@
+[
+  { "appId": 1086940, "title": "Baldur's Gate 3", "type": "Game", "priority": 1 },
+  { "appId": 1245620, "title": "ELDEN RING", "type": "Game", "priority": 2 },
+  { "appId": 292030, "title": "The Witcher 3: Wild Hunt", "type": "Game", "priority": 3 },
+  { "appId": 1091500, "title": "Cyberpunk 2077", "type": "Game", "priority": 4 },
+  { "appId": 2138330, "title": "Cyberpunk 2077: Phantom Liberty", "type": "DLC", "priority": 5 },
+  { "appId": 1145360, "title": "Hades", "type": "Game", "priority": 6 },
+  { "appId": 367520, "title": "Hollow Knight", "type": "Game", "priority": 7 },
+  { "appId": 413150, "title": "Stardew Valley", "type": "Game", "priority": 8 },
+  { "appId": 892970, "title": "Valheim", "type": "Game", "priority": 9 },
+  { "appId": 105600, "title": "Terraria", "type": "Game", "priority": 10, "imageUrl": "" },
+  { "appId": 526870, "title": "Satisfactory", "type": "Game", "priority": 11 },
+  { "appId": 281990, "title": "Stellaris", "type": "Game", "priority": 12 },
+  { "appId": 289070, "title": "Sid Meier's Civilization VI", "type": "Game", "priority": 13 },
+  { "appId": 582010, "title": "Monster Hunter: World", "type": "Game", "priority": 14 },
+  { "appId": 1174180, "title": "Red Dead Redemption 2", "type": "Game", "priority": 15 },
+  { "appId": 275850, "title": "No Man's Sky", "type": "Game", "priority": 16 },
+  { "appId": 1966720, "title": "Lethal Company", "type": "Game", "priority": 17, "imageUrl": "" },
+  { "appId": 620, "title": "Portal 2", "type": "Game", "priority": 18 },
+  { "appId": 377160, "title": "Fallout 4", "type": "Game", "priority": 19 },
+  { "appId": 489830, "title": "The Elder Scrolls V: Skyrim Special Edition", "type": "Game", "priority": 20 }
+]
