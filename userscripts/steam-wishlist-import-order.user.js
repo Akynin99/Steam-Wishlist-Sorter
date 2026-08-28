@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Steam Wishlist Sorter — carry the order into Steam
 // @namespace    https://github.com/Akynin99/Steam-Wishlist-Sorter
-// @version      2.0.0
+// @version      2.1.0
 // @description  Reads the final JSON of Steam Wishlist Sorter and writes that order into the Steam wishlist: a report first, a backup file second, then one single request. Entries marked for removal are only listed, never deleted.
 // @author       Akynin99
 // @license      MIT
@@ -45,6 +45,13 @@
  *  - it loses nothing. An entry that is on the page but not in the file keeps
  *    its place relative to the other such entries and is appended after the
  *    ordered part, so nothing silently falls out of the wishlist;
+ *  - it writes nothing built on a page it read only in part. The list is
+ *    virtualized, so a reading that goes wrong yields a shorter list rather
+ *    than an error, and an order built on a shorter list is not a partial
+ *    order — Steam takes the list whole and scatters everything left out of
+ *    it. The rows of the current page are numbered, so the script knows how
+ *    many there should be, and a reading that came back with fewer ends the
+ *    matter: no checkbox, no "anyway";
  *  - it writes nothing before the user confirms the write in a separate step,
  *    with the backup of the current order one button away.
  */
@@ -68,14 +75,17 @@
    */
   const STEAM = {
     pathPattern: /^\/wishlist\/(profiles|id)\//i,
-    scrollers: ['#wishlist_ctn', '.wishlist_ctn', '#page_content', '[class*="WishlistScroll"]'],
+    scrollers: ['#StoreTemplate', '#wishlist_ctn', '.wishlist_ctn', '#page_content', '[class*="WishlistScroll"]'],
     rows: [
+      '[data-rfd-draggable-id]',
       '.wishlist_row',
       '[id^="wishlist_row_"]',
       '[data-appid][class*="wishlist" i]',
       '[class*="WishlistRow"]',
       '[class*="wishlist_row"]',
     ],
+    draggableId: 'data-rfd-draggable-id',
+    draggableIdPattern: /^([A-Za-z][A-Za-z0-9_]*)-(\d{1,10})(?:-(\d{1,7}))?$/,
     appIdAttributes: ['data-app-id', 'data-appid', 'data-ds-appid'],
     appIdFromElementId: /^wishlist_row_(\d+)$/i,
     appLink: 'a[href*="/app/"]',
@@ -93,6 +103,7 @@
   const POLL_MS = 100;
   const STABLE_STEPS_AT_BOTTOM = 3;
   const SCROLL_STEP_RATIO = 0.8;
+  const SCROLL_SLACK_PX = 40;
 
   /** The file this script accepts, as `src/export.js` writes it. */
   const ORDER_KIND = 'wishlist-order';
@@ -152,13 +163,82 @@
     return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
   }
 
-  /** @returns {Element|Window} */
-  function findScroller() {
+  /**
+   * Whether an element holds more than it shows.
+   *
+   * @param {Element|null} element
+   * @returns {boolean}
+   */
+  function scrolls(element) {
+    return Boolean(element) && element.scrollHeight > element.clientHeight + SCROLL_SLACK_PX;
+  }
+
+  /**
+   * The scrolling element of the list, or `null` when the page itself scrolls.
+   *
+   * The selectors are a shortcut and nothing more: a candidate is taken only if
+   * it really scrolls and really holds the rows, and when none of them fits the
+   * ancestors of a row are measured instead. Scrolling the wrong element loads
+   * nothing and says nothing, which is how a wishlist of a hundred and sixty
+   * six entries is read as fourteen.
+   *
+   * @param {Document} [doc]
+   * @returns {{ scroller: Element|null, route: string }}
+   */
+  function findScroller(doc = document) {
+    const { rows } = findRows(doc);
+
     for (const selector of STEAM.scrollers) {
-      const element = document.querySelector(selector);
-      if (element && element.scrollHeight > element.clientHeight + 40) return element;
+      let candidate = null;
+      try {
+        candidate = doc.querySelector(selector);
+      } catch {
+        continue;
+      }
+      if (!scrolls(candidate)) continue;
+      if (rows.length > 0 && !rows.some((row) => candidate.contains(row))) continue;
+      return { scroller: candidate, route: selector };
     }
-    return window;
+
+    for (const row of rows) {
+      let current = row.parentElement;
+      while (current && current !== doc.body && current !== doc.documentElement) {
+        if (scrolls(current)) return { scroller: current, route: 'measured the ancestors of a row' };
+        current = current.parentElement;
+      }
+    }
+
+    return { scroller: null, route: 'the page itself' };
+  }
+
+  /**
+   * The app id and the row number out of `data-rfd-draggable-id`, whose value
+   * looks like `WishlistItem-294100-0`.
+   *
+   * The number is the place of the row in the whole wishlist rather than in the
+   * handful of rows the virtualized list keeps in the markup, which is what
+   * lets the script tell a list it read whole from a list it read in part.
+   *
+   * @param {unknown} value
+   * @returns {{ appId: number, index: number|null }|null}
+   */
+  function parseDraggableId(value) {
+    const match = STEAM.draggableIdPattern.exec(String(value ?? '').trim());
+    if (!match) return null;
+
+    const appId = Number(match[2]);
+    if (!Number.isSafeInteger(appId) || appId <= 0) return null;
+
+    const index = match[3] === undefined ? null : Number(match[3]);
+    return { appId, index: Number.isSafeInteger(index) && index >= 0 ? index : null };
+  }
+
+  /**
+   * @param {Element} row
+   * @returns {number|null}
+   */
+  function readRowIndex(row) {
+    return parseDraggableId(row.getAttribute?.(STEAM.draggableId))?.index ?? null;
   }
 
   /**
@@ -166,6 +246,9 @@
    * @returns {number|null}
    */
   function readAppId(row) {
+    const dragged = parseDraggableId(row.getAttribute?.(STEAM.draggableId));
+    if (dragged) return dragged.appId;
+
     for (const attribute of STEAM.appIdAttributes) {
       const value = row.getAttribute?.(attribute);
       if (value) {
@@ -213,7 +296,7 @@
     let best = null;
     for (let depth = 0; depth < 8 && current.parentElement; depth += 1) {
       current = current.parentElement;
-      if (current === document.body || current === document.documentElement) break;
+      if (current.tagName === 'BODY' || current.tagName === 'HTML') break;
       const ids = new Set(
         [...current.querySelectorAll(STEAM.appLink)]
           .map((item) => appIdFromHref(item.getAttribute('href')))
@@ -228,13 +311,14 @@
   /**
    * Rows currently in the DOM.
    *
+   * @param {Document} [doc]
    * @returns {{ rows: Element[], route: string }}
    */
-  function findRows() {
+  function findRows(doc = document) {
     for (const selector of STEAM.rows) {
       let found = [];
       try {
-        found = [...document.querySelectorAll(selector)];
+        found = [...doc.querySelectorAll(selector)];
       } catch {
         continue;
       }
@@ -243,7 +327,7 @@
     }
 
     const rows = new Set();
-    for (const link of document.querySelectorAll(STEAM.appLink)) {
+    for (const link of doc.querySelectorAll(STEAM.appLink)) {
       if (appIdFromHref(link.getAttribute('href')) === null) continue;
       const row = rowAroundLink(link);
       if (row) rows.add(row);
@@ -252,11 +336,11 @@
   }
 
   /**
-   * @param {Element|Window} scroller
+   * @param {Element|null} scroller `null` when the page itself scrolls.
    * @returns {{ top: number, height: number, view: number }}
    */
   function scrollMetrics(scroller) {
-    if (scroller === window) {
+    if (!scroller) {
       const doc = document.scrollingElement ?? document.documentElement;
       return { top: window.scrollY, height: doc.scrollHeight, view: window.innerHeight };
     }
@@ -264,12 +348,154 @@
   }
 
   /**
-   * @param {Element|Window} scroller
+   * @param {Element|null} scroller `null` when the page itself scrolls.
    * @param {number} top
    */
   function scrollTo(scroller, top) {
-    if (scroller === window) window.scrollTo(0, top);
+    if (!scroller) window.scrollTo(0, top);
     else scroller.scrollTop = top;
+  }
+
+  // ==========================================================================
+  // Order and completeness
+  // ==========================================================================
+
+  /**
+   * Puts the rows that were read into the order the wishlist shows them in, and
+   * says whether that is the whole wishlist.
+   *
+   * The order comes from the number in `data-rfd-draggable-id` whenever the
+   * page states one, never from the coordinates: the list is virtualized, and a
+   * coordinate describes only the handful of rows currently rendered.
+   *
+   * The completeness comes from the same numbers. The highest number the page
+   * ever showed plus one is how many entries the wishlist has, so a gap in
+   * `0 … max` is a row that was never read. On a layout that numbers nothing
+   * there is no such arithmetic and `complete` is `null`.
+   *
+   * A copy of the function of the same name in the export script, for the same
+   * reason the selectors are a copy: a userscript is a file of its own.
+   *
+   * @param {Array<{ appId: number, index: number|null, offset: number, seq: number }>} entries
+   * @returns {{ entries: object[], expectedTotal: number|null, missingIndexes: number[],
+   *             complete: boolean|null, numbered: number, unnumbered: number }}
+   */
+  function buildPageOrder(entries) {
+    const ordered = [...entries].sort((a, b) => {
+      if (a.index !== null && b.index !== null) return a.index - b.index || a.seq - b.seq;
+      if (a.index !== null) return -1;
+      if (b.index !== null) return 1;
+      return a.offset - b.offset || a.seq - b.seq;
+    });
+
+    const numbers = new Set(ordered.filter((entry) => entry.index !== null).map((entry) => entry.index));
+    const unnumbered = ordered.length - numbers.size;
+
+    if (numbers.size === 0) {
+      return {
+        entries: ordered,
+        expectedTotal: null,
+        missingIndexes: [],
+        complete: null,
+        numbered: 0,
+        unnumbered,
+      };
+    }
+
+    const expectedTotal = Math.max(...numbers) + 1;
+    const missingIndexes = [];
+    for (let index = 0; index < expectedTotal; index += 1) {
+      if (!numbers.has(index)) missingIndexes.push(index);
+    }
+
+    return {
+      entries: ordered,
+      expectedTotal,
+      missingIndexes,
+      complete: missingIndexes.length === 0,
+      numbered: numbers.size,
+      unnumbered,
+    };
+  }
+
+  /**
+   * The one verdict on a page read: may what was collected be used at all.
+   *
+   * Every caller goes through it, because the failure it guards against is the
+   * quiet one. A wishlist of a hundred and sixty six entries read as fourteen
+   * looks like a perfectly good list of fourteen games; an order built out of
+   * it and written into Steam would scatter the other hundred and fifty two.
+   * So the verdict is taken once, in words, and the write hangs off it.
+   *
+   * @param {{ collected: number, expectedTotal: number|null, missingIndexes?: number[],
+   *           reachedBottom: boolean, timedOut: boolean, cancelled?: boolean }} read
+   * @returns {{ ok: boolean, reason: string|null, message: string }}
+   */
+  function judgePageRead({
+    collected,
+    expectedTotal,
+    missingIndexes = [],
+    reachedBottom,
+    timedOut,
+    cancelled = false,
+  }) {
+    if (collected === 0) {
+      return {
+        ok: false,
+        reason: 'empty',
+        message: 'Not a single wishlist row was found on the page.',
+      };
+    }
+    if (cancelled) {
+      return {
+        ok: false,
+        reason: 'cancelled',
+        message: `The reading was stopped by hand after ${collected}, so this is a part of the wishlist and not the whole of it.`,
+      };
+    }
+    if (expectedTotal !== null && missingIndexes.length > 0) {
+      return {
+        ok: false,
+        reason: 'gaps',
+        message:
+          `The page numbers its rows, and the numbering says the wishlist holds ${expectedTotal} ` +
+          `${plural(expectedTotal, 'entry', 'entries')}. ${collected} were read, and ` +
+          `${missingIndexes.length} of the numbers never appeared — the first one missing is ` +
+          `#${missingIndexes[0] + 1}. The list is incomplete.`,
+      };
+    }
+    if (timedOut) {
+      return {
+        ok: false,
+        reason: 'timeout',
+        message:
+          `Reading the page ran into its limit on time or on scroll steps after ${collected} ` +
+          `${plural(collected, 'entry', 'entries')}, so the list may be a part of the wishlist.`,
+      };
+    }
+    if (!reachedBottom) {
+      return {
+        ok: false,
+        reason: 'no-bottom',
+        message:
+          `The bottom of the list was never reached, so the ${collected} ` +
+          `${plural(collected, 'entry', 'entries')} read may be a part of the wishlist.`,
+      };
+    }
+    if (expectedTotal === null) {
+      return {
+        ok: true,
+        reason: 'unnumbered',
+        message:
+          `${collected} ${plural(collected, 'entry was', 'entries were')} read. This layout numbers no ` +
+          'rows, so nothing but the scrolling having reached the bottom vouches for the list being whole.',
+      };
+    }
+    return {
+      ok: true,
+      reason: null,
+      message: `All ${expectedTotal} ${plural(expectedTotal, 'entry', 'entries')} the page numbers were read.`,
+    };
   }
 
   /**
@@ -280,15 +506,18 @@
    *
    * @param {(found: number) => void} onProgress
    * @returns {Promise<{ appIds: number[], titles: Map<number, string>, duplicates: number[],
-   *                     route: string, timedOut: boolean }>}
+   *                     route: string, scrollerRoute: string, timedOut: boolean,
+   *                     reachedBottom: boolean, expectedTotal: number|null,
+   *                     missingIndexes: number[],
+   *                     verdict: { ok: boolean, reason: string|null, message: string } }>}
    */
   async function scanPage(onProgress) {
-    const scroller = findScroller();
+    const { scroller, route: scrollerRoute } = findScroller();
     const startedAt = Date.now();
     const restoreTop = scrollMetrics(scroller).top;
 
-    /** @type {Map<number, number>} appId -> vertical offset in the scrolled content */
-    const offsets = new Map();
+    /** @type {Map<number, { appId: number, index: number|null, offset: number, seq: number }>} */
+    const seen = new Map();
     /** @type {Map<number, string>} */
     const titles = new Map();
     /** @type {number[]} */
@@ -297,6 +526,7 @@
     let steps = 0;
     let stable = 0;
     let timedOut = false;
+    let reachedBottom = false;
 
     function harvest() {
       const found = findRows();
@@ -307,20 +537,26 @@
         const appId = readAppId(row);
         if (appId === null) continue;
         const rect = row.getBoundingClientRect();
-        const offset =
-          scroller === window
-            ? rect.top + window.scrollY
-            : rect.top - scroller.getBoundingClientRect().top + scroller.scrollTop;
+        const offset = scroller
+          ? rect.top - scroller.getBoundingClientRect().top + scroller.scrollTop
+          : rect.top + window.scrollY;
         if (pass.has(appId) && !duplicates.includes(appId)) duplicates.push(appId);
         pass.add(appId);
-        offsets.set(appId, offset);
-        const known = titles.get(appId);
-        if (!known || known === `App ${appId}`) titles.set(appId, readTitle(row, appId));
+        const index = readRowIndex(row);
+        const known = seen.get(appId);
+        if (known) {
+          known.offset = offset;
+          if (index !== null) known.index = index;
+        } else {
+          seen.set(appId, { appId, index, offset, seq: seen.size });
+        }
+        const title = titles.get(appId);
+        if (!title || title === `App ${appId}`) titles.set(appId, readTitle(row, appId));
       }
     }
 
     harvest();
-    onProgress(offsets.size);
+    onProgress(seen.size);
 
     while (true) {
       if (Date.now() - startedAt > TIME_BUDGET_MS || steps >= MAX_SCROLL_STEPS) {
@@ -328,7 +564,7 @@
         break;
       }
 
-      const before = offsets.size;
+      const before = seen.size;
       const metrics = scrollMetrics(scroller);
       const atBottom = metrics.top + metrics.view >= metrics.height - 2;
       scrollTo(scroller, atBottom ? metrics.height : metrics.top + metrics.view * SCROLL_STEP_RATIO);
@@ -340,27 +576,48 @@
         await sleep(POLL_MS);
         harvest();
         const now = scrollMetrics(scroller);
-        if (offsets.size > before || now.height > metrics.height) {
+        if (seen.size > before || now.height > metrics.height) {
           grew = true;
           break;
         }
       }
 
-      onProgress(offsets.size);
+      onProgress(seen.size);
 
       if (atBottom && !grew) {
         stable += 1;
+        reachedBottom = true;
         if (stable >= STABLE_STEPS_AT_BOTTOM) break;
       } else {
         stable = 0;
+        reachedBottom = false;
       }
     }
 
     harvest();
     scrollTo(scroller, restoreTop);
 
-    const appIds = [...offsets.entries()].sort((a, b) => a[1] - b[1]).map(([appId]) => appId);
-    return { appIds, titles, duplicates, route, timedOut };
+    const order = buildPageOrder([...seen.values()]);
+    const appIds = order.entries.map((entry) => entry.appId);
+
+    return {
+      appIds,
+      titles,
+      duplicates,
+      route,
+      scrollerRoute,
+      timedOut,
+      reachedBottom,
+      expectedTotal: order.expectedTotal,
+      missingIndexes: order.missingIndexes,
+      verdict: judgePageRead({
+        collected: appIds.length,
+        expectedTotal: order.expectedTotal,
+        missingIndexes: order.missingIndexes,
+        reachedBottom,
+        timedOut,
+      }),
+    };
   }
 
   // ==========================================================================
@@ -631,16 +888,30 @@
   /**
    * Address of the reorder endpoint of the wishlist that is open.
    *
-   * The id comes from the path of the page or from `g_steamID`, and it is
-   * checked against `STEAM_ID_PATTERN` before it goes anywhere near an address:
-   * the same rule the local server of the project follows — an address is built
-   * out of values that were validated, never out of text as it came.
+   * The wishlist is reachable under two addresses: `/wishlist/profiles/<17
+   * digits>/` and `/wishlist/id/<custom url>/`. The endpoint takes the numeric
+   * one only, so the second form is answered out of `g_steamID` — the account
+   * the page says is signed in.
+   *
+   * That substitution is named out loud in `note`, because a custom url says
+   * nothing about whose wishlist it is: on someone else's page the request
+   * would be made for the signed-in account, and Steam would refuse it. The
+   * numeric form needs no such note — there the two ids are compared, and a
+   * wishlist that is not yours is refused here rather than by Steam.
+   *
+   * The id is checked against `STEAM_ID_PATTERN` before it goes anywhere near
+   * an address: the same rule the local server of the project follows — an
+   * address is built out of values that were validated, never out of text as it
+   * came.
    *
    * @param {{ pathname: string, loggedInSteamId?: string|null }} input
-   * @returns {{ url: string, steamId: string }|{ error: 'unknown-owner'|'not-yours', message: string }}
+   * @returns {{ url: string, steamId: string, vanity: string|null, note: string|null }
+   *           |{ error: 'unknown-owner'|'not-yours', message: string }}
    */
   function resolveReorderTarget({ pathname, loggedInSteamId = null }) {
-    const fromPath = /^\/wishlist\/profiles\/(\d{17})(\/|$)/.exec(String(pathname ?? ''))?.[1] ?? null;
+    const path = String(pathname ?? '');
+    const fromPath = /^\/wishlist\/profiles\/(\d{17})(\/|$)/.exec(path)?.[1] ?? null;
+    const vanity = /^\/wishlist\/id\/([^/?#]+)(\/|$)/.exec(path)?.[1] ?? null;
     const mine = STEAM_ID_PATTERN.test(String(loggedInSteamId ?? '')) ? String(loggedInSteamId) : null;
 
     if (fromPath && mine && fromPath !== mine) {
@@ -657,13 +928,24 @@
       return {
         error: 'unknown-owner',
         message:
-          'The Steam ID of this wishlist could not be worked out: the address carries no 17 digit id and ' +
-          'the page did not say who is signed in. Open the wishlist by its full address — ' +
+          'The Steam ID of this wishlist could not be worked out: the address carries no 17 digit id ' +
+          `${vanity ? '(it is the custom url form) ' : ''}and the page did not say who is signed in. ` +
+          'Check that you are signed in, or open the wishlist by its numeric address — ' +
           'store.steampowered.com/wishlist/profiles/&lt;your 17 digits&gt;/ — and try again.',
       };
     }
 
-    return { url: `${STEAM_ORIGIN}/wishlist/profiles/${steamId}/reorder/`, steamId };
+    return {
+      url: `${STEAM_ORIGIN}/wishlist/profiles/${steamId}/reorder/`,
+      steamId,
+      vanity: fromPath ? null : vanity,
+      note:
+        fromPath || !vanity
+          ? null
+          : `This page is open under a custom url (/wishlist/id/${vanity}/), which does not say whose ` +
+            `wishlist it is. The order will be written for the account signed in here, ${steamId}. ` +
+            'If the page belongs to somebody else, Steam refuses the request and nothing changes.',
+    };
   }
 
   /**
@@ -1209,13 +1491,22 @@
       ORDER_KIND,
       ORDER_VERSION,
       OrderFileError,
+      STEAM,
       buildBackupOrder,
+      buildPageOrder,
       buildReorderBody,
       buildTargetOrder,
       compareOrders,
       describeNetworkFailure,
+      findRows,
+      findScroller,
+      judgePageRead,
+      parseDraggableId,
       parseOrderFile,
+      readAppId,
       readReorderAnswer,
+      readRowIndex,
+      readTitle,
       resolveReorderTarget,
       sendReorder,
       sessionIdFromText,
@@ -1308,6 +1599,19 @@
       return;
     }
 
+    // A check run on half a page would report a hundred differences that are
+    // not there. Saying nothing is the honest answer, and it is said plainly.
+    if (!now.verdict.ok) {
+      panel.say(
+        '<b>The result could not be checked: the wishlist was read only in part.</b><br>' +
+          `${escapeHtml(now.verdict.message)}<br>` +
+          'The order was sent — comparing it against a part of the page would invent differences that ' +
+          'are not there. Scroll the wishlist to the very end by hand, reload it, and look it over.',
+        'warn',
+      );
+      return;
+    }
+
     const verdict = compareOrders(pending.appIds, now.appIds);
     if (verdict.matches) {
       panel.say(
@@ -1384,6 +1688,8 @@
     page = await scanPage((found) =>
       panel.say(`Reading the page: <b>${found}</b> ${plural(found, 'entry', 'entries')} found…`),
     );
+    // So that picking the very same file again reads the page again.
+    panel.file.value = '';
 
     if (page.appIds.length === 0) {
       panel.say(
@@ -1392,6 +1698,26 @@
           'userscript (the export script spells out how). Nothing was written.',
         'error',
       );
+      page = null;
+      return;
+    }
+
+    // An order built on a page that was read in part is not a partial order: it
+    // is a wrong one. Steam takes the list as a whole, so the entries that were
+    // never read would be scattered through the ones that were. The write is
+    // not offered here at all — no checkbox, no "anyway", because there is no
+    // reading of this state under which sending would be right.
+    if (!page.verdict.ok) {
+      panel.say(
+        `<b>The wishlist was read only in part, so nothing will be written.</b><br>` +
+          `${escapeHtml(page.verdict.message)}<br>` +
+          `<span class="muted">Read: ${escapeHtml(page.route)}; scrolling: ` +
+          `${escapeHtml(page.scrollerRoute)}.</span><br>` +
+          'The page loads its rows as it is scrolled. Scroll the wishlist to the very end by hand, ' +
+          'reload it, and pick the file again.',
+        'error',
+      );
+      page = null;
       return;
     }
 
@@ -1410,17 +1736,32 @@
     ];
     let tone = 'ok';
 
+    lines.push(`<span class="muted">${escapeHtml(page.verdict.message)}</span>`);
+    if (page.verdict.reason === 'unnumbered') tone = 'warn';
+
     if (order.versionWarning) {
       tone = 'warn';
       lines.push(escapeHtml(order.versionWarning));
     }
-    if (page.timedOut) {
-      tone = 'warn';
-      lines.push(
-        'Reading the page hit the time limit — the list may have been read only in part. An order built ' +
-          'on half a page would move the other half, so reload and pick the file again.',
-      );
+
+    // Where the request would go, worked out before anything is written rather
+    // than after the backup and the confirmation are already behind the user.
+    const resolved = resolveReorderTarget({
+      pathname: location.pathname,
+      loggedInSteamId: findLoggedInSteamId(),
+    });
+    if ('error' in resolved) {
+      panel.say([...lines, `<b>${resolved.message}</b>`].join('<br>'), 'error');
+      panel.preview.disabled = false;
+      panel.copy.disabled = false;
+      renderPlan();
+      return;
     }
+    if (resolved.note) {
+      tone = 'warn';
+      lines.push(escapeHtml(resolved.note));
+    }
+
     if (order.duplicates.length > 0) {
       tone = 'warn';
       lines.push(
@@ -1456,7 +1797,8 @@
     }
 
     lines.push(
-      '<span class="muted">The matching goes by App ID; the titles are there for you to read, nothing more.</span>',
+      '<span class="muted">The matching goes by App ID; the titles are there for you to read, nothing more. ' +
+        `Read: ${escapeHtml(page.route)}; scrolling: ${escapeHtml(page.scrollerRoute)}.</span>`,
     );
     panel.say(lines.join('<br>'), tone);
 
