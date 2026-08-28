@@ -198,3 +198,39 @@ test('a re-import of an id-only export does not erase known titles', () => {
   assert.equal(items[0].kind, 'game');
   assert.equal(items[0].wishlistPosition, 9);
 });
+
+test('an explicit empty imageUrl survives the import as "no cover"', () => {
+  const { items } = importItems([
+    { appId: 440, title: 'Team Fortress 2', imageUrl: '' },
+    { appId: 620, title: 'Portal 2' },
+  ]);
+
+  assert.equal(items[0].imageUrl, '', 'the interface shows a placeholder instead of a broken image');
+  assert.equal(items[1].imageUrl, steamHeaderImageUrl(620), 'a record that says nothing still gets a cover');
+});
+
+test('a source that only omits the cover still gets one derived from the app id', () => {
+  const { items } = importItems({ 440: { name: 'Team Fortress 2', capsule: '' } });
+
+  assert.equal(items[0].imageUrl, steamHeaderImageUrl(440));
+});
+
+test('the demo wishlist is a usable set for both stages of the interface', () => {
+  const { items, report } = importItemsSorted(readFixture('sample-wishlist.json'));
+
+  assert.equal(report.total, 20);
+  assert.equal(report.added, 20);
+  assert.equal(report.skipped + report.duplicates, 0, 'the set shipped with the application imports cleanly');
+
+  assert.equal(items.filter((item) => item.kind === 'dlc').length, 1, 'the DLC badge has something to show');
+  assert.equal(items.filter((item) => item.imageUrl === '').length, 2, 'the cover placeholder has something to show');
+  assert.ok(
+    items.every((item) => item.title && !/^app \d+$/i.test(item.title)),
+    'every entry carries a real game name',
+  );
+  assert.deepEqual(
+    items.map((item) => item.wishlistPosition),
+    Array.from({ length: 20 }, (_, index) => index + 1),
+    'the positions are the wishlist order, without gaps',
+  );
+});
