@@ -1,6 +1,5 @@
 # Dependencies
 node_modules/
-package-lock.json.bak
 
 # Logs
 npm-debug.log*
@@ -16,6 +15,9 @@ npm-debug.log*
 Thumbs.db
 desktop.ini
 
+# Test coverage
+coverage/
+
 # Local exports and backups
 /exports/
-wishlist-state-*.json
+/wishlist-state-*.json
