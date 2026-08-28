@@ -18,6 +18,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { appIdAt, currentLayout, oldLayout } from './helpers/wishlist-page.js';
+
 await import('../userscripts/steam-wishlist-import-order.user.js');
 
 const {
@@ -25,16 +27,56 @@ const {
   ORDER_KIND,
   ORDER_VERSION,
   buildBackupOrder,
+  buildPageOrder,
   buildReorderBody,
   buildTargetOrder,
   compareOrders,
   describeNetworkFailure,
+  findRows,
+  findScroller,
+  judgePageRead,
+  parseDraggableId,
   parseOrderFile,
+  readAppId,
   readReorderAnswer,
+  readRowIndex,
+  readTitle,
   resolveReorderTarget,
   sendReorder,
   sessionIdFromText,
 } = globalThis.__swsReorderTestApi;
+
+/**
+ * Everything the script would read out of the page as it stands right now.
+ *
+ * @param {object} page
+ * @param {object[]} [into] Rows read on the earlier steps, to be added to.
+ * @returns {Array<{ appId: number, index: number|null, offset: number, seq: number }>}
+ */
+function harvest(page, into = []) {
+  const { scroller } = findScroller(page.document);
+  const entries = [...into];
+  const known = new Map(entries.map((entry) => [entry.appId, entry]));
+
+  for (const row of findRows(page.document).rows) {
+    const appId = readAppId(row);
+    if (appId === null) continue;
+    const rect = row.getBoundingClientRect();
+    const offset = scroller ? rect.top - scroller.getBoundingClientRect().top + scroller.scrollTop : rect.top;
+    const index = readRowIndex(row);
+    const seen = known.get(appId);
+    if (seen) {
+      seen.offset = offset;
+      if (index !== null) seen.index = index;
+      continue;
+    }
+    const entry = { appId, index, offset, seq: entries.length };
+    entries.push(entry);
+    known.set(appId, entry);
+  }
+
+  return entries;
+}
 
 const STEAM_ID = '76561198000000001';
 const REORDER_URL = `https://store.steampowered.com/wishlist/profiles/${STEAM_ID}/reorder/`;
@@ -268,6 +310,21 @@ test('the address is built out of the steam id of the path', () => {
 test('a wishlist opened by its vanity name uses the steam id of the signed-in user', () => {
   const resolved = resolveReorderTarget({ pathname: '/wishlist/id/someone/', loggedInSteamId: STEAM_ID });
   assert.equal(resolved.url, REORDER_URL);
+  assert.equal(resolved.vanity, 'someone');
+});
+
+test('the vanity address is answered with a note, because it says nothing about whose wishlist it is', () => {
+  const resolved = resolveReorderTarget({ pathname: '/wishlist/id/someone/', loggedInSteamId: STEAM_ID });
+
+  assert.match(resolved.note, /custom url/i);
+  assert.match(resolved.note, new RegExp(STEAM_ID));
+});
+
+test('the numeric address needs no such note: there the two ids are compared', () => {
+  const resolved = resolveReorderTarget({ pathname: `/wishlist/profiles/${STEAM_ID}/`, loggedInSteamId: STEAM_ID });
+
+  assert.equal(resolved.note, null);
+  assert.equal(resolved.vanity, null);
 });
 
 test('the wishlist of another account is refused before anything is sent', () => {
@@ -489,4 +546,130 @@ test('the check of an order that was built from a file and a page holds together
   assert.deepEqual(target.appIds, [30, 10, 20, 40]);
   assert.equal(compareOrders(target.appIds, [30, 10, 20, 40]).matches, true);
   assert.equal(compareOrders(target.appIds, [10, 30, 20, 40]).matches, false);
+});
+
+// ============================================================================
+// Reading the page the order will be written into
+// ============================================================================
+//
+// The script that writes has to read the page first, and it duplicates that
+// half of the export script, file for file, because a userscript is loaded
+// alone and has nowhere to import from. So it is tested here as well: the two
+// copies drifting apart is exactly the failure this section exists to catch.
+
+test('the anchor of the current layout is read the same way here as in the export script', () => {
+  assert.deepEqual(parseDraggableId('WishlistItem-294100-0'), { appId: 294100, index: 0 });
+  assert.deepEqual(parseDraggableId('WishlistItem-294100'), { appId: 294100, index: null });
+  assert.equal(parseDraggableId('WishlistItem-abc-0'), null);
+  assert.equal(parseDraggableId(''), null);
+  assert.equal(parseDraggableId('294100-0'), null);
+});
+
+test('rows are found by the anchor, and their titles come along for the backup file', () => {
+  const page = currentLayout({ indexes: [0, 1] });
+  const found = findRows(page.document);
+
+  assert.equal(found.route, '[data-rfd-draggable-id]');
+  assert.deepEqual(
+    found.rows.map((row) => readAppId(row)),
+    [appIdAt(0), appIdAt(1)],
+  );
+  assert.equal(readTitle(found.rows[0], appIdAt(0)), 'Sample game 1');
+});
+
+test('the scrolling element is found by measuring the ancestors when no known name fits', () => {
+  const page = currentLayout({ scrollerId: null });
+  const found = findScroller(page.document);
+
+  assert.equal(found.scroller, page.scroller);
+  assert.equal(found.route, 'measured the ancestors of a row');
+});
+
+test('the old page is still read by its old selectors, and still numbers nothing', () => {
+  const page = oldLayout();
+  const order = buildPageOrder(harvest(page));
+
+  assert.equal(findRows(page.document).route, '.wishlist_row');
+  assert.deepEqual(
+    order.entries.map((entry) => entry.appId),
+    [440, 730, 570],
+  );
+  assert.equal(order.complete, null);
+});
+
+test('the order sent to Steam follows the numbers of the rows, not their coordinates', () => {
+  const first = currentLayout({ indexes: [0, 1], stackFromTop: true });
+  const second = currentLayout({ indexes: [80, 81], stackFromTop: true });
+  const order = buildPageOrder(harvest(second, harvest(first)));
+
+  assert.deepEqual(
+    order.entries.map((entry) => entry.appId),
+    [appIdAt(0), appIdAt(1), appIdAt(80), appIdAt(81)],
+  );
+});
+
+test('a page read in part is refused, and the refusal is what stands between it and the request', () => {
+  // The wishlist holds 166 entries. The reading saw the first four and the
+  // last one — and an order built out of that would carry five app ids to
+  // Steam, which takes the list as a whole and would scatter the other 161
+  // through them. So the verdict comes first and the order is never built.
+  const page = buildPageOrder(harvest(currentLayout({ indexes: [165] }), harvest(currentLayout({ indexes: [0, 1, 2, 3] }))));
+
+  const verdict = judgePageRead({
+    collected: page.entries.length,
+    expectedTotal: page.expectedTotal,
+    missingIndexes: page.missingIndexes,
+    reachedBottom: true,
+    timedOut: false,
+  });
+
+  assert.equal(page.expectedTotal, 166);
+  assert.equal(page.complete, false);
+  assert.equal(verdict.ok, false, 'a partial read must never be handed on to the write');
+  assert.equal(verdict.reason, 'gaps');
+  assert.match(verdict.message, /166/);
+
+  // What would have been sent, had the verdict not stopped it: five entries in
+  // place of a hundred and sixty six.
+  const order = parseOrderFile(orderFile([{ appId: appIdAt(1) }, { appId: appIdAt(0) }]));
+  const target = buildTargetOrder({
+    items: order.items,
+    remove: order.remove,
+    pageAppIds: page.entries.map((entry) => entry.appId),
+  });
+  assert.equal(target.appIds.length, 5);
+});
+
+test('a reading that never reached the bottom is refused even when its numbering has no hole', () => {
+  const page = buildPageOrder(harvest(currentLayout({ indexes: [0, 1, 2, 3] })));
+
+  assert.equal(page.complete, true, 'the four rows in the markup are numbered 0…3 without a gap');
+  assert.equal(
+    judgePageRead({
+      collected: page.entries.length,
+      expectedTotal: page.expectedTotal,
+      missingIndexes: page.missingIndexes,
+      reachedBottom: false,
+      timedOut: false,
+    }).ok,
+    false,
+    'a numbering read off an unscrolled page describes the window, not the wishlist',
+  );
+});
+
+test('a page read whole is the one state the write is offered from', () => {
+  const page = buildPageOrder(harvest(currentLayout({ indexes: Array.from({ length: 30 }, (_, index) => index) })));
+
+  assert.equal(page.expectedTotal, 30);
+  assert.equal(page.complete, true);
+  assert.equal(
+    judgePageRead({
+      collected: page.entries.length,
+      expectedTotal: page.expectedTotal,
+      missingIndexes: page.missingIndexes,
+      reachedBottom: true,
+      timedOut: false,
+    }).ok,
+    true,
+  );
 });
