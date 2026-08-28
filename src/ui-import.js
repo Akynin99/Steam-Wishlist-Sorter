@@ -285,7 +285,7 @@ export function createImportScreen(app) {
       .catch((error) =>
         showFailure(
           'Демо-набор не загрузился',
-          `${error.message}. Файл ${DEMO_URL} должен лежать рядом с index.html — и страница должна быть открыта с локального сервера, а не как file://.`,
+          `${error.message}. Файл ${DEMO_URL} должен лежать рядом с index.html — и страница должна быть открыта по http(s), а не как file://.`,
         ),
       )
       .finally(() => {
