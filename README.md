@@ -200,14 +200,17 @@ paste them into the Tampermonkey editor (“Create a new script”).
 #### Step 3. Collect the list
 
 1. Open your wishlist: <https://store.steampowered.com/wishlist/>
-   (Steam redirects to an address like `/wishlist/profiles/<your SteamID64>/`).
+   (Steam redirects to `/wishlist/profiles/<your SteamID64>/`, or to `/wishlist/id/<your custom
+   url>/` if you have one — both work).
 2. A **“Wishlist Sorter — export”** panel appears in the bottom right corner. Press
    **“Collect the list”**.
-3. The page starts scrolling by itself — that is how Steam loads the entries, they are not all in
-   the markup at once. Do not touch it while the collection runs. Two hundred entries take about a
-   minute.
-4. The script shows a report: how many entries were collected, how many scroll steps it took and
-   whether the result disagrees with the number Steam shows itself. Press **“Download JSON”**.
+3. The page starts scrolling by itself — that is how Steam loads the entries, only about sixteen of
+   them are in the markup at once. Do not touch it while the collection runs. Two hundred entries
+   take about a minute.
+4. The script shows a report: how many entries were collected, how many scroll steps it took, how
+   the scrolling element was found, and — the line to read first — **whether that is the whole
+   wishlist**. The rows of the page are numbered, so the script knows how many there should be. If
+   fewer were read, it says so and holds the file back. Press **“Download JSON”**.
 
 #### Step 4. Load the file into the application
 
@@ -225,7 +228,10 @@ refreshed. So a month later you can export the list again and continue from the 
   `@grant none` and there is not a single `@connect`;
 - it does not read cookies, and does not touch `sessionid`, tokens or any other secret;
 - when the Steam selectors do not match, it shows a readable message and stops. An empty or
-  knowingly incomplete file is never handed over silently: incompleteness is always in the report.
+  knowingly incomplete file is never handed over silently: the script counts the rows the page
+  numbers, compares that with what it read, and puts the answer at the top of the report. A list
+  read in part is offered only after you tick a box saying you want it anyway, and the file is then
+  named `…-partial.json`. See [Updating the selectors](#updating-the-selectors).
 
 ---
 
@@ -276,6 +282,108 @@ a file. Understood are: an array of objects, an array of bare App IDs, an object
 
 Everything that could not be read lands in the import report with a reason — an import does not
 fail as a whole because of one malformed record.
+
+### Way 3. Update the selectors
+
+See [Updating the selectors](#updating-the-selectors) — it is one object at the top of each script,
+and the scripts are written so that it rarely has to be touched at all.
+
+---
+
+## Updating the selectors
+
+Everything that knows what the Steam markup looks like lives in one object, `STEAM`, at the top of
+[`steam-wishlist-export.user.js`](userscripts/steam-wishlist-export.user.js). **The same object is
+duplicated in the second userscript** and both files have to be updated: a userscript is loaded by
+Tampermonkey as a file of its own, and there is nowhere to pull a shared module in from. The rest of
+each script speaks of “a row”, “a title”, “an app id”, and knows no class name.
+
+### What the page looks like now, and what is worth holding on to
+
+Steam rewrote the wishlist. Three things about the new page matter here:
+
+- **the list is virtualized.** About sixteen rows are in the markup at any moment, whether the
+  wishlist holds twenty entries or two hundred. The rest exist only as the page is scrolled to them;
+- **the class names are generated.** They look like `S2Q8eqrNOA4-`, they are produced by the build
+  of the page, and they change without anyone at Valve deciding anything. `data-app-id`,
+  `id="wishlist_row_…"` and every class with the word *wishlist* in it are gone;
+- **the scrolling happens in `#StoreTemplate`,** not in the window. The window does not scroll at
+  all — so a script that scrolls the window scrolls nothing, loads nothing, and has no way of
+  noticing.
+
+The anchor the scripts hold on to is the attribute **`data-rfd-draggable-id`**, whose value looks
+like `WishlistItem-294100-0`: the App ID of the game and the number of the row *in the whole list*.
+
+It is a better anchor than any class name for a reason worth stating plainly. The attribute is put
+there by the drag and drop library the wishlist is built on — `rfd` is `react-beautiful-dnd` and its
+successors — and it is not decoration: dragging a row does not work without it. So it lives exactly
+as long as the ability to drag rows with the mouse lives, and that ability is the very thing this
+project writes an order through. The day the attribute disappears, the dragging behind it has been
+rebuilt — and the undocumented endpoint the second script posts to is then just as likely to have
+moved, which makes the selectors the smaller half of that day's problem. A class name promises
+nothing of the kind: it changes when somebody rebuilds the page, and nothing on the page breaks.
+
+The number in it earns its keep twice over. It gives the order of the list without measuring
+anything — under virtualization a row's coordinate says where it sits among the sixteen rendered
+right now, and nothing about where it sits among a hundred and sixty six — and it says how long the
+list is, which is what the completeness check below is built on.
+
+### The script finds the scrolling element itself
+
+`STEAM.scrollers` still lists names, `#StoreTemplate` first, but the list is a hint and no longer the
+only path. A candidate is taken only if it really is taller inside than out **and** really holds the
+rows: an element that scrolls but has no wishlist in it — a sidebar, a panel of recently viewed
+games — is passed over rather than scrolled uselessly.
+
+When no name fits, the script measures instead: it takes a row, walks up its ancestors and takes the
+first one whose content is taller than its box. That path needs no name of Steam's, and it is meant
+to survive the next redesign without anybody editing this repository.
+
+### It checks that it read the whole list, and says so when it did not
+
+This is the part that matters most, and it exists because of a real failure. After the rewrite the
+scripts scrolled the window — which does not scroll — and saw only the rows the page had rendered on
+its own: **14 of 166.** Nothing about that looks like an error. A list of fourteen games is a
+perfectly plausible list of fourteen games, and the second script offered to write it into Steam.
+Steam takes a reorder as a whole list, so writing those fourteen would have scattered the other
+hundred and fifty two through them.
+
+So the reading is now judged before its result is used anywhere:
+
+- the highest row number the page ever showed, plus one, is how many entries the wishlist holds;
+- every number from `0` to that maximum has to have been read. A gap is a row that was never seen;
+- the scrolling has to have reached the bottom, not run out of time and not been stopped by hand. A
+  numbering read off a page that was never scrolled describes the window, not the wishlist — which
+  is exactly the shape of the failure above, and why the numbering alone is not enough;
+- the export script states the verdict in the panel in words. A list read in part is not offered as
+  a file until you tick a box saying you want it anyway, and the file is then named `…-partial.json`;
+- **the second script does not offer the write at all.** No checkbox, no “anyway”. There is no
+  reading under which sending a partial order would be right.
+
+The older layout numbers no rows. There the scripts fall back to the coordinates, as before, and say
+in the panel that nothing but having reached the bottom vouches for the list — which is the truth
+about that page.
+
+### If it breaks anyway
+
+1. open the wishlist, right-click a row with a game → **Inspect**;
+2. find the element that wraps the whole row (cover + title) and put its selector first in `rows`;
+3. check that the title, the cover and the link inside it are still found by `titles`, `images` and
+   `appLink`, and add selectors if they are not;
+4. if the numbering attribute has been renamed, `draggableId` and `draggableIdPattern` are the two
+   fields to change. The pattern matches *some* name in front of the App ID rather than
+   `WishlistItem` itself, so a rename alone does not break it;
+5. reload and press **“Collect the list”**. The report says how many rows were found, by which
+   route, and how the scrolling element was worked out.
+
+Every field is a list of candidates tried in order, so the old values stay where they are — a user
+still served the old page keeps working. The last line of defence is the fallback parsing by
+`/app/<id>/` links, which survives almost any change of class names.
+
+All of it is under test on a mock of the markup — both layouts, in
+[`tests/helpers/wishlist-page.js`](tests/helpers/wishlist-page.js) — including the incomplete
+reading and the search for the scrolling element when no known name matches. The tests never touch
+the network or a live Steam page.
 
 ---
 
@@ -381,8 +489,14 @@ right corner → pick the file.
 1. **The file is read and checked.** It has to be the order file: the `kind` field is what tells it
    from a state dump, and a state dump is refused with a note saying which export is needed. The
    backup this script writes is a file of the very same kind, so it is accepted as well.
-2. **The page is read.** The script scrolls the wishlist to the end so that every row loads, and
-   collects the App IDs in the order they are shown.
+2. **The page is read, and the reading is checked.** The script scrolls the wishlist to the end so
+   that every row loads, and collects the App IDs in the order the page numbers them — not in the
+   order of their coordinates, which under a virtualized list describe only the handful of rows
+   rendered at that moment. Then it checks itself: the highest row number the page showed says how
+   long the list is, and if fewer entries were read than that, **the script says so and offers no
+   write at all.** There is no checkbox for it. An order built on half a page is not half an order —
+   Steam takes the list as a whole and scatters everything left out of it. See
+   [Updating the selectors](#updating-the-selectors).
 3. **A report is shown, and nothing has been written yet.** How many entries of the file were found
    on the page and how many were not (the missing ones are usually already bought), whether the page
    holds duplicates, which entries appeared after the export, how many are marked for removal, and
@@ -409,6 +523,9 @@ right corner → pick the file.
   or left out of the ranking — keeps its place relative to the other such entries and is appended
   after the ordered part. That is why the request always carries the whole wishlist: Steam takes the
   order as a whole, and anything left out of it is scattered through the rest.
+- **It does not write what it did not read.** A wishlist the script read only in part gives no
+  report, no plan and no write button — only the count it got, the count the page promised, and what
+  to do about it.
 - **It does not touch `sessionid`.** The value comes from `g_sessionID`, the variable the wishlist
   page defines for its own requests, in the page the script already runs in. It goes into the body
   of that one request, to the same address the page came from, and nowhere else — not into a file,
@@ -426,6 +543,11 @@ old one back.
 - **The endpoint is undocumented and unsupported.** `POST /wishlist/profiles/<steamid>/reorder/` is
   what the page itself uses when a row is dragged; Valve promises nothing about it and may change it
   any day. When that happens, the script says what came back instead of pretending it worked.
+- **A wishlist opened by its custom url says nothing about whose it is.** The endpoint takes the
+  numeric SteamID64 only, so on a `/wishlist/id/<name>/` page the script uses the account the page
+  says is signed in, and states in the report which account that is. If the page belongs to somebody
+  else, Steam refuses the request and nothing changes. On the numeric address the two ids are
+  compared instead, and a wishlist that is not yours is refused here, before anything is sent.
 - **A very large wishlist may not fit into one request.** Steam answers `413`, and the script says
   so in words. Splitting the list is not a way out — a partial list is not a partial reorder, Steam
   spreads the entries it was given through the ones it was not — so for such a list the preview mode
@@ -574,19 +696,12 @@ from an account, would be untrue, which is why it is not here.
   preview mode with the marks on the rows is what is left. In detail — in
   [“What remains a limitation”](#what-remains-a-limitation).
 - **The Steam selectors will break one day.** The layout of the wishlist has changed more than once,
-  and the obfuscated class names of the newer page change by themselves. When that happens, the
-  script says “not a single item was found on the page” and stops — it will not hand over a silently
-  empty file.
+  and the class names of the current page change by themselves — they look like `S2Q8eqrNOA4-` and
+  are minted by whatever built the page that day. When the reading breaks, the script says so and
+  stops; it will not hand over a silently empty file, and the second script will not write.
 
-  It is fixed in one place: the `STEAM` object at the top of
-  [`steam-wishlist-export.user.js`](userscripts/steam-wishlist-export.user.js). The comment above it
-  spells out the procedure: open the wishlist, `Inspect` a row with a game, find the element that
-  wraps the whole row and add its selector first to `rows`; extend `titles`, `images` and `scrollers`
-  if needed. Every field is a list of candidates tried in order, so the old values can stay. The last
-  line of defence is the fallback parsing by `/app/<id>/` links, which survives almost any change of
-  class names. **The same object is duplicated in the second userscript** — both files have to be
-  updated: a userscript is loaded by Tampermonkey as a file of its own, and there is nowhere to pull
-  a shared module in from.
+  What to do about it is written out below, in
+  [Updating the selectors](#updating-the-selectors).
 - **The type of an entry is not always known.** When the page shows no “DLC” mark, the type stays
   `unknown` — the script does not guess it, so that no invented data goes into the file.
 - **The public endpoint gives App IDs only.** The application builds the titles and the covers
@@ -610,6 +725,7 @@ server.js                  the local static server on plain Node
 start.bat                  the launcher for Windows (Node, with Python as a fallback)
 src/                       the source: model, i18n, import, steam, storage, ranking, export, screens
 tests/                     the tests on node:test; tests/fixtures — the demo set and test data
+                           tests/helpers — a mock of the wishlist markup, in both Steam layouts
 userscripts/               two Tampermonkey scripts for the Steam page
 docs/screenshots/          the screenshots for the README
 .github/workflows/         CI: node --test on push and on pull request
