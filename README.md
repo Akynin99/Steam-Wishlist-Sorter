@@ -6,8 +6,11 @@
 **A local web application that turns a 200+ entry Steam wishlist into an honestly ordered list —
 through pairwise comparisons, with no backend and with your list staying on your own machine.**
 
-🎮 [Live demo](https://akynin99.github.io/Steam-Wishlist-Sorter/)
-(the demo set is already inside, you do not have to load a wishlist of your own)
+🎮 **[Try the live demo](https://akynin99.github.io/Steam-Wishlist-Sorter/)** — the demo set is
+already inside, you do not have to load a wishlist of your own.
+💾 **[Download it to run locally](https://github.com/Akynin99/Steam-Wishlist-Sorter/archive/refs/heads/master.zip)** —
+a ZIP of the current `master`; unpack it and see [Running it](#running-it). Loading your own
+wishlist straight from a Steam account only works this way.
 
 ![The wishlist screen](docs/screenshots/import.png)
 
