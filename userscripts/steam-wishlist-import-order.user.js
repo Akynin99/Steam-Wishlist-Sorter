@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Steam Wishlist Sorter — carry the order into Steam
 // @namespace    https://github.com/Akynin99/Steam-Wishlist-Sorter
-// @version      3.0.0
+// @version      3.0.1
 // @description  Reads the final JSON of Steam Wishlist Sorter and writes that order into the Steam wishlist: a report first, a backup file second, then one single request. Entries marked for removal are only listed, never deleted.
 // @author       Akynin99
 // @license      MIT
@@ -20,6 +20,7 @@
  *
  *     POST https://store.steampowered.com/wishlist/action
  *     Content-Type: application/json; charset=utf-8
+ *     X-Valve-Request-Type: mutationAction
  *     { "m": "Reorder", "mp": [ [ { "appid": 1509510, "priority": 2 }, … ] ] }
  *
  * and is answered with `{ "data": { "result": 1 } }`. This script sends the
@@ -31,9 +32,17 @@
  * pairs. The double brackets are not a typo — they are what was read off a live
  * drag, and a body shaped any other way is not the request the page sends.
  *
- * The list is sent **whole**. A partial list is not a partial reorder — Steam
- * spreads the entries it was given through the ones it was not, and the result
- * is a shuffle nobody asked for.
+ * `X-Valve-Request-Type: mutationAction` is not decoration either. Without it
+ * the very same request comes back 400 with an empty body — measured, one line
+ * apart. It is what tells Steam the request came from its own page: another
+ * site can make your browser POST with your cookie attached, but it cannot put
+ * a header of its own on that POST.
+ *
+ * The list is sent **whole**, numbered 1…N. Not because a partial one would be
+ * mangled — a real drag sends two pairs and Steam applies them as given. It is
+ * sent whole because then the resulting order is stated outright instead of
+ * depending on what Steam does with the entries it was not told about. Nobody
+ * has measured that, and a wishlist is a poor place to find out.
  *
  * ## What `priority` means
  *
@@ -77,10 +86,11 @@
  *  - it writes nothing built on a page it read only in part. The list is
  *    virtualized, so a reading that goes wrong yields a shorter list rather
  *    than an error, and an order built on a shorter list is not a partial
- *    order — Steam takes the list whole and scatters everything left out of
- *    it. The rows of the current page are numbered, so the script knows how
- *    many there should be, and a reading that came back with fewer ends the
- *    matter: no checkbox, no "anyway";
+ *    order: the entries that were never read are left out of the request, and
+ *    where they end up is then Steam's business rather than the user's. The
+ *    rows of the current page are numbered, so the script knows how many there
+ *    should be, and a reading that came back with fewer ends the matter: no
+ *    checkbox, no "anyway";
  *  - it writes nothing before the user confirms the write in a separate step,
  *    with the backup of the current order one button away.
  */
@@ -460,8 +470,10 @@
    * Every caller goes through it, because the failure it guards against is the
    * quiet one. A wishlist of a hundred and sixty six entries read as fourteen
    * looks like a perfectly good list of fourteen games; an order built out of
-   * it and written into Steam would scatter the other hundred and fifty two.
-   * So the verdict is taken once, in words, and the write hangs off it.
+   * it and written into Steam would put those fourteen at the top and leave the
+   * other hundred and fifty two to land wherever Steam decides — a place the
+   * user never chose and this script cannot name. So the verdict is taken once,
+   * in words, and the write hangs off it.
    *
    * @param {{ collected: number, expectedTotal: number|null, missingIndexes?: number[],
    *           reachedBottom: boolean, timedOut: boolean, cancelled?: boolean }} read
@@ -1178,6 +1190,11 @@
    * gets a number. That is the irreversible half of the write — the order can
    * be put back from the backup, "never arranged" cannot.
    *
+   * Whole is a choice, not a requirement of the endpoint: a live drag sends the
+   * two pairs it moved and they are applied as given. Sending everything means
+   * the order that comes out is the order that went in, with nothing left to
+   * Steam's discretion.
+   *
    * @param {number[]} appIds In the order the wishlist has to end up in.
    * @returns {string}
    */
@@ -1209,9 +1226,10 @@
         kind: 'too-large',
         message:
           'Steam answered 413 — the request is too big for it. That happens with very large wishlists: ' +
-          'the whole order goes in one request, and this one did not fit. Splitting it is not a way out — ' +
-          'Steam interleaves a partial list with the entries it was not given, and the result is a ' +
-          'shuffle. Use “Show the order on the page” and drag the rows: the marks say where each one goes.',
+          'the whole order goes in one request, and this one did not fit. Sending it in pieces is not ' +
+          'something this script will do blind: what Steam does with the entries a piece leaves out is ' +
+          'not known, and finding out on your own wishlist is a poor trade. Use “Show the order on the ' +
+          'page” and drag the rows: the marks say where each one goes.',
       };
     }
 
@@ -1223,6 +1241,20 @@
           `Steam did not accept the session: it answered ${status}` +
           `${looksLikeLoginPage ? ' with a sign-in page' : ''}. Most often the session has simply expired. ` +
           'Sign in to Steam again, reload the wishlist and repeat — nothing was written.',
+      };
+    }
+
+    if (status === 400) {
+      return {
+        ok: false,
+        kind: 'bad-request',
+        message:
+          'Steam answered 400 with an empty body: it turned the request away at the door and never ' +
+          'looked at the order, so nothing was written. That is the answer when the request is ' +
+          'missing something Steam demands of it, and the answer itself names nothing — the ' +
+          'X-Valve-Request-Type header this script sends was found exactly that way. It looks like ' +
+          'what the endpoint requires has changed again. Open DevTools on the wishlist page, drag ' +
+          'one row by hand, and compare the headers of that request with the ones in this script.',
       };
     }
 
@@ -1343,7 +1375,17 @@
       response = await fetchImpl(REORDER_URL, {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json; charset=utf-8' },
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+          // Without this header Steam answers 400 with an empty body, and
+          // nothing in that answer says why. It is the guard against a request
+          // forged by another site: a form or an image on some other page can
+          // send a POST carrying your cookie, but it cannot set a header of its
+          // own, so only code running inside the page itself can produce this
+          // one. That is why the exact same address, method and body are a 200
+          // with this line and a 400 without it. Do not drop it.
+          'X-Valve-Request-Type': 'mutationAction',
+        },
         body: buildReorderBody(appIds),
       });
     } catch (error) {
@@ -1876,11 +1918,12 @@
       return;
     }
 
-    // An order built on a page that was read in part is not a partial order: it
-    // is a wrong one. Steam takes the list as a whole, so the entries that were
-    // never read would be scattered through the ones that were. The write is
-    // not offered here at all — no checkbox, no "anyway", because there is no
-    // reading of this state under which sending would be right.
+    // An order built on a page that was read in part is not a partial order:
+    // it is a wrong one. The entries that were never read would be missing from
+    // the request, and their place would then be decided by Steam rather than
+    // by the user. The write is not offered here at all — no checkbox, no
+    // "anyway", because there is no reading of this state under which sending
+    // would be right.
     if (!page.verdict.ok) {
       panel.say(
         `<b>The wishlist was read only in part, so nothing will be written.</b><br>` +
@@ -1906,7 +1949,7 @@
         `${order.exportedAt ? `, exported on ${escapeHtml(order.exportedAt.slice(0, 10))}` : ''}.`,
       `<b>${target.placed.length}</b> of them were found on the page, and the request will carry ` +
         `<b>${target.appIds.length}</b> ${plural(target.appIds.length, 'entry', 'entries')} — the whole ` +
-        'wishlist, because Steam takes the order as a whole and scatters whatever is left out of it.',
+        'wishlist, so that every place is stated outright and none is left for Steam to decide.',
     ];
     let tone = 'ok';
 

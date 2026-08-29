@@ -639,10 +639,23 @@ test('an answer that is not JSON is named as such and nothing is claimed about t
   assert.match(answer.message, /text\/plain/);
 });
 
+test('400 is its own case: refused at the door, and the header is where to look', () => {
+  const answer = readReorderAnswer({ status: 400, body: '' });
+
+  assert.equal(answer.ok, false);
+  assert.equal(answer.kind, 'bad-request');
+  assert.notEqual(answer.kind, 'refused');
+  assert.match(answer.message, /400/);
+  assert.match(answer.message, /nothing was written/i);
+  assert.match(answer.message, /X-Valve-Request-Type/);
+  assert.match(answer.message, /DevTools/i);
+});
+
 test('429 and the failures of the Steam side are told apart', () => {
   assert.equal(readReorderAnswer({ status: 429, body: '' }).kind, 'rate-limited');
   assert.equal(readReorderAnswer({ status: 503, body: '' }).kind, 'server-error');
   assert.equal(readReorderAnswer({ status: 418, body: 'teapot' }).kind, 'refused');
+  assert.equal(readReorderAnswer({ status: 400, body: '' }).kind, 'bad-request');
 });
 
 test('data.result = 1 is the only answer read as a plain yes', () => {
@@ -709,6 +722,7 @@ test('the request goes to /wishlist/action, as JSON, with the whole list', async
   assert.equal(new URL(calls[0].url).origin, 'https://store.steampowered.com');
   assert.equal(calls[0].options.method, 'POST');
   assert.match(calls[0].options.headers['Content-Type'], /^application\/json; ?charset=utf-8$/i);
+  assert.equal(calls[0].options.headers['X-Valve-Request-Type'], 'mutationAction');
   // Same origin as the page, so the browser attaches the cookie itself.
   assert.equal(calls[0].options.credentials, 'include');
   assert.deepEqual(pairsOf(calls[0].options.body), [
@@ -716,6 +730,28 @@ test('the request goes to /wishlist/action, as JSON, with the whole list', async
     { appid: 10, priority: 2 },
     { appid: 20, priority: 3 },
   ]);
+});
+
+test('the write carries X-Valve-Request-Type, without which Steam answers 400 and reads nothing', async () => {
+  // The line this test exists for. The address, the method and the body were
+  // right for a whole day and every attempt came back 400 with an empty body,
+  // because a request without this header is not one Steam accepts as coming
+  // from its own page. Remove the header and this test has to go red.
+  const { impl, calls } = stubFetch({ status: 200, contentType: 'application/json', body: '{"data":{"result":1}}' });
+  await sendReorder({ appIds: [1, 2], fetchImpl: impl });
+
+  const headers = calls[0].options.headers;
+  const name = Object.keys(headers).find((key) => key.toLowerCase() === 'x-valve-request-type');
+  assert.ok(name, `the request went out without X-Valve-Request-Type: ${Object.keys(headers).join(', ')}`);
+  assert.equal(headers[name], 'mutationAction');
+});
+
+test('the header goes out with every answer, not only the ones that succeed', async () => {
+  for (const reply of [{ status: 400, body: '' }, { status: 500, body: '' }, { status: 429, body: '' }]) {
+    const { impl, calls } = stubFetch(reply);
+    await sendReorder({ appIds: [1], fetchImpl: impl });
+    assert.equal(calls[0].options.headers['X-Valve-Request-Type'], 'mutationAction', `status ${reply.status}`);
+  }
 });
 
 test('the address is a constant: nothing read off the page can end up inside it', async () => {
@@ -727,7 +763,7 @@ test('the address is a constant: nothing read off the page can end up inside it'
   assert.equal(new URL(REORDER_URL).search, '');
 });
 
-test('the whole list goes in one request — a partial one would be scattered by Steam', async () => {
+test('the whole list goes in one request, so no place is left for Steam to decide', async () => {
   const appIds = Array.from({ length: 250 }, (_, index) => 1000 + index);
   const { impl, calls } = stubFetch({ status: 200, contentType: 'application/json', body: '{"data":{"result":1}}' });
   await sendReorder({ appIds, fetchImpl: impl });
@@ -753,6 +789,7 @@ test('a 413 answer comes back as the case it is, from the sending path too', asy
 
 test('403, a sign-in page and a failure of the Steam side all come back through the sending path', async () => {
   const cases = [
+    [{ status: 400, body: '' }, 'bad-request'],
     [{ status: 403, body: '' }, 'signed-out'],
     [{ status: 200, contentType: 'text/html', body: '<html><body>Sign In</body></html>' }, 'signed-out'],
     [{ status: 503, body: '' }, 'server-error'],
