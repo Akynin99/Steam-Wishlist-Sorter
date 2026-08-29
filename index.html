@@ -567,45 +567,65 @@
       </div>
     </section>
 
-    <!-- ================================================= categories -->
+    <!--
+      Categories. The head says which stage this is and how far along it is;
+      below it the game on the left and the scale of interest on the right.
+
+      The six buttons are built by `ui-categorize.js` and put in two places:
+      the five levels into `#cat-buttons`, the sixth — leaving the wishlist —
+      into `#cat-remove`, on the other side of the word "or". It is not a
+      level of interest, and it must not read as the bottom of the scale.
+    -->
     <section class="screen" id="screen-categorize" hidden aria-labelledby="categorize-heading">
       <div class="stage-head">
+        <p class="stage-head__eyebrow" data-i18n="categorize.eyebrow">Step 2 of 4</p>
         <div class="stage-head__row">
-          <h1 id="categorize-heading" data-i18n="categorize.heading">Step 1. Categories</h1>
-          <span class="stage-head__counter" id="cat-counter">0 of 0</span>
+          <div class="stage-head__text">
+            <h1 id="categorize-heading" tabindex="-1" data-i18n="categorize.heading">
+              How interested are you in this game?
+            </h1>
+            <p class="stage-head__hint" data-i18n="categorize.hint">
+              Do not think too long — the category can be changed later.
+            </p>
+          </div>
+          <p class="stage-head__counter" id="cat-counter">0 of 0</p>
         </div>
-        <p class="stage-head__hint" data-i18n-html="categorize.hint">
-          How badly do you want it? Keys <kbd>1</kbd>–<kbd>6</kbd>, <kbd>←</kbd> — back,
-          <kbd>→</kbd> or <kbd>Space</kbd> — postpone.
-        </p>
         <div class="progress">
           <div class="progress__bar"><span class="progress__fill" id="cat-bar"></span></div>
           <p class="progress__legend" id="cat-legend"></p>
         </div>
       </div>
 
-      <article class="card card--single">
-        <div class="cover cover--large" id="cat-cover"></div>
-        <div class="card__body">
-          <h2 class="card__title" id="cat-title">—</h2>
-          <p class="card__meta">
-            <span class="badge" id="cat-kind"></span>
-            <a class="link" id="cat-link" href="#" target="_blank" rel="noopener noreferrer"
-               data-i18n="common.openInSteam">Open in Steam ↗</a>
-          </p>
-          <p class="card__note" id="cat-current"></p>
-        </div>
-      </article>
+      <div class="grade">
+        <article class="card grade__card" id="cat-card">
+          <div class="cover cover--large" id="cat-cover"></div>
+          <div class="card__body">
+            <h2 class="card__title" id="cat-title">—</h2>
+            <p class="card__meta">
+              <span class="badge" id="cat-kind"></span>
+              <a class="link" id="cat-link" href="#" target="_blank" rel="noopener noreferrer"
+                 data-i18n="common.openInSteam">Open in Steam ↗</a>
+            </p>
+            <p class="card__note" id="cat-current"></p>
+          </div>
+        </article>
 
-      <div class="categories" id="cat-buttons" role="group"
-           data-i18n-attr="aria-label:categorize.buttonsAria" aria-label="Categories"></div>
+        <div class="scale" id="cat-scale">
+          <p class="scale__ends">
+            <span data-i18n="categorize.more">More interested</span>
+            <span data-i18n="categorize.less">Less interested</span>
+          </p>
+          <div class="categories" id="cat-buttons" role="group"
+               data-i18n-attr="aria-label:categorize.buttonsAria" aria-label="Levels of interest"></div>
+          <p class="scale__or"><span data-i18n="categorize.or">or</span></p>
+          <div class="scale__remove" id="cat-remove"></div>
+        </div>
+      </div>
 
       <div class="stage-actions">
         <button type="button" class="btn" id="cat-back" data-i18n="categorize.back">← Previous</button>
-        <button type="button" class="btn" id="cat-defer" data-i18n="categorize.defer">Postpone</button>
-        <button type="button" class="btn btn--ghost" id="cat-skip" data-i18n="categorize.skip">
-          Skip the stage and go to the comparisons
-        </button>
+        <button type="button" class="btn btn--ghost" id="cat-defer"
+                data-i18n-html="categorize.defer">Postpone <kbd>Space</kbd></button>
       </div>
 
       <p class="stage-done" id="cat-done" hidden>
@@ -614,27 +634,34 @@
       </p>
     </section>
 
-    <!-- ================================================ comparisons -->
+    <!--
+      Comparisons. Two cards, symmetric down to the pixel, and one primary
+      action under each. Everything else is quieter than they are: leaving the
+      wishlist is about something other than this pair, and undo is rare.
+
+      `[data-answer]` and `[data-drop]` are found once, when the screen is
+      built. They live here and are never rebuilt, so the clicks keep working.
+    -->
     <section class="screen" id="screen-compare" hidden aria-labelledby="compare-heading">
       <div class="stage-head">
+        <p class="stage-head__eyebrow" data-i18n="compare.eyebrow">Step 3 of 4</p>
         <div class="stage-head__row">
-          <h1 id="compare-heading" data-i18n="compare.heading">Step 2. Comparisons</h1>
-          <span class="chip" id="cmp-category">—</span>
-        </div>
-        <div class="statline">
-          <span class="statline__item"><span data-i18n="compare.doneLabel">comparisons made: </span><b id="cmp-done">0</b></span>
-          <span class="statline__item"><span data-i18n="compare.leftLabel">about this many left: </span><b id="cmp-left">0</b></span>
-          <span class="statline__item"><b id="cmp-percent">0%</b></span>
-          <span class="statline__item statline__item--muted" id="cmp-deferred" hidden></span>
+          <div class="stage-head__text">
+            <h1 id="compare-heading" tabindex="-1" data-i18n="compare.heading">
+              Which game do you want more?
+            </h1>
+            <p class="stage-head__hint" id="cmp-hint" data-i18n="compare.hint">
+              Choose quickly. A pair you cannot decide on can be postponed.
+            </p>
+          </div>
+          <p class="stage-head__counter" id="cmp-percent">0%</p>
         </div>
         <div class="progress">
           <div class="progress__bar"><span class="progress__fill" id="cmp-bar"></span></div>
-        </div>
-        <div class="stage-head__row stage-head__row--tools">
-          <button type="button" class="btn" id="cmp-pause" data-i18n="compare.pause">Pause</button>
-          <button type="button" class="btn" id="cmp-stop" data-i18n="compare.stop">
-            Stop and see the result
-          </button>
+          <p class="progress__legend">
+            <span id="cmp-progress"></span>
+            <span class="progress__aside" id="cmp-deferred" hidden></span>
+          </p>
         </div>
       </div>
 
@@ -652,10 +679,17 @@
             </p>
           </div>
           <div class="card__actions">
-            <button type="button" class="btn btn--primary" data-answer="a"
+            <button type="button" class="btn btn--primary btn--choose" data-answer="a"
                     data-i18n-html="compare.preferA">Want it more <kbd>A</kbd></button>
-            <button type="button" class="btn btn--ghost btn--danger" data-drop="a"
-                    data-i18n="compare.drop">Do not want it any more</button>
+            <button type="button" class="btn btn--quiet" data-drop="a">
+              <span class="icon icon--sm" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+                     stroke-linecap="round" stroke-linejoin="round" focusable="false">
+                  <path d="M4.5 7h15"/><path d="M9.5 7V4.5h5V7"/><path d="m6.8 7 1 12.5h8.4L17 7"/>
+                </svg>
+              </span>
+              <span data-i18n="compare.drop">No longer interested</span>
+            </button>
           </div>
         </article>
 
@@ -665,7 +699,7 @@
                   data-i18n-html="compare.tie">About the same <kbd>S</kbd></button>
           <button type="button" class="btn" data-answer="defer"
                   data-i18n-html="compare.defer">Cannot decide <kbd>Space</kbd></button>
-          <button type="button" class="btn btn--ghost" id="cmp-undo"
+          <button type="button" class="btn btn--quiet" id="cmp-undo"
                   data-i18n-html="compare.undo">Undo <kbd>Backspace</kbd></button>
         </div>
 
@@ -680,12 +714,41 @@
             </p>
           </div>
           <div class="card__actions">
-            <button type="button" class="btn btn--primary" data-answer="b"
+            <button type="button" class="btn btn--primary btn--choose" data-answer="b"
                     data-i18n-html="compare.preferB">Want it more <kbd>D</kbd></button>
-            <button type="button" class="btn btn--ghost btn--danger" data-drop="b"
-                    data-i18n="compare.drop">Do not want it any more</button>
+            <button type="button" class="btn btn--quiet" data-drop="b">
+              <span class="icon icon--sm" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+                     stroke-linecap="round" stroke-linejoin="round" focusable="false">
+                  <path d="M4.5 7h15"/><path d="M9.5 7V4.5h5V7"/><path d="m6.8 7 1 12.5h8.4L17 7"/>
+                </svg>
+              </span>
+              <span data-i18n="compare.drop">No longer interested</span>
+            </button>
           </div>
         </article>
+      </div>
+
+      <!--
+        One way out of the stage. Stopping for today and looking at what came
+        of it are the same wish, so there is one button and it leads to the
+        result; the line beside it says the work is not lost.
+      -->
+      <div class="stage-foot" id="cmp-foot">
+        <button type="button" class="btn" id="cmp-finish" data-i18n="compare.finish">
+          Finish for today
+        </button>
+        <p class="stage-foot__note">
+          <span class="icon icon--sm" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round" focusable="false">
+              <path d="m4.5 12.5 5 5 10-11"/>
+            </svg>
+          </span>
+          <span data-i18n="compare.finishNote">
+            The progress is saved — your current result is ready to use.
+          </span>
+        </p>
       </div>
 
       <p class="stage-done" id="cmp-done-note" hidden>
@@ -874,6 +937,22 @@
              aria-hidden="true" accept=".json,application/json">
     </div>
 
+    <!--
+      Skipping the whole stage. It belongs to one screen and is shown only
+      while that screen is open: anywhere else there is no stage to skip.
+    -->
+    <div class="menu__group" id="menu-stage-group" hidden>
+      <button type="button" class="menu__row menu__row--action" id="action-skip-stage">
+        <span class="icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+               stroke-linecap="round" stroke-linejoin="round" focusable="false">
+            <path d="m5 6 7 6-7 6z"/><path d="M14.5 6v12"/><path d="M19 6v12"/>
+          </svg>
+        </span>
+        <span class="menu__label" data-i18n="actions.skipStage">Skip the categories</span>
+      </button>
+    </div>
+
     <div class="menu__group menu__group--danger">
       <button type="button" class="menu__row menu__row--action menu__row--danger" id="action-reset">
         <span class="icon" aria-hidden="true">
@@ -885,6 +964,74 @@
         <span class="menu__label" data-i18n="actions.reset">Start over</span>
       </button>
     </div>
+  </dialog>
+
+  <!--
+    The one-off explanations, one before each of the two stages that need one.
+    Written out here and not built in code for the usual reason: every word
+    carries a key, so a change of language repaints them where they stand,
+    even with one of them open. `<dialog>` brings the focus trap and Escape,
+    and `isHotkeyBlocked()` already keeps the hotkeys of the screen behind
+    quiet while any dialog is open.
+
+    Whether they have been shown is kept under a key of `localStorage` of its
+    own — not in the state, so that «Start over» does not bring them back.
+  -->
+  <dialog class="dialog intro" id="intro-categorize" aria-labelledby="intro-categorize-title">
+    <form method="dialog" class="dialog__form">
+      <p class="intro__eyebrow" data-i18n="categorize.eyebrow">Step 2 of 4</p>
+      <h2 class="dialog__title" id="intro-categorize-title" data-i18n="onboarding.categorize.title">
+        First, roughly group games by interest
+      </h2>
+      <p class="dialog__text" data-i18n="onboarding.categorize.lead">
+        You will see one game at a time and put it somewhere on a scale of five levels — or straight
+        onto the list of games to remove from the wishlist.
+      </p>
+      <ul class="intro__points">
+        <li data-i18n="onboarding.categorize.why">
+          This is what keeps the sorting short: games are only ever compared inside their own group,
+          so a rough split now saves hundreds of questions later.
+        </li>
+        <li data-i18n="onboarding.categorize.later">
+          Do not think too long. A category can be changed at any time — walk back to the game with
+          “Previous”, or change it on the result screen.
+        </li>
+      </ul>
+      <div class="dialog__actions">
+        <button type="submit" class="btn btn--primary" value="ok"
+                data-i18n="onboarding.start">Got it</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="dialog intro" id="intro-compare" aria-labelledby="intro-compare-title">
+    <form method="dialog" class="dialog__form">
+      <p class="intro__eyebrow" data-i18n="compare.eyebrow">Step 3 of 4</p>
+      <h2 class="dialog__title" id="intro-compare-title" data-i18n="onboarding.compare.title">
+        Now choose between two games
+      </h2>
+      <p class="dialog__text" data-i18n="onboarding.compare.lead">
+        Two games at a time, both from the same group. Pick the one you want more — the keys A and
+        D, or the arrows.
+      </p>
+      <ul class="intro__points">
+        <li data-i18n="onboarding.compare.tie">
+          If you want them equally, say “About the same”: that is an answer too, and the sorting
+          uses it.
+        </li>
+        <li data-i18n="onboarding.compare.defer">
+          A hard pair can be postponed with Space; it comes back once the easy ones are answered.
+        </li>
+        <li data-i18n="onboarding.compare.stop">
+          Finish whenever you like. Every answer is saved, and the result is ready to look at at any
+          moment — finished or not.
+        </li>
+      </ul>
+      <div class="dialog__actions">
+        <button type="submit" class="btn btn--primary" value="ok"
+                data-i18n="onboarding.start">Got it</button>
+      </div>
+    </form>
   </dialog>
 
   <!--

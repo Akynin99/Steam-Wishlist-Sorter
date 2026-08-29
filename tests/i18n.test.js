@@ -147,15 +147,16 @@ test('the plural rules pick the form each language needs', () => {
 });
 
 test('a counted phrase can carry parameters of its own next to the count', () => {
-  assert.equal(
-    t('categorize.legendLeft', { classified: 3, total: 10, items: plural('count.items', 7) }),
-    '3 of 10 classified, 7 items left.',
-  );
+  const progress = () =>
+    t('compare.progress', {
+      category: categoryLabel('want'),
+      made: plural('count.comparisonsDone', 7),
+      left: plural('count.pairs', 17),
+    });
+
+  assert.equal(progress(), 'Category “Want it” · 7 comparisons made · about 17 pairs left');
   setLanguage('ru');
-  assert.equal(
-    t('categorize.legendLeft', { classified: 3, total: 10, items: plural('count.items', 7) }),
-    'Распределено 3 из 10, осталось 7 позиций.',
-  );
+  assert.equal(progress(), 'Категория «Хочу» · 7 сравнений сделано · примерно 17 пар осталось');
 });
 
 test('the category labels follow the language, and the ids never move', () => {

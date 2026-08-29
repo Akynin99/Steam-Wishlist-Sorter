@@ -12,6 +12,13 @@
 
 import { exportFileName } from './export.js';
 import { LANGUAGE_NAMES, getLanguage, plural, setLanguage, t } from './i18n.js';
+import {
+  ONBOARDING_KEY,
+  isStageSeen,
+  parseSeenStages,
+  serializeSeenStages,
+  withStageSeen,
+} from './onboarding.js';
 import { deserializeSession, createSession } from './ranking.js';
 import { StateStorage, StorageError, createEmptyState } from './storage.js';
 import { normalizeTheme } from './theme.js';
@@ -31,6 +38,19 @@ const SCREEN_IDS = ['import', 'categorize', 'compare', 'result'];
  * whoever imports it.
  */
 const SCREEN_KEY = 'steam-wishlist-sorter/screen';
+
+/**
+ * The stages that explain themselves once, with the dialog that does it and
+ * the heading the keyboard is handed back to when it closes.
+ *
+ * Whether an explanation has been seen is kept next to the screen above and
+ * deliberately not in the state: «Start over» wipes the state, and the person
+ * in front of the screen has still read the explanation.
+ */
+const INTROS = {
+  categorize: { dialog: 'intro-categorize', heading: 'categorize-heading' },
+  compare: { dialog: 'intro-compare', heading: 'compare-heading' },
+};
 
 /** How long a toast stays on the screen, in milliseconds. */
 const TOAST_MS = 3200;
@@ -98,6 +118,7 @@ function createApp() {
   let toastTimer = 0;
   let saveStatusTimer = 0;
   let current = null;
+  let seenIntros = readSeenIntros();
 
   /** @type {Record<string, { render: Function, handleKey?: Function }>} */
   const screens = {};
@@ -284,6 +305,9 @@ function createApp() {
       // arrival only, so that walking back through the list is not undone.
       screens[target].activate?.();
       screens[target].render();
+      // The explanation comes after the screen is drawn, so that closing it
+      // leaves the user in front of a stage that is already there.
+      showIntro(target);
     },
 
     /** Re-renders the screen that is open, and the stages above it. */
@@ -417,6 +441,37 @@ function createApp() {
   }
 
   /**
+   * Shows the one-off explanation of a stage, if it has not been shown yet.
+   *
+   * It is written down as seen the moment it opens, not when it is closed:
+   * every way out of the dialog means it has been read, and a reload with one
+   * standing open must not bring it back a second time. An empty list is not a
+   * stage anybody is starting, so nothing is explained and nothing is spent.
+   *
+   * @param {string} stage
+   */
+  function showIntro(stage) {
+    const intro = INTROS[stage];
+    if (!intro || session.itemCount === 0 || isStageSeen(seenIntros, stage)) return;
+
+    const dialog = document.getElementById(intro.dialog);
+    if (!dialog || typeof dialog.showModal !== 'function') return;
+
+    seenIntros = withStageSeen(seenIntros, stage);
+    rememberIntros(seenIntros);
+
+    // A dialog hands the keyboard back to whatever was focused when it opened,
+    // and nothing on the screen opened this one — arriving at the stage did,
+    // and the button that brought the user here is on a screen that is now
+    // hidden. Focusing the heading first is therefore the whole mechanism:
+    // closing the explanation, by its button or by Escape, leaves the keyboard
+    // on the stage it was explaining. The heading carries `tabindex="-1"` for
+    // exactly this, and no `close` handler is needed for it.
+    document.getElementById(intro.heading)?.focus();
+    dialog.showModal();
+  }
+
+  /**
    * Opens the settings menu under the button that asked for it.
    *
    * `<dialog>` places itself in the middle of the window, and this menu hangs
@@ -426,6 +481,10 @@ function createApp() {
    * and an inline style would have outranked the media query saying so.
    */
   function openSettings() {
+    // Skipping a stage is offered only where there is a stage to skip: on the
+    // other screens the row would name something the user cannot do.
+    document.getElementById('menu-stage-group').hidden = current !== 'categorize';
+
     const rect = settingsButton.getBoundingClientRect();
     settingsMenu.style.setProperty('--menu-top', `${Math.round(rect.bottom + 8)}px`);
     settingsMenu.style.setProperty(
@@ -521,6 +580,13 @@ function createApp() {
     // Cleared straight away, so that choosing the same file again fires this.
     stateFileInput.value = '';
     if (file) app.loadState(file);
+  });
+
+  // The stage itself owns what skipping it means and what it costs; the menu
+  // only names the action and gets out of the way of the confirmation.
+  document.getElementById('action-skip-stage').addEventListener('click', () => {
+    closeSettings();
+    screens.categorize.skipStage();
   });
 
   document.getElementById('action-reset').addEventListener('click', async () => {
@@ -687,6 +753,28 @@ function rememberScreen(name) {
     window.localStorage.setItem(SCREEN_KEY, name);
   } catch {
     // Storage may be denied; the screen simply is not remembered.
+  }
+}
+
+/**
+ * @returns {string[]} The stages whose explanation has already been shown.
+ */
+function readSeenIntros() {
+  try {
+    return parseSeenStages(window.localStorage.getItem(ONBOARDING_KEY));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * @param {string[]} stages
+ */
+function rememberIntros(stages) {
+  try {
+    window.localStorage.setItem(ONBOARDING_KEY, serializeSeenStages(stages));
+  } catch {
+    // Storage may be denied; the explanation is then shown once more.
   }
 }
 

@@ -801,21 +801,49 @@ label.menu__row:hover {
   gap: var(--gap-screen);
 }
 
+/*
+ * The head of a working stage: which step this is, what it asks, how far it
+ * has got. The three lines are the same on both stages, so a user who has
+ * read one head reads the next one without looking.
+ */
+
 .stage-head {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
+}
+
+.stage-head__eyebrow {
+  color: var(--accent);
+  font-size: 0.76rem;
+  font-weight: 620;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
 }
 
 .stage-head__row {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
+  align-items: baseline;
+  gap: 12px 20px;
 }
 
-.stage-head__row--tools {
+.stage-head__text {
+  display: flex;
+  flex-direction: column;
   gap: 8px;
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+.stage-head__text h1 {
+  font-size: clamp(1.45rem, 1.1rem + 1.6vw, 2.3rem);
+}
+
+/* Moved into by the keyboard when a dialog over the stage closes, so it must
+   not draw a focus ring at every click on the page. */
+.stage-head__text h1:focus {
+  outline: none;
 }
 
 .stage-head__hint {
@@ -826,7 +854,9 @@ label.menu__row:hover {
 .stage-head__counter {
   margin-left: auto;
   color: var(--text-muted);
+  font-size: clamp(1.1rem, 0.95rem + 0.7vw, 1.5rem);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .btn {
@@ -884,6 +914,31 @@ label.menu__row:hover {
 }
 
 .btn--ghost:hover:not(:disabled) {
+  color: var(--text);
+}
+
+/* The one thing a card asks for, and it is the only thing on it in colour. */
+.btn--choose {
+  padding: 12px 16px;
+  font-size: 1rem;
+}
+
+/*
+ * A button that has to be there without asking to be pressed: undoing an
+ * answer, dropping a game out of the wishlist. It reads as a line of text
+ * until the pointer is on it.
+ */
+.btn--quiet {
+  padding: 6px 10px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 0.86rem;
+}
+
+.btn--quiet:hover:not(:disabled) {
+  border-color: transparent;
+  background: transparent;
   color: var(--text);
 }
 
@@ -968,26 +1023,22 @@ label.menu__row:hover {
   transition: width 0.25s ease;
 }
 
+/*
+ * One line under the bar, and it says everything about where the work stands:
+ * which group is being sorted, what has been answered, what is left. What was
+ * a row of separate numbers is a sentence now.
+ */
 .progress__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
   color: var(--text-dim);
   font-size: 0.85rem;
 }
 
-.statline {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 18px;
-  color: var(--text-muted);
-  font-size: 0.92rem;
-}
-
-.statline__item b {
-  color: var(--text);
-  font-variant-numeric: tabular-nums;
-}
-
-.statline__item--muted {
+.progress__aside {
   color: var(--text-dim);
+  opacity: 0.8;
 }
 
 .banner {
@@ -1004,6 +1055,33 @@ label.menu__row:hover {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+/*
+ * The way out of a stage, and the line that says leaving costs nothing. They
+ * share a row, because the promise is only worth anything next to the button
+ * it is about.
+ */
+.stage-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.stage-foot__note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-dim);
+  font-size: 0.88rem;
+}
+
+.stage-foot__note .icon {
+  color: var(--positive);
 }
 
 .stage-done {
@@ -1208,6 +1286,42 @@ label.menu__row:hover {
   margin-top: 6px;
 }
 
+/*
+ * The one-off explanation of a stage. A dialog and not a panel on the screen:
+ * it is read once and then never again, and nothing on the stage behind it
+ * should have to make room for it forever.
+ */
+
+.intro {
+  max-width: 560px;
+}
+
+.intro__eyebrow {
+  color: var(--accent);
+  font-size: 0.76rem;
+  font-weight: 620;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+}
+
+.intro .dialog__title {
+  font-size: 1.25rem;
+}
+
+.intro__points {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding-left: 20px;
+  color: var(--text-muted);
+  font-size: 0.93rem;
+}
+
+.intro__points li::marker {
+  color: var(--accent);
+}
+
 /* ----------------------------------------------------------- covers */
 
 .cover {
@@ -1259,10 +1373,9 @@ label.menu__row:hover {
   background: var(--bg-elevated);
 }
 
-.card--single {
-  max-width: 620px;
-  margin: 0 auto;
-  width: 100%;
+.card--versus .card__actions {
+  flex-direction: column;
+  gap: 4px;
 }
 
 .card__body {
@@ -1912,13 +2025,77 @@ label.menu__row:hover {
 
 /* ----------------------------------------------- screen: categories */
 
+/*
+ * The game on one side, the answer on the other. The scale is a panel of its
+ * own, so that the sixth value can stand outside it without floating loose on
+ * the page.
+ */
+.grade {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 0.85fr);
+  gap: clamp(16px, 2.4vw, 32px);
+  align-items: start;
+}
+
+.grade__card {
+  min-width: 0;
+}
+
+.scale {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: var(--pad-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
+}
+
+/* Which way the five rows run, said in words: their captions alone leave it
+   to be guessed, and a guess about a scale is a wrong answer. */
+.scale__ends {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text-dim);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+/*
+ * The line between the scale of interest and the value that is not on it.
+ * «Or», and not another row: leaving the wishlist is a different question
+ * from how much a game is wanted.
+ */
+.scale__or {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.scale__or::before,
+.scale__or::after {
+  content: "";
+  flex: 1 1 auto;
+  height: 1px;
+  background: var(--border);
+}
+
+/* A button sizes itself to its words unless something stretches it, and this
+   one is the width of the scale it stands under. */
+.scale__remove {
+  display: grid;
+}
+
 .categories {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-  gap: 10px;
-  max-width: 780px;
-  margin: 0 auto;
-  width: 100%;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--gap-list);
 }
 
 .catbtn {
@@ -1953,6 +2130,34 @@ label.menu__row:hover {
   border-color: var(--cat-color, var(--accent));
 }
 
+/*
+ * The sixth value: quiet, and clearly not the bottom of the scale. A red
+ * button in the same row as «Barely interested» would be pressed by a hand
+ * that was aiming one row up, and it throws a game off the wishlist.
+ */
+.catbtn--apart {
+  flex-direction: row-reverse;
+  border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
+  border-left-width: 1px;
+  background: color-mix(in srgb, var(--danger) 7%, transparent);
+  color: var(--danger-text);
+}
+
+.catbtn--apart .catbtn__label {
+  margin-right: auto;
+}
+
+.catbtn--apart:hover {
+  border-color: var(--danger);
+  border-left-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+}
+
+.catbtn--apart[aria-pressed="true"] {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 22%, transparent);
+}
+
 .catbtn__key {
   display: inline-flex;
   align-items: center;
@@ -1977,10 +2182,6 @@ label.menu__row:hover {
   grid-template-columns: 1fr minmax(180px, 220px) 1fr;
   gap: clamp(12px, 2vw, 24px);
   align-items: stretch;
-}
-
-.card--versus {
-  min-width: 0;
 }
 
 .versus__middle {
@@ -2293,6 +2494,12 @@ label.menu__row:hover {
 }
 
 @media (max-width: 900px) {
+  /* The scale under the game, not beside it: on one column the card would
+     otherwise squeeze the six rows into two words each. */
+  .grade {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .versus {
     grid-template-columns: 1fr;
   }
@@ -2362,6 +2569,16 @@ label.menu__row:hover {
     right: 10px;
     left: 10px;
     width: auto;
+  }
+
+  /* The head stacks: the question first, the count under it, both left
+     aligned, and nothing is pushed off the side of a 360 px screen. */
+  .stage-head__counter {
+    margin-left: 0;
+  }
+
+  .stage-foot {
+    justify-content: flex-start;
   }
 
   /* On a narrow screen the number and the title stay in the first row,

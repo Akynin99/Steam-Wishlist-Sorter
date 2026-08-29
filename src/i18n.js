@@ -71,6 +71,12 @@ const EN = {
   'count.comparisonsMade.one': '{count} comparison made',
   'count.comparisonsMade.few': '{count} comparisons made',
   'count.comparisonsMade.many': '{count} comparisons made',
+  /* The same count in the progress line of the comparisons, where the number
+     opens the phrase. English says it the same way twice; Russian does not,
+     and one phrase cannot serve both places. */
+  'count.comparisonsDone.one': '{count} comparison made',
+  'count.comparisonsDone.few': '{count} comparisons made',
+  'count.comparisonsDone.many': '{count} comparisons made',
   'count.pairs.one': '{count} pair',
   'count.pairs.few': '{count} pairs',
   'count.pairs.many': '{count} pairs',
@@ -111,6 +117,9 @@ const EN = {
   'theme.steam': 'Steam-like',
   'actions.saveState': 'Save backup',
   'actions.loadState': 'Load backup',
+  /* Only ever offered while the categories are open: everywhere else there is
+     no stage to skip and the row would mean nothing. */
+  'actions.skipStage': 'Skip the categories',
   'actions.reset': 'Start over',
   'privacy.short': 'Runs locally · your data is not sent to third-party servers',
   'privacy.details': 'Details',
@@ -370,43 +379,65 @@ const EN = {
   'state.restored.toast': 'The state is restored from the file.',
 
   /* -- categories screen -------------------------------------------- */
-  'categorize.heading': 'Step 1. Categories',
-  'categorize.hint':
-    'How badly do you want it? Keys <kbd>1</kbd>–<kbd>6</kbd>, <kbd>←</kbd> — back, <kbd>→</kbd> or '
-    + '<kbd>Space</kbd> — postpone.',
-  'categorize.buttonsAria': 'Categories',
+  'categorize.eyebrow': 'Step 2 of 4',
+  'categorize.heading': 'How interested are you in this game?',
+  'categorize.hint': 'Do not think too long — the category can be changed later.',
+  'categorize.buttonsAria': 'Levels of interest',
+  /* The two ends of the scale, so its direction is said and not merely
+     implied by the wording of the five rows. */
+  'categorize.more': 'More interested',
+  'categorize.less': 'Less interested',
+  /* Between the scale and the sixth value, which is not a level of interest
+     at all: the two are alternatives, not neighbours. */
+  'categorize.or': 'or',
   'categorize.counter': '{index} of {total}',
   'categorize.back': '← Previous',
-  'categorize.defer': 'Postpone',
-  'categorize.skip': 'Skip the stage and go to the comparisons',
+  'categorize.defer': 'Postpone <kbd>Space</kbd>',
   'categorize.done': 'Every item has a category.',
   'categorize.toCompare': 'Go to the comparisons',
   'categorize.empty': 'The list is empty: import a wishlist first.',
   'categorize.toImport': 'Go to the import',
   'categorize.position': 'Position in your wishlist: {position}',
   'categorize.current': 'Now: {category}. Pick another category to change it.',
-  'categorize.legend': '{classified} of {total} classified.',
-  'categorize.legendLeft': '{classified} of {total} classified, {items} left.',
+  'categorize.legendLeft': '{items} left',
   'categorize.firstItem': 'This is the first item of the list.',
   'categorize.noneLeft': 'There are no unclassified items left.',
   'categorize.postponed': '{title} is postponed, we come back to it at the end of the lap.',
   'categorize.announce': '{title}: {category}',
+  /* Skipping the whole stage lives in the settings menu and asks first,
+     because what it costs is not visible from the row that offers it. */
+  'categorize.skipTitle': 'Skip the categories?',
+  'categorize.skipText':
+    'Every item stays without a category, and the comparisons then run over the whole list as a '
+    + 'single group — many more questions than five smaller groups would have needed. Nothing is '
+    + 'lost: you can come back to this stage at any time.',
+  'categorize.skipConfirm': 'Skip and go to the comparisons',
+  'categorize.skipDone': 'The stage is skipped: the comparisons run over the whole list.',
 
   /* -- comparisons screen -------------------------------------------- */
-  'compare.heading': 'Step 2. Comparisons',
-  'compare.doneLabel': 'comparisons made: ',
-  'compare.leftLabel': 'about this many left: ',
+  'compare.eyebrow': 'Step 3 of 4',
+  'compare.heading': 'Which game do you want more?',
+  /* The same head, once there is nothing left to ask: the question would be
+     the only thing on the screen still asking it. */
+  'compare.headingDone': 'The comparisons are done',
+  'compare.hint': 'Choose quickly. A pair you cannot decide on can be postponed.',
+  /* The whole progress in one line: which group is being sorted, what has
+     been answered, and roughly how much of it is still ahead. */
+  'compare.progress': 'Category “{category}” · {made} · about {left} left',
   'compare.deferred': 'postponed: {pairs}',
-  'compare.pause': 'Pause',
-  'compare.stop': 'Stop and see the result',
   'compare.preferA': 'Want it more <kbd>A</kbd>',
   'compare.preferB': 'Want it more <kbd>D</kbd>',
-  'compare.drop': 'Do not want it any more',
+  /* Quiet on purpose: it answers a different question than the pair on the
+     screen asks, and it is pressed once in a hundred answers. */
+  'compare.drop': 'No longer interested',
   'compare.or': 'or',
   'compare.tie': 'About the same <kbd>S</kbd>',
   'compare.defer': 'Cannot decide <kbd>Space</kbd>',
   'compare.undo': 'Undo <kbd>Backspace</kbd>',
-  'compare.category': 'Category: {category}',
+  /* One way out of the stage, and it leads to the result: stopping for today
+     and looking at what came of it are the same wish. */
+  'compare.finish': 'Finish for today',
+  'compare.finishNote': 'The progress is saved — your current result is ready to use.',
   'compare.done': 'There is nothing left to compare: the order is settled.',
   'compare.empty': 'There is nothing to compare: the list is empty.',
   'compare.toResult': 'See the result',
@@ -422,7 +453,30 @@ const EN = {
   'compare.chosen': 'Chosen: {title}.',
   'compare.tied': '{a} and {b} — about the same.',
   'compare.postponed': 'The pair is postponed.',
-  'compare.paused': 'Paused. Everything is saved — you can close the tab and come back later.',
+
+  /* -- the one-off explanations -------------------------------------- */
+  'onboarding.start': 'Got it',
+  'onboarding.categorize.title': 'First, roughly group games by interest',
+  'onboarding.categorize.lead':
+    'You will see one game at a time and put it somewhere on a scale of five levels — or straight '
+    + 'onto the list of games to remove from the wishlist.',
+  'onboarding.categorize.why':
+    'This is what keeps the sorting short: games are only ever compared inside their own group, so '
+    + 'a rough split now saves hundreds of questions later.',
+  'onboarding.categorize.later':
+    'Do not think too long. A category can be changed at any time — walk back to the game with '
+    + '“Previous”, or change it on the result screen.',
+  'onboarding.compare.title': 'Now choose between two games',
+  'onboarding.compare.lead':
+    'Two games at a time, both from the same group. Pick the one you want more — the keys A and D, '
+    + 'or the arrows.',
+  'onboarding.compare.tie':
+    'If you want them equally, say “About the same”: that is an answer too, and the sorting uses it.',
+  'onboarding.compare.defer':
+    'A hard pair can be postponed with Space; it comes back once the easy ones are answered.',
+  'onboarding.compare.stop':
+    'Finish whenever you like. Every answer is saved, and the result is ready to look at at any '
+    + 'moment — finished or not.',
 
   /* -- result screen -------------------------------------------------- */
   'result.heading': 'Result',
@@ -614,6 +668,9 @@ const RU = {
   'count.comparisonsMade.one': '{count} сделанное сравнение',
   'count.comparisonsMade.few': '{count} сделанных сравнения',
   'count.comparisonsMade.many': '{count} сделанных сравнений',
+  'count.comparisonsDone.one': '{count} сравнение сделано',
+  'count.comparisonsDone.few': '{count} сравнения сделано',
+  'count.comparisonsDone.many': '{count} сравнений сделано',
   'count.pairs.one': '{count} пара',
   'count.pairs.few': '{count} пары',
   'count.pairs.many': '{count} пар',
@@ -650,6 +707,7 @@ const RU = {
   'theme.steam': 'Как в Steam',
   'actions.saveState': 'Сохранить копию',
   'actions.loadState': 'Загрузить копию',
+  'actions.skipStage': 'Пропустить категории',
   'actions.reset': 'Начать заново',
   'privacy.short': 'Работает локально · ваши данные не отправляются на сторонние серверы',
   'privacy.details': 'Подробнее',
@@ -897,50 +955,58 @@ const RU = {
   'state.restored.toast': 'Состояние восстановлено из файла.',
 
   /* -- categories screen -------------------------------------------- */
-  'categorize.heading': 'Шаг 1. Категории',
-  'categorize.hint':
-    'Насколько сильно вы этого хотите? Клавиши <kbd>1</kbd>–<kbd>6</kbd>, <kbd>←</kbd> — назад, '
-    + '<kbd>→</kbd> или <kbd>Space</kbd> — отложить.',
-  'categorize.buttonsAria': 'Категории',
+  'categorize.eyebrow': 'Шаг 2 из 4',
+  'categorize.heading': 'Насколько вам интересна эта игра?',
+  'categorize.hint': 'Не раздумывайте долго — категорию можно изменить позже.',
+  'categorize.buttonsAria': 'Уровни интереса',
+  'categorize.more': 'Интересно больше',
+  'categorize.less': 'Интересно меньше',
+  'categorize.or': 'или',
   'categorize.counter': '{index} из {total}',
   'categorize.back': '← Предыдущая',
-  'categorize.defer': 'Отложить',
-  'categorize.skip': 'Пропустить этап и перейти к сравнениям',
+  'categorize.defer': 'Отложить <kbd>Space</kbd>',
   'categorize.done': 'Все позиции распределены.',
   'categorize.toCompare': 'Перейти к сравнениям',
   'categorize.empty': 'Список пуст: сначала импортируйте wishlist.',
   'categorize.toImport': 'Перейти к импорту',
   'categorize.position': 'Позиция в вашем wishlist: {position}',
   'categorize.current': 'Сейчас: {category}. Выберите другую категорию, чтобы изменить.',
-  'categorize.legend': 'Распределено {classified} из {total}.',
-  'categorize.legendLeft': 'Распределено {classified} из {total}, осталось {items}.',
+  'categorize.legendLeft': 'осталось {items}',
   'categorize.firstItem': 'Это первая позиция списка.',
   'categorize.noneLeft': 'Больше нераспределённых позиций нет.',
   'categorize.postponed': '{title} отложена, вернёмся к ней в конце круга.',
   'categorize.announce': '{title}: {category}',
+  'categorize.skipTitle': 'Пропустить категории?',
+  'categorize.skipText':
+    'Все позиции останутся без категории, и сравнения пойдут по всему списку как по одной группе — '
+    + 'вопросов будет гораздо больше, чем при пяти небольших группах. Ничего не потеряется: '
+    + 'вернуться к этому этапу можно в любой момент.',
+  'categorize.skipConfirm': 'Пропустить и перейти к сравнениям',
+  'categorize.skipDone': 'Этап пропущен: сравнения идут по всему списку.',
 
   /* -- comparisons screen -------------------------------------------- */
-  'compare.heading': 'Шаг 2. Сравнения',
-  'compare.doneLabel': 'сравнений сделано: ',
-  'compare.leftLabel': 'осталось примерно: ',
+  'compare.eyebrow': 'Шаг 3 из 4',
+  'compare.heading': 'Какую игру хочется больше?',
+  'compare.headingDone': 'Сравнения закончены',
+  'compare.hint': 'Выбирайте быстро. Пару, о которой не получается решить, можно отложить.',
+  'compare.progress': 'Категория «{category}» · {made} · примерно {left} осталось',
   'compare.deferred': 'отложено: {pairs}',
-  'compare.pause': 'Пауза',
-  'compare.stop': 'Остановиться и посмотреть результат',
   'compare.preferA': 'Хочу больше <kbd>A</kbd>',
   'compare.preferB': 'Хочу больше <kbd>D</kbd>',
-  'compare.drop': 'Больше не хочу',
+  'compare.drop': 'Больше не интересует',
   'compare.or': 'или',
   'compare.tie': 'Примерно одинаково <kbd>S</kbd>',
   'compare.defer': 'Не могу решить <kbd>Space</kbd>',
   'compare.undo': 'Отменить <kbd>Backspace</kbd>',
-  'compare.category': 'Категория: {category}',
+  'compare.finish': 'Закончить на сегодня',
+  'compare.finishNote': 'Прогресс сохранён — текущий результат готов к просмотру.',
   'compare.done': 'Сравнивать больше нечего: порядок определён.',
   'compare.empty': 'Сравнивать нечего: список пуст.',
   'compare.toResult': 'Посмотреть результат',
   'compare.toImport': 'Перейти к импорту',
   'compare.banner.allDeferred':
-    'Все остальные вопросы отложены ({count}), и без ответа на этот дальше не пройти. Можно ответить '
-    + '«примерно одинаково» — это тоже ответ, и сортировка пойдёт дальше.',
+    'Все остальные вопросы отложены ({count}), и без ответа на этот дальше не пройти. '
+    + '«Примерно одинаково» — тоже ответ, и сортировка двинется дальше.',
   'compare.banner.forced': 'Эта пара нужна, чтобы двигаться дальше.',
   'compare.rejected': 'Ответ не принят: {message}',
   'compare.dropped': '«{title}» — в списке на удаление из желаемого.',
@@ -949,7 +1015,30 @@ const RU = {
   'compare.chosen': 'Выбрано: {title}.',
   'compare.tied': '{a} и {b} — примерно одинаково.',
   'compare.postponed': 'Пара отложена.',
-  'compare.paused': 'Пауза. Всё сохранено — можно закрыть вкладку и вернуться позже.',
+
+  /* -- разовые объяснения --------------------------------------------- */
+  'onboarding.start': 'Понятно',
+  'onboarding.categorize.title': 'Сначала грубо разделим игры по интересу',
+  'onboarding.categorize.lead':
+    'Игры будут показываться по одной, и каждую нужно поставить на шкалу из пяти уровней — или '
+    + 'сразу в список на удаление из желаемого.',
+  'onboarding.categorize.why':
+    'Именно это делает сортировку короткой: игры сравниваются только внутри своей группы, поэтому '
+    + 'грубое разделение сейчас экономит сотни вопросов потом.',
+  'onboarding.categorize.later':
+    'Не раздумывайте долго. Категорию можно изменить в любой момент — вернуться к игре кнопкой '
+    + '«Предыдущая» или поменять её на экране результата.',
+  'onboarding.compare.title': 'Теперь выбираем между двумя играми',
+  'onboarding.compare.lead':
+    'По две игры за раз, обе из одной группы. Выберите ту, которую хочется больше, — клавиши A и D '
+    + 'или стрелки.',
+  'onboarding.compare.tie':
+    'Если хочется одинаково, скажите «Примерно одинаково»: это тоже ответ, и сортировка его учтёт.',
+  'onboarding.compare.defer':
+    'Сложную пару можно отложить пробелом — она вернётся, когда простые закончатся.',
+  'onboarding.compare.stop':
+    'Закончить можно когда угодно. Каждый ответ сохраняется, а результат готов к просмотру в любой '
+    + 'момент — завершённый или нет.',
 
   /* -- result screen -------------------------------------------------- */
   'result.heading': 'Результат',

@@ -19,14 +19,14 @@ import { renderItemCard } from './ui-common.js';
  */
 export function createCompareScreen(app) {
   const nodes = {
-    category: document.getElementById('cmp-category'),
-    done: document.getElementById('cmp-done'),
-    left: document.getElementById('cmp-left'),
+    heading: document.getElementById('compare-heading'),
+    hint: document.getElementById('cmp-hint'),
+    progress: document.getElementById('cmp-progress'),
     percent: document.getElementById('cmp-percent'),
     deferred: document.getElementById('cmp-deferred'),
     bar: document.getElementById('cmp-bar'),
-    pause: document.getElementById('cmp-pause'),
-    stop: document.getElementById('cmp-stop'),
+    finish: document.getElementById('cmp-finish'),
+    foot: document.getElementById('cmp-foot'),
     banner: document.getElementById('cmp-banner'),
     versus: document.getElementById('cmp-versus'),
     undo: document.getElementById('cmp-undo'),
@@ -113,6 +113,8 @@ export function createCompareScreen(app) {
     return t('compare.postponed');
   }
 
+  // Found once, when the screen is built. The markup of the pair is never
+  // rebuilt — only refilled — so these listeners outlive every render.
   for (const button of document.querySelectorAll('#screen-compare [data-answer]')) {
     button.addEventListener('click', () => answer(button.dataset.answer));
   }
@@ -124,10 +126,13 @@ export function createCompareScreen(app) {
   nodes.toResult.addEventListener('click', () => {
     app.show(app.session.itemCount === 0 ? 'import' : 'result');
   });
-  nodes.stop.addEventListener('click', () => app.show('result'));
-  nodes.pause.addEventListener('click', () => {
-    app.show('import');
-    app.toast(t('compare.paused'), 'ok');
+
+  // One way out of the stage: stopping for today and looking at what came of
+  // it are the same wish, so it leads to the result and says that the work is
+  // where the user left it.
+  nodes.finish.addEventListener('click', () => {
+    app.show('result');
+    app.toast(t('compare.finishNote'), 'ok');
   });
 
   /**
@@ -181,12 +186,20 @@ export function createCompareScreen(app) {
         : t('compare.banner.forced');
   }
 
+  /**
+   * Keeps the keyboard on the screen when the last answer takes the pair away.
+   * The button that was pressed is inside the block that has just been hidden,
+   * and a focus left on a hidden element drops back to the document.
+   */
+  function rescueFocus() {
+    const focused = document.activeElement;
+    if (focused instanceof HTMLElement && nodes.versus.contains(focused)) nodes.toResult.focus();
+  }
+
   function render() {
     const progress = app.session.getProgress();
     pair = app.session.getNextPair();
 
-    nodes.done.textContent = String(progress.comparisons);
-    nodes.left.textContent = String(progress.remaining);
     nodes.percent.textContent = `${progress.percent}%`;
     nodes.bar.style.width = `${progress.percent}%`;
     nodes.undo.disabled = !app.session.canUndo();
@@ -200,15 +213,36 @@ export function createCompareScreen(app) {
       nodes.versus.hidden = true;
       nodes.banner.hidden = true;
       nodes.doneNote.hidden = false;
-      nodes.category.textContent = '—';
+      // The way out of the stage goes where the note under the pair already
+      // points, so it does not stand next to it saying the same thing twice.
+      nodes.foot.hidden = true;
+      // The head stops asking a question there is nothing left to answer.
+      // Set here and not in the markup, because the markup carries the key of
+      // the question; a change of language redraws through here either way.
+      nodes.heading.textContent = t('compare.headingDone');
+      nodes.hint.hidden = true;
+      // Nothing is being sorted any more: no group is next and nothing is
+      // left, so the line keeps the one number that still means something.
+      nodes.progress.textContent = plural('count.comparisonsDone', progress.comparisons);
       nodes.doneText.textContent = t(app.session.itemCount === 0 ? 'compare.empty' : 'compare.done');
       nodes.toResult.textContent = t(app.session.itemCount === 0 ? 'compare.toImport' : 'compare.toResult');
+      rescueFocus();
       return;
     }
 
     nodes.versus.hidden = false;
     nodes.doneNote.hidden = true;
-    nodes.category.textContent = t('compare.category', { category: categoryLabel(pair.category) });
+    nodes.heading.textContent = t('compare.heading');
+    nodes.hint.hidden = false;
+    nodes.foot.hidden = false;
+
+    // The whole progress in one line: the group being sorted, what has been
+    // answered and roughly what is left of it.
+    nodes.progress.textContent = t('compare.progress', {
+      category: categoryLabel(pair.category),
+      made: plural('count.comparisonsDone', progress.comparisons),
+      left: plural('count.pairs', progress.remaining),
+    });
 
     renderItemCard(nodes.a, pair.a, app.loadCovers);
     renderItemCard(nodes.b, pair.b, app.loadCovers);

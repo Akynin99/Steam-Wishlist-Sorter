@@ -5,21 +5,31 @@
  * themselves live in the session, so a reload continues where the user stopped
  * and a category can be changed later by walking back to the item.
  *
+ * Five of the six values are a scale of interest and stand together; the
+ * sixth, leaving the wishlist, is built by the same loop and put on the other
+ * side of the word «or». It is a quiet destructive action and not the bottom
+ * of the scale, and the markup says so by placing it apart.
+ *
  * Skipping the stage entirely is a supported way of working — items without a
- * category are an ordinary sortable bucket in `ranking.js` — so the button that
- * jumps straight to the comparisons needs no special logic behind it.
+ * category are an ordinary sortable bucket in `ranking.js` — so the row in the
+ * settings menu that offers it needs no special logic behind it, only the
+ * sentence explaining what the comparisons then look like.
  */
 
 import { plural, t } from './i18n.js';
 import { CATEGORIES, categoryLabel } from './model.js';
 import { element, renderItemCard } from './ui-common.js';
 
+/** The value that is not a level of interest, and does not stand in the scale. */
+const APART = 'remove';
+
 /**
  * @param {object} app
- * @returns {{ render: Function, handleKey: Function }}
+ * @returns {{ render: Function, handleKey: Function, activate: Function, skipStage: Function }}
  */
 export function createCategorizeScreen(app) {
   const nodes = {
+    heading: document.getElementById('categorize-heading'),
     counter: document.getElementById('cat-counter'),
     bar: document.getElementById('cat-bar'),
     legend: document.getElementById('cat-legend'),
@@ -29,10 +39,11 @@ export function createCategorizeScreen(app) {
     link: document.getElementById('cat-link'),
     current: document.getElementById('cat-current'),
     buttons: document.getElementById('cat-buttons'),
-    card: document.querySelector('#screen-categorize .card--single'),
+    remove: document.getElementById('cat-remove'),
+    scale: document.getElementById('cat-scale'),
+    card: document.getElementById('cat-card'),
     back: document.getElementById('cat-back'),
     defer: document.getElementById('cat-defer'),
-    skip: document.getElementById('cat-skip'),
     done: document.getElementById('cat-done'),
     doneText: document.getElementById('cat-done-text'),
     doneButton: document.getElementById('cat-to-compare'),
@@ -48,11 +59,12 @@ export function createCategorizeScreen(app) {
   const categoryLabels = new Map();
 
   CATEGORIES.forEach((category, index) => {
+    const apart = category.id === APART;
     const label = element('span', { className: 'catbtn__label' });
     const button = element(
       'button',
       {
-        className: 'catbtn',
+        className: apart ? 'catbtn catbtn--apart' : 'catbtn',
         attrs: { type: 'button', 'aria-pressed': 'false' },
         dataset: { category: category.id },
       },
@@ -65,7 +77,7 @@ export function createCategorizeScreen(app) {
     button.addEventListener('click', () => choose(category.id));
     categoryButtons.set(category.id, button);
     categoryLabels.set(category.id, label);
-    nodes.buttons.append(button);
+    (apart ? nodes.remove : nodes.buttons).append(button);
   });
 
   /** @returns {import('./model.js').WishlistItem[]} */
@@ -131,6 +143,27 @@ export function createCategorizeScreen(app) {
   }
 
   /**
+   * Leaves the stage with every item still uncategorised.
+   *
+   * The row that calls this sits in the settings menu, where a button is not
+   * pressed by accident, and it still asks: what it costs — one big group
+   * instead of five small ones, and many more questions — is not visible from
+   * the words «skip the stage».
+   *
+   * @returns {Promise<void>}
+   */
+  async function skipStage() {
+    const confirmed = await app.confirm({
+      title: t('categorize.skipTitle'),
+      text: t('categorize.skipText'),
+      confirmLabel: t('categorize.skipConfirm'),
+    });
+    if (!confirmed) return;
+    app.show('compare');
+    app.toast(t('categorize.skipDone'));
+  }
+
+  /**
    * Called when the stage is opened: the cursor goes to the first item that
    * still needs a category. Inside the stage the cursor is only ever moved by
    * the user, so "previous" really shows the previous position instead of
@@ -147,7 +180,6 @@ export function createCategorizeScreen(app) {
 
   nodes.back.addEventListener('click', goBack);
   nodes.defer.addEventListener('click', postpone);
-  nodes.skip.addEventListener('click', () => app.show('compare'));
   nodes.doneButton.addEventListener('click', () => {
     app.show(app.session.itemCount === 0 ? 'import' : 'compare');
   });
@@ -177,6 +209,20 @@ export function createCategorizeScreen(app) {
     }
   }
 
+  /**
+   * Keeps the keyboard on the screen when the block it was in goes away. The
+   * empty list hides the card and the scale, and the button that was focused
+   * goes with them; without this the focus would fall back to the document and
+   * the next Tab would start again from the top of the page.
+   */
+  function rescueFocus() {
+    const focused = document.activeElement;
+    if (!(focused instanceof HTMLElement)) return;
+    if (!nodes.scale.contains(focused) && !nodes.card.contains(focused)) return;
+    if (!nodes.done.hidden) nodes.doneButton.focus();
+    else nodes.heading.focus();
+  }
+
   function render() {
     const list = items();
     const total = list.length;
@@ -186,17 +232,17 @@ export function createCategorizeScreen(app) {
     for (const [id, label] of categoryLabels) label.textContent = categoryLabel(id);
 
     if (total === 0) {
+      nodes.done.hidden = false;
       nodes.card.hidden = true;
-      nodes.buttons.hidden = true;
+      nodes.scale.hidden = true;
       nodes.back.disabled = true;
       nodes.defer.disabled = true;
-      nodes.skip.disabled = true;
       nodes.counter.textContent = t('categorize.counter', { index: 0, total: 0 });
       nodes.bar.style.width = '0%';
       nodes.legend.textContent = '';
-      nodes.done.hidden = false;
       nodes.doneText.textContent = t('categorize.empty');
       nodes.doneButton.textContent = t('categorize.toImport');
+      rescueFocus();
       return;
     }
 
@@ -211,10 +257,9 @@ export function createCategorizeScreen(app) {
     const category = app.session.getCategory(item.appId);
 
     nodes.card.hidden = false;
-    nodes.buttons.hidden = false;
+    nodes.scale.hidden = false;
     nodes.back.disabled = cursor === 0;
     nodes.defer.disabled = left <= 1 && category === null;
-    nodes.skip.disabled = false;
 
     renderItemCard(nodes, item, app.loadCovers);
     nodes.current.textContent = category === null
@@ -225,17 +270,17 @@ export function createCategorizeScreen(app) {
       button.setAttribute('aria-pressed', String(id === category));
     }
 
-    nodes.counter.textContent = t('categorize.counter', { index: cursor + 1, total });
+    // The counter and the bar say the same thing — how much of the list has a
+    // category — so the big number never argues with the line under it.
+    nodes.counter.textContent = t('categorize.counter', { index: classified, total });
     nodes.bar.style.width = `${Math.round((classified / total) * 100)}%`;
     nodes.legend.textContent =
-      left > 0
-        ? t('categorize.legendLeft', { classified, total, items: plural('count.items', left) })
-        : t('categorize.legend', { classified, total });
+      left > 0 ? t('categorize.legendLeft', { items: plural('count.items', left) }) : '';
 
     nodes.done.hidden = left > 0;
     nodes.doneText.textContent = t('categorize.done');
     nodes.doneButton.textContent = t('categorize.toCompare');
   }
 
-  return { render, handleKey, activate };
+  return { render, handleKey, activate, skipStage };
 }
