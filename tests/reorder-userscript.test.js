@@ -26,6 +26,7 @@ const {
   APP_SIGNATURE,
   ORDER_KIND,
   ORDER_VERSION,
+  REORDER_URL,
   buildBackupOrder,
   buildPageOrder,
   buildReorderBody,
@@ -40,12 +41,11 @@ const {
   parseDraggableId,
   parseOrderFile,
   readAppId,
+  readOpenWishlist,
   readReorderAnswer,
   readRowIndex,
   readTitle,
-  resolveReorderTarget,
   sendReorder,
-  sessionIdFromText,
 } = globalThis.__swsReorderTestApi;
 
 /**
@@ -81,7 +81,23 @@ function harvest(page, into = []) {
 }
 
 const STEAM_ID = '76561198000000001';
-const REORDER_URL = `https://store.steampowered.com/wishlist/profiles/${STEAM_ID}/reorder/`;
+
+/**
+ * The pairs of a request body, read back out of the JSON the script builds.
+ *
+ * @param {string} body
+ * @returns {Array<{ appid: number, priority: number }>}
+ */
+function pairsOf(body) {
+  const parsed = JSON.parse(body);
+  assert.equal(parsed.m, 'Reorder');
+  // `mp` is an array of one element, and that element is the list. The double
+  // brackets are what a live drag sends, so they are asserted and not assumed.
+  assert.equal(Array.isArray(parsed.mp), true);
+  assert.equal(parsed.mp.length, 1);
+  assert.equal(Array.isArray(parsed.mp[0]), true);
+  return parsed.mp[0];
+}
 
 /**
  * An order file the way `src/export.js` writes it.
@@ -301,64 +317,19 @@ test('the backup restores the order of the page it was taken from', () => {
 });
 
 // ============================================================================
-// The address and the body of the request
-// ============================================================================
-
-test('the address is built out of the steam id of the path', () => {
-  const resolved = resolveReorderTarget({ pathname: `/wishlist/profiles/${STEAM_ID}/`, loggedInSteamId: STEAM_ID });
-  assert.equal(resolved.url, REORDER_URL);
-});
-
-test('a wishlist opened by its vanity name uses the steam id of the signed-in user', () => {
-  const resolved = resolveReorderTarget({ pathname: '/wishlist/id/someone/', loggedInSteamId: STEAM_ID });
-  assert.equal(resolved.url, REORDER_URL);
-  assert.equal(resolved.vanity, 'someone');
-});
-
-test('the vanity address is answered with a note, because it says nothing about whose wishlist it is', () => {
-  const resolved = resolveReorderTarget({ pathname: '/wishlist/id/someone/', loggedInSteamId: STEAM_ID });
-
-  assert.match(resolved.note, /custom url/i);
-  assert.match(resolved.note, new RegExp(STEAM_ID));
-});
-
-test('the numeric address needs no such note: there the two ids are compared', () => {
-  const resolved = resolveReorderTarget({ pathname: `/wishlist/profiles/${STEAM_ID}/`, loggedInSteamId: STEAM_ID });
-
-  assert.equal(resolved.note, null);
-  assert.equal(resolved.vanity, null);
-});
-
-test('the wishlist of another account is refused before anything is sent', () => {
-  const resolved = resolveReorderTarget({
-    pathname: '/wishlist/profiles/76561198000000002/',
-    loggedInSteamId: STEAM_ID,
-  });
-  assert.equal(resolved.error, 'not-yours');
-});
-
-test('an address without a steam id and a page that names nobody give up with a message', () => {
-  const resolved = resolveReorderTarget({ pathname: '/wishlist/id/someone/', loggedInSteamId: null });
-  assert.equal(resolved.error, 'unknown-owner');
-  assert.match(resolved.message, /Steam ID/);
-});
-
-test('nothing but 17 digits ever reaches the address', () => {
-  for (const junk of ['76561198000000001/../evil', 'abc', '765611980000000011111', '', null]) {
-    const resolved = resolveReorderTarget({ pathname: '/wishlist/id/someone/', loggedInSteamId: junk });
-    assert.equal(resolved.error, 'unknown-owner', `accepted ${JSON.stringify(junk)}`);
-  }
-});
-
-// ============================================================================
 // Whose wishlist is this
 // ============================================================================
 //
-// Steam brings the address to `/wishlist/id/<custom url>/` and redirects the
-// numeric form back to it, so the id has to be found on the page. Every test
-// here builds a page carrying exactly one of the sources — that is the only way
-// to know which one answered — and then the two cases that matter more than any
-// single source: a page that names nobody, and a page that names two.
+// The endpoint names no account: the browser attaches the cookie and Steam
+// writes into the list of whoever is signed in. So none of this addresses
+// anything any more — it answers the question the user should still be asked,
+// *is the list on this screen yours?*, and an account it could not work out is
+// a sentence in the report rather than a lock on the button.
+//
+// Every test here builds a page carrying exactly one of the sources — that is
+// the only way to know which one answered — and then the cases that matter more
+// than any single source: a page that names nobody, a page that names two, and
+// the one page still refused outright.
 
 /** The page as Steam serves it, opened under a custom url. */
 function pageOf(owner) {
@@ -367,11 +338,11 @@ function pageOf(owner) {
 
 /**
  * @param {object|null} owner What the page states about the account.
- * @param {{ pathname?: string, globals?: object[], manualSteamId?: string|null }} [options]
+ * @param {{ pathname?: string, globals?: object[] }} [options]
  */
-function resolveOn(owner, { pathname = '/wishlist/id/someone/', globals = [], manualSteamId = null } = {}) {
+function resolveOn(owner, { pathname = '/wishlist/id/someone/', globals = [] } = {}) {
   const collected = collectOwnerCandidates({ pathname, document: owner === null ? null : pageOf(owner), globals });
-  return { collected, resolved: resolveReorderTarget({ pathname, candidates: collected.candidates, manualSteamId }) };
+  return { collected, resolved: readOpenWishlist({ pathname, candidates: collected.candidates }) };
 }
 
 test('a custom url page is read for the account: the numeric link to this same wishlist', () => {
@@ -380,7 +351,7 @@ test('a custom url page is read for the account: the numeric link to this same w
   assert.deepEqual(collected.candidates, [{ source: 'profile-link', steamId: STEAM_ID }]);
   assert.equal(collected.fromPath, null);
   assert.equal(collected.vanity, 'someone');
-  assert.equal(resolved.url, REORDER_URL);
+  assert.equal(resolved.steamId, STEAM_ID);
   assert.equal(resolved.source, 'profile-link');
 });
 
@@ -388,7 +359,7 @@ test('a custom url page is read for the account: the address inside an inline sc
   const { collected, resolved } = resolveOn({ scriptAddresses: [STEAM_ID] });
 
   assert.deepEqual(collected.candidates, [{ source: 'inline-script', steamId: STEAM_ID }]);
-  assert.equal(resolved.url, REORDER_URL);
+  assert.equal(resolved.steamId, STEAM_ID);
   assert.equal(resolved.source, 'inline-script');
 });
 
@@ -396,14 +367,14 @@ test('a custom url page is read for the account: g_steamID of the old layout', (
   const { collected, resolved } = resolveOn({ gSteamID: STEAM_ID });
 
   assert.deepEqual(collected.candidates, [{ source: 'g_steamID', steamId: STEAM_ID }]);
-  assert.equal(resolved.url, REORDER_URL);
+  assert.equal(resolved.steamId, STEAM_ID);
   assert.equal(resolved.source, 'g_steamID');
 });
 
 test('a custom url page is read for the account: g_steamID of the window, and of unsafeWindow', () => {
   for (const globals of [[{ g_steamID: STEAM_ID }], [null, { g_steamID: STEAM_ID }]]) {
     const { resolved } = resolveOn({}, { globals });
-    assert.equal(resolved.url, REORDER_URL);
+    assert.equal(resolved.steamId, STEAM_ID);
     assert.equal(resolved.source, 'g_steamID');
   }
 });
@@ -412,7 +383,7 @@ test('a custom url page is read for the account: a data-steamid attribute', () =
   const { collected, resolved } = resolveOn({ dataSteamIds: [STEAM_ID] });
 
   assert.deepEqual(collected.candidates, [{ source: 'data-steamid', steamId: STEAM_ID }]);
-  assert.equal(resolved.url, REORDER_URL);
+  assert.equal(resolved.steamId, STEAM_ID);
   assert.equal(resolved.source, 'data-steamid');
 });
 
@@ -420,36 +391,36 @@ test('the page Steam serves — a custom url, a numeric link and one script — 
   const { collected, resolved } = resolveOn({ profileLinks: [STEAM_ID], scriptAddresses: [STEAM_ID] });
 
   assert.equal(collected.candidates.length, 2);
-  assert.equal(resolved.url, REORDER_URL);
-  assert.match(resolved.note, /custom url/i);
-  assert.match(resolved.note, new RegExp(STEAM_ID));
+  assert.equal(resolved.steamId, STEAM_ID);
+  assert.deepEqual(resolved.accounts, [STEAM_ID]);
+  // One account and no doubt about it: the report line names it, and there is
+  // nothing left for a warning to be about.
+  assert.equal(resolved.note, '');
 });
 
-test('a page that states nothing about the account gives up and points at the field', () => {
+test('a page that states nothing about the account says so, and stops nothing', () => {
   const { collected, resolved } = resolveOn({});
 
   assert.deepEqual(collected.candidates, []);
-  assert.equal(resolved.error, 'unknown-owner');
-  assert.match(resolved.message, /Steam ID/);
-  assert.match(resolved.message, /type your own 17 digits/i);
+  assert.equal(resolved.error, undefined);
+  assert.equal(resolved.steamId, null);
+  assert.deepEqual(resolved.accounts, []);
+  assert.match(resolved.note, /not written anywhere/i);
+  assert.match(resolved.note, /signed in as/i);
 });
 
-test('two different accounts on one page are a refusal, not a choice', () => {
+test('two different accounts on one page are a warning now, not a refusal', () => {
+  // The endpoint takes no account, so a page naming two of them cannot send the
+  // order anywhere but the signed-in list. It is said, and the write goes on.
   const { resolved } = resolveOn({ gSteamID: STEAM_ID, profileLinks: [OTHER_STEAM_ID] });
 
-  assert.equal(resolved.error, 'several-accounts');
+  assert.equal(resolved.error, undefined);
+  assert.equal(resolved.steamId, null);
   assert.deepEqual(resolved.accounts, [STEAM_ID, OTHER_STEAM_ID]);
-  assert.equal(resolved.url, undefined);
-  assert.match(resolved.message, /more than one account/i);
-  assert.match(resolved.message, new RegExp(STEAM_ID));
-  assert.match(resolved.message, new RegExp(OTHER_STEAM_ID));
-});
-
-test('a refusal survives the account being named first by the source that would have won', () => {
-  // The order of the sources is no help here: whichever of them is consulted
-  // first, the other one says something else, and the write must not go out.
-  const { resolved } = resolveOn({ profileLinks: [OTHER_STEAM_ID, STEAM_ID] });
-  assert.equal(resolved.error, 'several-accounts');
+  assert.match(resolved.note, /more than one account/i);
+  assert.match(resolved.note, new RegExp(STEAM_ID));
+  assert.match(resolved.note, new RegExp(OTHER_STEAM_ID));
+  assert.match(resolved.note, /signed in as/i);
 });
 
 test('the same account stated by every source at once is one account, not four', () => {
@@ -459,19 +430,23 @@ test('the same account stated by every source at once is one account, not four',
   );
 
   assert.equal(collected.candidates.length, 5);
-  assert.equal(resolved.url, REORDER_URL);
+  assert.equal(resolved.steamId, STEAM_ID);
+  assert.deepEqual(resolved.accounts, [STEAM_ID]);
 });
 
 test('nothing of the wrong shape is taken for an account id', () => {
   const { collected, resolved } = resolveOn({ junk: true }, { globals: [{ g_steamID: '../../evil' }] });
 
   assert.deepEqual(collected.candidates, []);
-  assert.equal(resolved.error, 'unknown-owner');
+  assert.equal(resolved.steamId, null);
+  assert.deepEqual(resolved.accounts, []);
 });
 
 test('junk on the page does not turn one good source into a disagreement', () => {
   const { resolved } = resolveOn({ junk: true, profileLinks: [STEAM_ID] });
-  assert.equal(resolved.url, REORDER_URL);
+
+  assert.equal(resolved.steamId, STEAM_ID);
+  assert.equal(resolved.note, '');
 });
 
 test('a numeric address wins over everything the page says', () => {
@@ -482,46 +457,47 @@ test('a numeric address wins over everything the page says', () => {
   );
 
   assert.equal(collected.fromPath, STEAM_ID);
-  assert.equal(resolved.url, REORDER_URL);
+  assert.equal(resolved.steamId, STEAM_ID);
   assert.equal(resolved.source, 'path');
-  assert.equal(resolved.note, null);
+  assert.equal(resolved.note, '');
 });
 
-test('a numeric address of somebody else is still refused against the signed-in account', () => {
-  // The one thing the page can say that outranks the address: `g_steamID` names
-  // *you*, and a wishlist that is not yours is refused here rather than by Steam.
+test('the one page still refused outright: a numeric address that is not the signed-in account', () => {
+  // The certain case. The write goes to the list of whoever is signed in, so
+  // going ahead here would rearrange your own wishlist with somebody else's
+  // entries — read off the page in front of you.
+  const resolved = readOpenWishlist({
+    pathname: `/wishlist/profiles/${OTHER_STEAM_ID}/`,
+    loggedInSteamId: STEAM_ID,
+  });
+
+  assert.equal(resolved.error, 'not-yours');
+  assert.match(resolved.message, /not yours/i);
+  assert.match(resolved.message, /signed in as/i);
+});
+
+test('the same refusal when the page itself is what names the signed-in account', () => {
   const { resolved } = resolveOn({ gSteamID: OTHER_STEAM_ID }, { pathname: `/wishlist/profiles/${STEAM_ID}/` });
   assert.equal(resolved.error, 'not-yours');
 });
 
-test('an id typed in by hand is the last way out, and only when the page named none', () => {
-  const { resolved } = resolveOn({}, { manualSteamId: STEAM_ID });
+test('a numeric address that agrees with the signed-in account is no refusal at all', () => {
+  const resolved = readOpenWishlist({ pathname: `/wishlist/profiles/${STEAM_ID}/`, loggedInSteamId: STEAM_ID });
 
-  assert.equal(resolved.url, REORDER_URL);
-  assert.equal(resolved.source, 'manual');
-  assert.match(resolved.note, /you typed in yourself/i);
+  assert.equal(resolved.error, undefined);
+  assert.equal(resolved.steamId, STEAM_ID);
+  assert.equal(resolved.vanity, null);
 });
 
-test('a typed id of the wrong shape is refused the same as any other', () => {
-  for (const junk of ['7656119800000000', 'abcdefghijklmnopq', '765611980000000012', ' ', null]) {
-    const { resolved } = resolveOn({}, { manualSteamId: junk });
-    assert.equal(resolved.error, 'unknown-owner', `accepted ${JSON.stringify(junk)}`);
+test('nothing of the wrong shape is read as the signed-in account either', () => {
+  for (const junk of ['76561198000000001/../evil', 'abc', '765611980000000011111', '', null]) {
+    const resolved = readOpenWishlist({ pathname: '/wishlist/id/someone/', loggedInSteamId: junk });
+    assert.equal(resolved.error, undefined, `refused on ${JSON.stringify(junk)}`);
+    assert.equal(resolved.steamId, null, `accepted ${JSON.stringify(junk)}`);
   }
 });
 
-test('a typed id does not override an account the page states', () => {
-  const { resolved } = resolveOn({ profileLinks: [STEAM_ID] }, { manualSteamId: OTHER_STEAM_ID });
-
-  assert.equal(resolved.steamId, STEAM_ID);
-  assert.equal(resolved.source, 'profile-link');
-});
-
-test('a typed id does not settle a page that names two accounts', () => {
-  const { resolved } = resolveOn({ gSteamID: STEAM_ID, profileLinks: [OTHER_STEAM_ID] }, { manualSteamId: STEAM_ID });
-  assert.equal(resolved.error, 'several-accounts');
-});
-
-test('the account the write would go to is named: the id, the nick and where it came from', () => {
+test('the account the list on the page belongs to is named: the id, the nick and where it came from', () => {
   const { resolved } = resolveOn({ profileLinks: [STEAM_ID] });
   const said = describeAccount(resolved);
 
@@ -543,18 +519,79 @@ test('collecting reads a page with no document at all without throwing', () => {
   assert.deepEqual(collected, { fromPath: null, vanity: null, candidates: [] });
 });
 
-test('the body carries the session id and the app ids in order', () => {
-  const body = new URLSearchParams(buildReorderBody({ sessionId: 'abcdef0123456789', appIds: [30, 10, 20] }));
+// ============================================================================
+// The body of the request
+// ============================================================================
 
-  assert.equal(body.get('sessionid'), 'abcdef0123456789');
-  assert.deepEqual(body.getAll('appids[]'), ['30', '10', '20']);
+test('the body is the Reorder call the page makes, with the pairs inside a single-element array', () => {
+  const body = buildReorderBody([30, 10, 20]);
+  const parsed = JSON.parse(body);
+
+  assert.equal(parsed.m, 'Reorder');
+  assert.deepEqual(parsed.mp, [
+    [
+      { appid: 30, priority: 1 },
+      { appid: 10, priority: 2 },
+      { appid: 20, priority: 3 },
+    ],
+  ]);
 });
 
-test('the session id is read out of the page script and nothing else is taken for one', () => {
-  assert.equal(sessionIdFromText('var g_sessionID = "b6f2c1d4e5a60718";'), 'b6f2c1d4e5a60718');
-  assert.equal(sessionIdFromText("g_sessionID='abcdef0123456789';"), 'abcdef0123456789');
-  assert.equal(sessionIdFromText('var g_steamID = "76561198000000001";'), null);
-  assert.equal(sessionIdFromText(''), null);
+test('the priorities run 1…N without a gap, in the order the list was given', () => {
+  const appIds = Array.from({ length: 166 }, (_, index) => 1000 + index);
+  const pairs = pairsOf(buildReorderBody(appIds));
+
+  assert.equal(pairs.length, 166);
+  assert.deepEqual(
+    pairs.map((pair) => pair.priority),
+    Array.from({ length: 166 }, (_, index) => index + 1),
+  );
+  assert.deepEqual(
+    pairs.map((pair) => pair.appid),
+    appIds,
+  );
+});
+
+test('not one entry is left with the zero priority Steam gives to the never-arranged', () => {
+  // The whole list is sent, so the whole list comes out numbered. That is the
+  // step the panel calls irreversible, and this is where it is visible.
+  const pairs = pairsOf(buildReorderBody([7, 8, 9]));
+  assert.equal(
+    pairs.some((pair) => pair.priority === 0),
+    false,
+  );
+});
+
+test('the body carries no session id and no token: the cookie is what authorizes it', () => {
+  const body = buildReorderBody([30, 10, 20]);
+
+  assert.doesNotMatch(body, /sessionid/i);
+  assert.doesNotMatch(body, /access_token/i);
+  assert.deepEqual(Object.keys(JSON.parse(body)).sort(), ['m', 'mp']);
+});
+
+test('the order the file and the page produced is the order of the pairs, removals last', () => {
+  const target = buildTargetOrder({
+    items: [{ appId: 30 }, { appId: 10 }],
+    remove: [{ appId: 20 }],
+    pageAppIds: [10, 20, 30, 40],
+  });
+  const pairs = pairsOf(buildReorderBody(target.appIds));
+
+  assert.deepEqual(
+    pairs.map((pair) => pair.appid),
+    [30, 10, 40, 20],
+  );
+  assert.deepEqual(
+    pairs.map((pair) => pair.priority),
+    [1, 2, 3, 4],
+  );
+  // The entry marked for removal is last and still there: nothing is deleted.
+  assert.deepEqual(pairs.at(-1), { appid: 20, priority: 4 });
+});
+
+test('an empty list is still a well-formed body rather than a broken one', () => {
+  assert.deepEqual(pairsOf(buildReorderBody([])), []);
 });
 
 // ============================================================================
@@ -608,14 +645,31 @@ test('429 and the failures of the Steam side are told apart', () => {
   assert.equal(readReorderAnswer({ status: 418, body: 'teapot' }).kind, 'refused');
 });
 
-test('success = 1 is the only answer read as a plain yes', () => {
-  const yes = readReorderAnswer({ status: 200, contentType: 'application/json', body: '{"success":1}' });
+test('data.result = 1 is the only answer read as a plain yes', () => {
+  const yes = readReorderAnswer({ status: 200, contentType: 'application/json', body: '{"data":{"result":1}}' });
   assert.equal(yes.ok, true);
   assert.equal(yes.kind, 'ok');
+});
 
-  const no = readReorderAnswer({ status: 200, contentType: 'application/json', body: '{"success":42}' });
-  assert.equal(no.ok, false);
-  assert.match(no.message, /42/);
+test('any other result is a refusal, and the number is quoted back', () => {
+  for (const result of ['42', '0', '2', 'null', '"1"', 'true']) {
+    const answer = readReorderAnswer({
+      status: 200,
+      contentType: 'application/json',
+      body: `{"data":{"result":${result}}}`,
+    });
+
+    assert.equal(answer.ok, false, `read ${result} as a success`);
+    assert.equal(answer.kind, 'refused');
+    assert.match(answer.message, /data\.result/);
+  }
+});
+
+test('the field of the old endpoint is not read as an answer of this one', () => {
+  // `{"success":1}` was the yes of the address this script used to send to.
+  // Taking it for one here would report a write that never happened.
+  const answer = readReorderAnswer({ status: 200, contentType: 'application/json', body: '{"success":1}' });
+  assert.equal(answer.kind, 'ok-unknown');
 });
 
 test('an answer that says nothing is not read as a failure, and does not claim success either', () => {
@@ -623,9 +677,12 @@ test('an answer that says nothing is not read as a failure, and does not claim s
   assert.equal(empty.kind, 'ok-empty');
   assert.match(empty.message, /check/i);
 
-  const silent = readReorderAnswer({ status: 200, contentType: 'application/json', body: '{}' });
-  assert.equal(silent.kind, 'ok-unknown');
-  assert.match(silent.message, /check/i);
+  for (const body of ['{}', '{"data":{}}', '{"data":null}']) {
+    const silent = readReorderAnswer({ status: 200, contentType: 'application/json', body });
+    assert.equal(silent.kind, 'ok-unknown', `read ${body} as something it is not`);
+    assert.equal(silent.ok, true);
+    assert.match(silent.message, /check/i);
+  }
 });
 
 test('a request that never left the machine says so instead of failing silently', () => {
@@ -641,49 +698,88 @@ test('a request that never left the machine says so instead of failing silently'
 // Sending, with the network replaced by a stub
 // ============================================================================
 
-test('the request goes to the reorder endpoint of Steam, as a form, with the whole list', async () => {
-  const { impl, calls } = stubFetch({ status: 200, contentType: 'application/json', body: '{"success":1}' });
-  const answer = await sendReorder({
-    url: REORDER_URL,
-    sessionId: 'abcdef0123456789',
-    appIds: [30, 10, 20],
-    fetchImpl: impl,
-  });
+test('the request goes to /wishlist/action, as JSON, with the whole list', async () => {
+  const { impl, calls } = stubFetch({ status: 200, contentType: 'application/json', body: '{"data":{"result":1}}' });
+  const answer = await sendReorder({ appIds: [30, 10, 20], fetchImpl: impl });
 
   assert.equal(answer.ok, true);
   assert.equal(calls.length, 1);
+  assert.equal(calls[0].url, 'https://store.steampowered.com/wishlist/action');
   assert.equal(calls[0].url, REORDER_URL);
   assert.equal(new URL(calls[0].url).origin, 'https://store.steampowered.com');
   assert.equal(calls[0].options.method, 'POST');
-  assert.match(calls[0].options.headers['Content-Type'], /application\/x-www-form-urlencoded/);
-  assert.deepEqual(new URLSearchParams(calls[0].options.body).getAll('appids[]'), ['30', '10', '20']);
+  assert.match(calls[0].options.headers['Content-Type'], /^application\/json; ?charset=utf-8$/i);
+  // Same origin as the page, so the browser attaches the cookie itself.
+  assert.equal(calls[0].options.credentials, 'include');
+  assert.deepEqual(pairsOf(calls[0].options.body), [
+    { appid: 30, priority: 1 },
+    { appid: 10, priority: 2 },
+    { appid: 20, priority: 3 },
+  ]);
+});
+
+test('the address is a constant: nothing read off the page can end up inside it', async () => {
+  const { impl, calls } = stubFetch({ status: 200, contentType: 'application/json', body: '{"data":{"result":1}}' });
+  await sendReorder({ appIds: [1], fetchImpl: impl });
+
+  assert.equal(calls[0].url, REORDER_URL);
+  assert.equal(new URL(REORDER_URL).pathname, '/wishlist/action');
+  assert.equal(new URL(REORDER_URL).search, '');
 });
 
 test('the whole list goes in one request — a partial one would be scattered by Steam', async () => {
   const appIds = Array.from({ length: 250 }, (_, index) => 1000 + index);
-  const { impl, calls } = stubFetch({ status: 200, contentType: 'application/json', body: '{"success":1}' });
-  await sendReorder({ url: REORDER_URL, sessionId: 'abcdef0123456789', appIds, fetchImpl: impl });
+  const { impl, calls } = stubFetch({ status: 200, contentType: 'application/json', body: '{"data":{"result":1}}' });
+  await sendReorder({ appIds, fetchImpl: impl });
 
   assert.equal(calls.length, 1);
+  const pairs = pairsOf(calls[0].options.body);
   assert.deepEqual(
-    new URLSearchParams(calls[0].options.body).getAll('appids[]').map(Number),
+    pairs.map((pair) => pair.appid),
     appIds,
+  );
+  assert.deepEqual(
+    pairs.map((pair) => pair.priority),
+    appIds.map((_, index) => index + 1),
   );
 });
 
 test('a 413 answer comes back as the case it is, from the sending path too', async () => {
   const { impl } = stubFetch({ status: 413, body: '' });
-  const answer = await sendReorder({ url: REORDER_URL, sessionId: 'abcdef0123456789', appIds: [1], fetchImpl: impl });
+  const answer = await sendReorder({ appIds: [1], fetchImpl: impl });
 
   assert.equal(answer.kind, 'too-large');
 });
 
+test('403, a sign-in page and a failure of the Steam side all come back through the sending path', async () => {
+  const cases = [
+    [{ status: 403, body: '' }, 'signed-out'],
+    [{ status: 200, contentType: 'text/html', body: '<html><body>Sign In</body></html>' }, 'signed-out'],
+    [{ status: 503, body: '' }, 'server-error'],
+    [{ status: 200, contentType: 'text/plain', body: 'moved along' }, 'not-json'],
+    [{ status: 200, contentType: 'application/json', body: '{"data":{"result":8}}' }, 'refused'],
+  ];
+
+  for (const [reply, kind] of cases) {
+    const { impl } = stubFetch(reply);
+    const answer = await sendReorder({ appIds: [1], fetchImpl: impl });
+    assert.equal(answer.kind, kind, `status ${reply.status} came back as ${answer.kind}`);
+  }
+});
+
 test('a fetch that throws is reported, not swallowed', async () => {
   const { impl } = stubFetch({ throws: new TypeError('NetworkError when attempting to fetch resource.') });
-  const answer = await sendReorder({ url: REORDER_URL, sessionId: 'abcdef0123456789', appIds: [1], fetchImpl: impl });
+  const answer = await sendReorder({ appIds: [1], fetchImpl: impl });
 
   assert.equal(answer.kind, 'offline');
   assert.match(answer.message, /NetworkError/);
+});
+
+test('a failed request sends nothing twice: one call went out, and that is all', async () => {
+  const { impl, calls } = stubFetch({ status: 500, body: '' });
+  await sendReorder({ appIds: [1, 2, 3], fetchImpl: impl });
+
+  assert.equal(calls.length, 1);
 });
 
 // ============================================================================

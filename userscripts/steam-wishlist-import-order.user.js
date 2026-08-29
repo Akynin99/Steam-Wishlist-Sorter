@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Steam Wishlist Sorter — carry the order into Steam
 // @namespace    https://github.com/Akynin99/Steam-Wishlist-Sorter
-// @version      2.2.0
+// @version      3.0.0
 // @description  Reads the final JSON of Steam Wishlist Sorter and writes that order into the Steam wishlist: a report first, a backup file second, then one single request. Entries marked for removal are only listed, never deleted.
 // @author       Akynin99
 // @license      MIT
@@ -17,41 +17,54 @@
  * ## How the order is written
  *
  * Dragging a row on the wishlist page sends
- * `POST /wishlist/profiles/<steamid64>/reorder/` with the field `sessionid` and
- * the whole list of `appids[]` in the order the wishlist has to end up in. This
- * script sends the same request, once, with the list it built out of the file
- * and the page. The endpoint is not documented and not supported by Valve: it
- * is what the page itself uses, and it may change without a word.
+ *
+ *     POST https://store.steampowered.com/wishlist/action
+ *     Content-Type: application/json; charset=utf-8
+ *     { "m": "Reorder", "mp": [ [ { "appid": 1509510, "priority": 2 }, … ] ] }
+ *
+ * and is answered with `{ "data": { "result": 1 } }`. This script sends the
+ * same request, once, with the list it built out of the file and the page. The
+ * endpoint is not documented and not supported by Valve: it is what the page
+ * itself uses, and it may change without a word.
+ *
+ * `mp` is an array holding **one** element, and that element is the list of
+ * pairs. The double brackets are not a typo — they are what was read off a live
+ * drag, and a body shaped any other way is not the request the page sends.
  *
  * The list is sent **whole**. A partial list is not a partial reorder — Steam
  * spreads the entries it was given through the ones it was not, and the result
  * is a shuffle nobody asked for.
  *
- * ## Where `sessionid` comes from and where it goes
+ * ## What `priority` means
  *
- * From `g_sessionID`, the variable the wishlist page defines for its own
- * requests, in the page this script already runs in. It goes into the body of
- * that one POST, to the same origin the page was loaded from, and nowhere else:
- * it is never written to a file, never put into `localStorage` or
- * `sessionStorage`, never printed into the panel or the console, and never sent
- * to the local server of the application. There is no `@connect` and no
- * `@grant`, so the script could not reach another host even if it tried.
+ * A straight numbering of the entries the user has arranged by hand, from one
+ * upwards. Entries never arranged sit at the end with `priority: 0` and no
+ * number of their own — on the account this was read off, 166 entries were 76
+ * with the priorities 1…76 and 90 with a zero.
+ *
+ * This script numbers the whole list, 1…N, in the order it is sending. That is
+ * a one-way step and it is said out loud in the panel: after the write every
+ * entry has a priority, including the ones that had none. The backup brings the
+ * order back; it cannot bring back "never arranged".
+ *
+ * ## What proves the right to write
+ *
+ * Nothing this script holds. There is no `sessionid` and no `access_token` in
+ * the body: the address is the origin the page was loaded from, so the browser
+ * attaches the cookie of the signed-in account itself, and Steam writes into
+ * the wishlist of that account. There is no `@connect` and no `@grant`, so the
+ * script could not reach another host even if it tried.
  *
  * ## Whose wishlist is being written
  *
- * The address takes a SteamID64 and nothing else, and Steam brings the page to
- * `/wishlist/id/<custom url>/`, redirecting the numeric form back to it. So the
- * account is looked for in five places, from the one that cannot be wrong to
- * the one that merely usually is not: seventeen digits in the path; `g_steamID`
- * of the old layout; a link on the page to this same wishlist by its numeric
- * address; that address inside an inline script; a `data-steamid` attribute.
- *
- * Every one of them is read, not the first that answers. Sources that disagree
- * are a refusal and not a choice: a page carries links to wishlists other than
- * its own, and an order written into the wrong account cannot be taken back.
- * When nothing answers, the panel asks for the seventeen digits instead of
- * guessing. The account is named in the report and again at the confirmation —
- * the last two places where an error is still free.
+ * The one the browser is signed in as — the address names no account, so there
+ * is nothing to aim. The page is still read for the account it belongs to, and
+ * the report says which one it found: a wishlist that is not yours is a list of
+ * somebody else's app ids, and writing it would put their entries at the top of
+ * your own. That is a line in the report and not a lock, because the account is
+ * a courtesy here and no longer the thing being addressed. The one case still
+ * refused outright is the certain one: a numeric address naming one account
+ * while the page says you are signed in as another.
  *
  * ## What it refuses to do
  *
@@ -112,6 +125,13 @@
   /** The one origin every request of this script goes to — the page's own. */
   const STEAM_ORIGIN = 'https://store.steampowered.com';
 
+  /**
+   * The one address this script writes to. It is a constant and not something
+   * built out of anything read: the endpoint names no account, so there is no
+   * user value that could end up inside an address here.
+   */
+  const REORDER_URL = `${STEAM_ORIGIN}/wishlist/action`;
+
   /** Same bounds as the export script: the page must never spin forever. */
   const TIME_BUDGET_MS = 180_000;
   const MAX_SCROLL_STEPS = 800;
@@ -136,8 +156,8 @@
    * shows up on a reload, and a reload takes the panel with it. So the list of
    * app ids that was sent is left in `sessionStorage`, which dies with the tab,
    * and the script picks it up on the next load and compares. The value holds
-   * app ids and a timestamp. It never holds `sessionid`: that one lives in the
-   * body of a single request and nowhere else.
+   * app ids and a timestamp, and nothing else: there is no secret in this
+   * script to leak into it.
    */
   const CHECK_KEY = 'sws-reorder-check';
 
@@ -898,18 +918,20 @@
   // Talking to Steam
   // ==========================================================================
 
-  /** A Steam id is 17 digits; nothing else ever goes into an address. */
+  /** A Steam id is 17 digits, and nothing of another shape is read as one. */
   const STEAM_ID_PATTERN = /^\d{17}$/;
 
   /**
    * Where a page writes down the account a wishlist belongs to.
    *
-   * Steam brings the address to `/wishlist/id/<custom url>/` and redirects the
-   * numeric form back to it, and the rewritten page defines no `g_steamID` and
-   * carries no miniprofile element — so a single source is no longer a plan.
-   * The list below is the chain, from what cannot be wrong to what merely
-   * usually is not: the address itself, the variable the old layout defined,
-   * the numeric link the new one puts on the page, the scripts, an attribute.
+   * Nothing is addressed with it any more — the endpoint names no account. It
+   * is read so that the report can say whose list is open, because a wishlist
+   * that is not yours is a list of somebody else's app ids, and writing it
+   * would put their entries at the top of your own. Steam brings the address to
+   * `/wishlist/id/<custom url>/` and the rewritten page defines no `g_steamID`,
+   * so several places are looked at: the address itself, the variable the old
+   * layout defined, the numeric link the new one puts on the page, the scripts,
+   * an attribute.
    */
   const OWNER = {
     numericPath: /^\/wishlist\/profiles\/(\d{17})(?:\/|$)/,
@@ -932,7 +954,6 @@
     'profile-link': 'a link on the page to this wishlist by its numeric address',
     'inline-script': 'a script of the page',
     'data-steamid': 'an element of the page',
-    manual: 'the id you typed in yourself',
   };
 
   /**
@@ -940,9 +961,9 @@
    *
    * It collects rather than returns the first hit on purpose. The sources can
    * disagree — a page carries links to wishlists other than its own — and a
-   * disagreement has to be visible to the caller, because writing an order into
-   * the wrong account is not undoable. Nothing is chosen here; the choosing,
-   * and the refusal to choose, is `resolveReorderTarget`.
+   * disagreement is worth saying out loud rather than resolving by whichever
+   * source happened to be looked at first. Nothing is chosen here; the report
+   * line is `readOpenWishlist`.
    *
    * Pure: the document and the globals come in as arguments, so the whole chain
    * is exercised against a mock page in the tests.
@@ -998,46 +1019,33 @@
   }
 
   /**
-   * Address of the reorder endpoint of the wishlist that is open.
+   * Whose wishlist is open, in one line for the report.
    *
-   * The wishlist is reachable under two addresses: `/wishlist/profiles/<17
-   * digits>/` and `/wishlist/id/<custom url>/`. The endpoint takes the numeric
-   * one only, so under a custom url the id has to be found on the page —
-   * `collectOwnerCandidates` is the search, and this is what is done with what
-   * it found.
+   * Nothing here decides where the request goes: the endpoint names no account
+   * and the browser attaches the cookie of whoever is signed in. What this
+   * answers is the question the user should still be asked — *is the list on
+   * this screen yours?* — because the app ids come off this page, and a page
+   * belonging to somebody else would put their entries at the top of your list.
    *
-   * The numeric address wins over everything: it names the wishlist that is
-   * open, and nothing read out of the page can outrank it. What the page says
-   * is still read there, for one reason — `g_steamID` names *you*, and a
-   * numeric address that is not yours is refused here rather than by Steam.
-   *
-   * Without a numeric address the page is all there is, and then a disagreement
-   * is a refusal rather than a choice. Two different ids mean the page carries
-   * a link to a wishlist that is not this one, and the write would land in
-   * somebody else's account. Guessing is not on the list of options.
-   *
-   * `manualSteamId` is the last way out: an id the user typed in, used only
-   * when no source produced one at all. Steam refuses a write into a wishlist
-   * that is not yours, so a wrong number there costs a refusal and nothing
-   * else.
-   *
-   * The id is checked against `STEAM_ID_PATTERN` before it goes anywhere near
-   * an address: the same rule the local server of the project follows — an
-   * address is built out of values that were validated, never out of text as it
-   * came.
+   * So an unknown account is not an error and two accounts are not an error:
+   * both are a sentence in the report, and the write goes on. The single case
+   * still refused is the certain one — a numeric address naming one account
+   * while `g_steamID` says you are signed in as another. There the page is
+   * somebody else's beyond doubt, and going ahead would rearrange your own list
+   * with their app ids.
    *
    * @param {{ pathname: string, loggedInSteamId?: string|null,
-   *           candidates?: Array<{ source: string, steamId: string }>,
-   *           manualSteamId?: string|null }} input
-   * @returns {{ url: string, steamId: string, source: string, vanity: string|null, note: string|null }
-   *           |{ error: 'unknown-owner'|'not-yours'|'several-accounts', accounts?: string[], message: string }}
+   *           candidates?: Array<{ source: string, steamId: string }> }} input
+   * @returns {{ error: 'not-yours', message: string }
+   *           |{ steamId: string|null, source: string|null, vanity: string|null,
+   *              accounts: string[], note: string }}
    */
-  function resolveReorderTarget({ pathname, loggedInSteamId = null, candidates = [], manualSteamId = null }) {
+  function readOpenWishlist({ pathname, loggedInSteamId = null, candidates = [] }) {
     const path = String(pathname ?? '');
     const fromPath = OWNER.numericPath.exec(path)?.[1] ?? null;
     const vanity = OWNER.vanityPath.exec(path)?.[1] ?? null;
 
-    // The path is taken from `pathname` and from nowhere else, so a candidate
+    // The path is read from `pathname` and from nowhere else, so a candidate
     // list that already holds it cannot make it say something different.
     /** @type {Array<{ source: string, steamId: string }>} */
     const found = [];
@@ -1056,18 +1064,20 @@
       return {
         error: 'not-yours',
         message:
-          'This wishlist belongs to another account — the one you are signed in with is a different one. ' +
-          'Steam would refuse the write, and rightly so. Open your own wishlist and try again.',
+          'This wishlist is not yours: the address names one account and the page says you are signed ' +
+          'in as another. The write would not go to the list on this screen — it goes to the wishlist ' +
+          'of the account the browser is signed in as, which means your own list would be rearranged ' +
+          "with somebody else's entries. Open your own wishlist and pick the file again.",
       };
     }
 
     if (fromPath) {
       return {
-        url: `${STEAM_ORIGIN}/wishlist/profiles/${fromPath}/reorder/`,
         steamId: fromPath,
         source: 'path',
         vanity: null,
-        note: null,
+        accounts: [fromPath],
+        note: '',
       };
     }
 
@@ -1079,60 +1089,56 @@
       if (!sources.includes(candidate.source)) sources.push(candidate.source);
     }
 
-    if (bySteamId.size > 1) {
+    const accounts = [...bySteamId.keys()];
+
+    if (accounts.length > 1) {
       const listed = [...bySteamId]
         .map(([steamId, sources]) => `${steamId} (${sources.map((s) => OWNER_SOURCE_WORDS[s] ?? s).join(', ')})`)
         .join('; ');
       return {
-        error: 'several-accounts',
-        accounts: [...bySteamId.keys()],
-        message:
-          'This page names more than one account, and they are not the same one: ' +
-          `${listed}. Which of them owns the wishlist that is open cannot be told from here — a page ` +
-          'carries links to wishlists other than its own. Nothing will be written, and there is no way ' +
-          "round it in the panel on purpose: a guess would put your order into somebody else's list, " +
-          'and that cannot be taken back. Opening the numeric address is no help either — Steam ' +
-          'redirects it back to the custom url. If this is your own wishlist, the chain of sources is ' +
-          'what needs fixing: report it with the list above exactly as it is written.',
+        steamId: null,
+        source: null,
+        vanity,
+        accounts,
+        note:
+          `This page names more than one account — ${listed} — so which of them owns the list on the ` +
+          'screen cannot be told from here; a page carries links to wishlists other than its own. It ' +
+          'changes nothing about where the write goes: that is always the wishlist of the account this ' +
+          'browser is signed in as. Check that the list below is the one you meant to rearrange.',
       };
     }
 
-    const automatic = [...bySteamId.keys()][0] ?? null;
-    const typed = STEAM_ID_PATTERN.test(String(manualSteamId ?? '')) ? String(manualSteamId) : null;
-    const steamId = automatic ?? typed;
-    const source = automatic ? bySteamId.get(automatic)[0] : 'manual';
-
-    if (!steamId) {
+    if (accounts.length === 0) {
       return {
-        error: 'unknown-owner',
-        message:
-          'The Steam ID of this wishlist could not be worked out: the address carries no 17 digit id ' +
-          `${vanity ? '(it is the custom url form) ' : ''}and nothing on the page names an account — ` +
-          'no g_steamID, no numeric link to this wishlist, no script and no attribute holding one. ' +
-          'Type your own 17 digits into the field below, or open the wishlist by its numeric address — ' +
-          'store.steampowered.com/wishlist/profiles/&lt;your 17 digits&gt;/ — and pick the file again.',
+        steamId: null,
+        source: null,
+        vanity,
+        accounts,
+        note:
+          'Which account this wishlist belongs to is not written anywhere the script can read it' +
+          `${vanity ? ' — the address is the custom url form' : ''}. The write goes to the wishlist of ` +
+          'the account this browser is signed in as, so check that the list below is your own.',
       };
     }
 
+    const steamId = accounts[0];
+    const source = bySteamId.get(steamId)[0];
     return {
-      url: `${STEAM_ORIGIN}/wishlist/profiles/${steamId}/reorder/`,
       steamId,
       source,
       vanity,
-      note: vanity
-        ? `This page is open under a custom url (/wishlist/id/${vanity}/), which does not say whose ` +
-          `wishlist it is. The account was worked out from ${OWNER_SOURCE_WORDS[source] ?? source}: ` +
-          `${steamId}. If the page belongs to somebody else, Steam refuses the request and nothing changes.`
-        : null,
+      accounts,
+      note: '',
     };
   }
 
   /**
-   * The account a write would go to, in words: the id, the name the address
+   * The account whose wishlist is open, in words: the id, the name the address
    * gives if it gives one, and where the id was found.
    *
    * It is a function of its own so that the report and the confirmation say the
-   * same thing in the same words — the last place an error is still cheap.
+   * same thing in the same words — the last place a wrong list is still cheap
+   * to notice.
    *
    * @param {{ steamId: string, source: string, vanity?: string|null }} resolved
    * @returns {string}
@@ -1143,54 +1149,7 @@
   }
 
   /**
-   * The session id out of the text of a page script.
-   *
-   * A function of its own so that it can be tested without a browser, and so
-   * that this file holds exactly one expression that knows what the value looks
-   * like. The result is used once — in the body of the reorder request — and is
-   * never stored, logged or shown.
-   *
-   * @param {string} text
-   * @returns {string|null}
-   */
-  function sessionIdFromText(text) {
-    const match = /g_sessionID\s*=\s*["']([A-Za-z0-9]{8,64})["']/.exec(String(text ?? ''));
-    return match ? match[1] : null;
-  }
-
-  /**
-   * @param {unknown} value
-   * @returns {string|null}
-   */
-  function asSessionId(value) {
-    return typeof value === 'string' && /^[A-Za-z0-9]{8,64}$/.test(value) ? value : null;
-  }
-
-  /**
-   * The session id of the open page.
-   *
-   * With `@grant none` the script runs in the page itself, so the variable the
-   * wishlist defines for its own requests is simply there. When a userscript
-   * manager isolates it anyway, the inline scripts of the page are read
-   * instead — the same value, out of the same page, without any privileged API.
-   *
-   * @returns {string|null}
-   */
-  function findSessionId() {
-    const direct =
-      asSessionId(window.g_sessionID) ??
-      asSessionId(typeof unsafeWindow === 'undefined' ? null : unsafeWindow?.g_sessionID);
-    if (direct) return direct;
-
-    for (const script of document.querySelectorAll('script:not([src])')) {
-      const found = sessionIdFromText(script.textContent);
-      if (found) return found;
-    }
-    return null;
-  }
-
-  /**
-   * Every account id the open page states — the chain run against the real
+   * Every account id the open page states — the sources read off the real
    * document, with `unsafeWindow` consulted for the case where the userscript
    * manager isolates the script from the page it runs on.
    *
@@ -1205,17 +1164,28 @@
   }
 
   /**
-   * The body of the reorder request, exactly as the page itself sends it: the
-   * session id and the whole list of app ids, in order.
+   * The body of the reorder request, exactly as the page itself sends it when a
+   * row is dragged: the method name and the whole list of app ids, each with
+   * the place it is to take.
    *
-   * @param {{ sessionId: string, appIds: number[] }} input
+   * `mp` is an array of one element, and that element is the list of pairs. The
+   * double brackets are what a live drag sends, and a body shaped any other way
+   * is a different request.
+   *
+   * `priority` is a straight numbering from one, in the order given. Steam's
+   * own numbering runs over the entries the user has arranged and leaves the
+   * rest at zero; this script sends the list whole, so every entry it sends
+   * gets a number. That is the irreversible half of the write — the order can
+   * be put back from the backup, "never arranged" cannot.
+   *
+   * @param {number[]} appIds In the order the wishlist has to end up in.
    * @returns {string}
    */
-  function buildReorderBody({ sessionId, appIds }) {
-    const body = new URLSearchParams();
-    body.set('sessionid', sessionId);
-    for (const appId of appIds) body.append('appids[]', String(appId));
-    return body.toString();
+  function buildReorderBody(appIds) {
+    return JSON.stringify({
+      m: 'Reorder',
+      mp: [(appIds ?? []).map((appId, index) => ({ appid: appId, priority: index + 1 }))],
+    });
   }
 
   /**
@@ -1311,24 +1281,26 @@
       };
     }
 
-    const success = payload?.success;
-    if (success === 1 || success === true) {
+    // `{ "data": { "result": 1 } }` is the whole of a successful answer. There
+    // is no message in it and no list — a number, and the check below.
+    const result = payload?.data?.result;
+    if (result === 1) {
       return { ok: true, kind: 'ok', message: 'Steam accepted the order.' };
     }
-    if (success === undefined) {
+    if (result === undefined) {
       return {
         ok: true,
         kind: 'ok-unknown',
         message:
-          'Steam answered without a success field. The answer neither confirms nor denies anything — the ' +
-          'check below is what decides.',
+          'Steam answered with JSON that carries no data.result field. The answer neither confirms nor ' +
+          'denies anything — the check below is what decides.',
       };
     }
     return {
       ok: false,
       kind: 'refused',
       message:
-        `Steam refused the order: it answered success = ${JSON.stringify(success)}, and said nothing ` +
+        `Steam refused the order: it answered data.result = ${JSON.stringify(result)}, and said nothing ` +
         'else. Reload the wishlist and look at the order before repeating.',
     };
   }
@@ -1358,20 +1330,21 @@
    * The default is a wrapper rather than `globalThis.fetch` itself: a `fetch`
    * taken off the window and called on its own is refused by some browsers.
    *
-   * @param {{ url: string, sessionId: string, appIds: number[], fetchImpl?: typeof fetch }} input
+   * `credentials: 'include'` is the whole of the authorization. The address is
+   * the origin of the page, so the browser attaches the cookie of the account
+   * it is signed in as, and this script never sees it.
+   *
+   * @param {{ appIds: number[], fetchImpl?: typeof fetch }} input
    * @returns {Promise<{ ok: boolean, kind: string, message: string }>}
    */
-  async function sendReorder({ url, sessionId, appIds, fetchImpl = (target, options) => fetch(target, options) }) {
+  async function sendReorder({ appIds, fetchImpl = (target, options) => fetch(target, options) }) {
     let response;
     try {
-      response = await fetchImpl(url, {
+      response = await fetchImpl(REORDER_URL, {
         method: 'POST',
         credentials: 'include',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-          'X-Requested-With': 'XMLHttpRequest',
-        },
-        body: buildReorderBody({ sessionId, appIds }),
+        headers: { 'Content-Type': 'application/json; charset=utf-8' },
+        body: buildReorderBody(appIds),
       });
     } catch (error) {
       return describeNetworkFailure(error);
@@ -1515,11 +1488,6 @@
     button.danger:hover:not(:disabled) { background: #a34545; }
     .close { border: 0; background: transparent; color: #8b97a5; padding: 2px 6px; }
     input[type=file] { font: inherit; color: #8b97a5; max-width: 100%; }
-    input[type=text] {
-      font: inherit; padding: 7px 10px; border-radius: 6px; flex: 1; min-width: 170px;
-      border: 1px solid #33475c; background: #101820; color: #d6dde6; letter-spacing: .04em;
-    }
-    input[type=text]:focus { outline: none; border-color: #3b86c6; }
     label.check { display: flex; gap: 8px; align-items: flex-start; color: #8b97a5; cursor: pointer; }
     ol { margin: 0; padding-left: 20px; display: grid; gap: 3px; }
     .box { border: 1px solid #2a3542; border-radius: 8px; padding: 10px; display: grid; gap: 8px; background: #17202a; }
@@ -1553,31 +1521,22 @@
           <input type="file" accept=".json,application/json" data-act="file">
           <div class="status muted" data-act="status"></div>
 
-          <div class="box" data-act="owner-box" hidden>
-            <div><b>Which account does this wishlist belong to?</b></div>
-            <div class="muted">
-              Steam brings the address to the custom url form, and this page writes its account id down
-              nowhere the script could find it. Type your own 17 digits and the write can go on.
-              They are in the address of your profile: if it reads
-              steamcommunity.com/profiles/&lt;digits&gt;/, those digits are the id. If your profile has a
-              custom address too, open “Edit Profile” — the numeric form is in the address there.
-              Steam refuses a write into a wishlist that is not yours, so a wrong number costs a refusal
-              and nothing else.
-            </div>
-            <div class="row">
-              <input type="text" inputmode="numeric" maxlength="17" placeholder="76561198000000000"
-                     data-act="owner-id" aria-label="Your 17 digit Steam ID">
-              <button type="button" data-act="owner-use">Use this account</button>
-            </div>
-            <div class="status muted" data-act="owner-status"></div>
-          </div>
-
           <div class="box alert" data-act="write-box" hidden>
             <div class="warn"><b>The next step writes into your Steam wishlist.</b></div>
             <div class="muted">
               The order goes to Steam in one request and replaces the one you have now. The endpoint is
               undocumented and the change cannot be undone from inside Steam — so take the backup first.
               It is a file in this very format, and this very script writes it back.
+            </div>
+            <div class="warn">
+              <b>One part of this cannot be undone by anything.</b> Steam numbers only the entries you
+              have arranged by hand and leaves the rest without a number. This writes the list whole, so
+              after it <b>every</b> entry has a number — including the ones that never had one. The
+              backup puts the order back; it cannot put back “never arranged”.
+            </div>
+            <div class="muted">
+              The write goes to the wishlist of the account this browser is signed in as. The address of
+              the request names no account, so the list on the screen is what you should check.
             </div>
             <div class="row">
               <button type="button" data-act="backup">Download the current order as a backup</button>
@@ -1625,9 +1584,6 @@
       preview: query('[data-act="preview"]'),
       clear: query('[data-act="clear"]'),
       copy: query('[data-act="copy"]'),
-      ownerBox: query('[data-act="owner-box"]'),
-      ownerId: query('[data-act="owner-id"]'),
-      ownerUse: query('[data-act="owner-use"]'),
       writeBox: query('[data-act="write-box"]'),
       backup: query('[data-act="backup"]'),
       skipBackup: query('[data-act="skip-backup"]'),
@@ -1645,15 +1601,6 @@
        */
       say(html, tone = 'muted') {
         const status = query('[data-act="status"]');
-        status.className = `status ${tone}`;
-        status.innerHTML = html;
-      },
-      /**
-       * @param {string} html
-       * @param {'muted'|'ok'|'warn'|'error'} tone
-       */
-      ownerSay(html, tone = 'muted') {
-        const status = query('[data-act="owner-status"]');
         status.className = `status ${tone}`;
         status.innerHTML = html;
       },
@@ -1714,6 +1661,7 @@
       ORDER_KIND,
       ORDER_VERSION,
       OrderFileError,
+      REORDER_URL,
       STEAM,
       buildBackupOrder,
       buildPageOrder,
@@ -1729,12 +1677,11 @@
       parseDraggableId,
       parseOrderFile,
       readAppId,
+      readOpenWishlist,
       readReorderAnswer,
       readRowIndex,
       readTitle,
-      resolveReorderTarget,
       sendReorder,
-      sessionIdFromText,
     };
     return;
   }
@@ -1755,9 +1702,7 @@
   /** @type {ReturnType<typeof buildTargetOrder>|null} */
   let target = null;
   let backupTaken = false;
-  /** The 17 digits typed by hand, used only when the page names no account at all. */
-  let manualSteamId = null;
-  /** The account the report named, so that the confirmation names the same one. */
+  /** Whose wishlist the report said was open, so that the confirmation says the same. */
   let owner = null;
 
   // --------------------------------------------------------------------------
@@ -1973,33 +1918,34 @@
       lines.push(escapeHtml(order.versionWarning));
     }
 
-    // Where the request would go, worked out before anything is written rather
-    // than after the backup and the confirmation are already behind the user.
-    const resolved = resolveReorderTarget({
+    // Whose list is on the screen, said before anything is written rather than
+    // after the backup and the confirmation are already behind the user. It
+    // does not decide where the request goes — the endpoint names no account —
+    // so an account that could not be worked out is a sentence and not a lock.
+    const resolved = readOpenWishlist({
       pathname: location.pathname,
       candidates: findOwnerCandidates(),
-      manualSteamId,
     });
     if ('error' in resolved) {
       owner = null;
-      panel.say([...lines, `<b>${resolved.message}</b>`].join('<br>'), 'error');
+      panel.say([...lines, `<b>${escapeHtml(resolved.message)}</b>`].join('<br>'), 'error');
       panel.preview.disabled = false;
       panel.copy.disabled = false;
-      // Typing an id in helps when nothing was found. It does not help when two
-      // accounts were found and one of them is wrong: there the answer is not a
-      // third guess, so the field stays away.
-      panel.ownerBox.hidden = resolved.error !== 'unknown-owner';
       panel.writeBox.hidden = true;
       renderPlan();
       return;
     }
     owner = resolved;
-    panel.ownerBox.hidden = true;
 
-    // The account, named before the write and again at the confirmation. This
-    // is the last place a wrong list can still be noticed for free.
-    lines.push(`The order would be written into the wishlist of <b>${escapeHtml(describeAccount(resolved))}</b>.`);
-
+    lines.push(
+      'The order goes to the wishlist of the account this browser is signed in as — the address of the ' +
+        'request names no account at all.',
+    );
+    if (resolved.steamId) {
+      // The list on the screen, named before the write and again at the
+      // confirmation. This is the last place a wrong list is still free to spot.
+      lines.push(`The wishlist open here belongs to <b>${escapeHtml(describeAccount(resolved))}</b>.`);
+    }
     if (resolved.note) {
       tone = 'warn';
       lines.push(escapeHtml(resolved.note));
@@ -2054,29 +2000,6 @@
     renderRemovals();
     renderPlan();
   }
-
-  // The last way out: the id typed by hand. It is read once, checked here, and
-  // the report is built again — so the account still has to pass everything the
-  // report says about it before the write box comes back.
-  panel.ownerUse.addEventListener('click', () => {
-    const typed = String(panel.ownerId.value ?? '').trim();
-    if (!STEAM_ID_PATTERN.test(typed)) {
-      panel.ownerSay(
-        `<b>That is not a Steam ID.</b> It is exactly 17 digits and nothing else — ` +
-          `what was typed is ${typed.length} ${plural(typed.length, 'character', 'characters')}. ` +
-          'A profile address of the form steamcommunity.com/profiles/&lt;digits&gt;/ holds it.',
-        'error',
-      );
-      return;
-    }
-    manualSteamId = typed;
-    panel.ownerSay(`Taken: <b>${typed}</b>. The report below now says where the write would go.`, 'ok');
-    if (target) showReport();
-  });
-
-  panel.ownerId.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter') panel.ownerUse.click();
-  });
 
   /** The entries the user has to take off the wishlist themselves. */
   function renderRemovals() {
@@ -2178,8 +2101,17 @@
     panel.send.disabled = true;
     panel.say(
       `About to write <b>${target.appIds.length}</b> ${plural(target.appIds.length, 'entry', 'entries')} into ` +
-        `the wishlist of <b>${escapeHtml(owner ? describeAccount(owner) : 'an account that could not be named')}</b>, ` +
-        'in one request, replacing the order you have now. Press “Confirm” to go ahead.',
+        'the wishlist of the account this browser is signed in as, in one request, replacing the order ' +
+        `you have now. ${
+          owner?.steamId
+            ? `The list open on this page is the one of <b>${escapeHtml(describeAccount(owner))}</b>.`
+            : 'Which account the list on this page belongs to could not be worked out — look it over ' +
+              'once more before going ahead.'
+        }<br>` +
+        'All ' +
+        `<b>${target.appIds.length}</b> ${plural(target.appIds.length, 'entry', 'entries')} will come out ` +
+        'with a priority number, including the ones that have none today. The backup undoes the order, ' +
+        'not that. Press “Confirm” to go ahead.',
       'warn',
     );
   });
@@ -2195,40 +2127,25 @@
     panel.confirmBox.hidden = true;
     panel.confirm.disabled = true;
 
-    const resolved = resolveReorderTarget({
+    // The page is read again here rather than trusted from the report: it
+    // redraws itself while the panel is open, and a wishlist that turned into
+    // somebody else's between the two steps is the one case worth stopping on.
+    const resolved = readOpenWishlist({
       pathname: location.pathname,
       candidates: findOwnerCandidates(),
-      manualSteamId,
     });
     if ('error' in resolved) {
-      panel.say(resolved.message, 'error');
+      panel.say(escapeHtml(resolved.message), 'error');
       panel.confirm.disabled = false;
       updateSendButton();
       return;
     }
-    // The account is worked out again here rather than trusted from the report:
-    // the page redraws itself while the panel is open. If it now says something
-    // else, the one thing that must not happen is a write into whichever of the
-    // two came up last.
-    if (owner && resolved.steamId !== owner.steamId) {
+    if (owner?.steamId && resolved.steamId && resolved.steamId !== owner.steamId) {
       panel.say(
-        `<b>The account changed between the report and this confirmation.</b> The report named ` +
-          `${escapeHtml(owner.steamId)}, the page now says ${escapeHtml(resolved.steamId)}. Nothing was ` +
-          'written. Reload the page and pick the file again.',
-        'error',
-      );
-      panel.confirm.disabled = false;
-      updateSendButton();
-      return;
-    }
-
-    const sessionId = findSessionId();
-    if (!sessionId) {
-      panel.say(
-        'The page did not hand over <b>g_sessionID</b> — the value the wishlist uses for its own requests. ' +
-          'Without it Steam accepts nothing, and this script takes it from nowhere else. Reload the page ' +
-          '(Ctrl+F5); if it is still missing, check that you are signed in and that the wishlist is your ' +
-          'own. Nothing was written.',
+        '<b>The wishlist on this page changed between the report and this confirmation.</b> The report ' +
+          `named ${escapeHtml(owner.steamId)}, the page now says ${escapeHtml(resolved.steamId)}. Nothing ` +
+          'was written — the entries below were read off the earlier list. Reload the page and pick the ' +
+          'file again.',
         'error',
       );
       panel.confirm.disabled = false;
@@ -2237,7 +2154,7 @@
     }
 
     panel.say(`Sending the order: <b>${target.appIds.length}</b> entries, one request…`);
-    const answer = await sendReorder({ url: resolved.url, sessionId, appIds: target.appIds });
+    const answer = await sendReorder({ appIds: target.appIds });
     panel.confirm.disabled = false;
 
     if (!answer.ok) {
