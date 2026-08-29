@@ -33,7 +33,7 @@
  *
  * @type {ReadonlyArray<string>}
  */
-export const LANGUAGES = Object.freeze(['en', 'ru', 'de', 'fr', 'es', 'pt-BR']);
+export const LANGUAGES = Object.freeze(['en', 'ru', 'de', 'fr', 'es', 'pt-BR', 'pl', 'tr']);
 
 /** The language a fresh visitor gets, always. */
 export const DEFAULT_LANGUAGE = 'en';
@@ -51,14 +51,16 @@ export const LANGUAGE_NAMES = Object.freeze({
   fr: 'Français',
   es: 'Español',
   'pt-BR': 'Português (Brasil)',
+  pl: 'Polski',
+  tr: 'Türkçe',
 });
 
 /**
  * Suffixes of the plural forms every counted phrase defines in every
- * dictionary. Russian needs three of them; the other languages select only
- * `one` and `many`, and still carry a `few` equal to `many`, so that all the
- * dictionaries hold exactly the same set of keys and the parity test stays a
- * simple set comparison.
+ * dictionary. Russian and Polish need all three of them; the other languages
+ * select only `one` and `many`, and still carry a `few` equal to `many`, so
+ * that all the dictionaries hold exactly the same set of keys and the parity
+ * test stays a simple set comparison.
  *
  * @type {ReadonlyArray<string>}
  */
@@ -68,8 +70,12 @@ export const PLURAL_FORMS = Object.freeze(['one', 'few', 'many']);
  * Which plural form a count takes, per language. The rules follow CLDR, and
  * the differences between them are real: French and Brazilian Portuguese count
  * zero as singular («0 élément», “0 item”), English, German and Spanish do not
- * («0 items», „0 Einträge“, «0 elementos»), and Russian looks at the last two
- * digits.
+ * («0 items», „0 Einträge“, «0 elementos»), and Russian and Polish both look at
+ * the last two digits — but not in the same way, which is why Polish has a rule
+ * of its own instead of borrowing the Russian one. Russian takes `one` at 21
+ * and at 101; Polish takes `many` at both, because outside the 2–4 ending it
+ * knows no singular at all. Turkish never changes the noun after a numeral, so
+ * its two forms differ only where a sentence around them would.
  *
  * @type {Readonly<Record<string, (count: number) => string>>}
  */
@@ -87,6 +93,14 @@ const PLURAL_RULES = Object.freeze({
   fr: (count) => (Math.abs(count) < 2 ? 'one' : 'many'),
   es: (count) => (Math.abs(count) === 1 ? 'one' : 'many'),
   'pt-BR': (count) => (Math.abs(count) < 2 ? 'one' : 'many'),
+  pl: (count) => {
+    if (Math.abs(count) === 1) return 'one';
+    const n = Math.abs(count) % 100;
+    const last = n % 10;
+    if (last > 1 && last < 5 && !(n > 11 && n < 15)) return 'few';
+    return 'many';
+  },
+  tr: (count) => (Math.abs(count) === 1 ? 'one' : 'many'),
 });
 
 /* ------------------------------------------------------------ english */
@@ -845,8 +859,8 @@ const RU = {
   'app.theme.changed': 'Тема: {theme}.',
   'app.reset.title': 'Начать заново?',
   'app.reset.text':
-    'Будут удалены все {items}, категории, ответы на сравнения и ручные перестановки. Отменить это '
-    + 'будет нельзя — если работа может пригодиться, сначала сохраните её в файл.',
+    'Будет удалено всё: {items}, категории, ответы на сравнения и ручные перестановки. Отменить '
+    + 'это будет нельзя — если работа может пригодиться, сначала сохраните её в файл.',
   'app.reset.confirm': 'Удалить всё и начать заново',
   'app.reset.done': 'Состояние очищено.',
   'app.state.buildFailed': 'Не удалось собрать файл состояния: {message}',
@@ -898,7 +912,7 @@ const RU = {
   'import.source.file': 'Файл {name}',
   'import.source.pasted': 'Вставленный текст',
   'import.source.demo': 'Демо-набор',
-  'import.report.title': '{source}: прочитано {records}',
+  'import.report.title': '{source} — прочитано: {records}',
   'import.report.added': 'добавлено',
   'import.report.updated': 'обновлено',
   'import.report.duplicates': 'дубликатов',
@@ -996,9 +1010,9 @@ const RU = {
     + 'сохранено: остановка ничего не теряет.',
   'steam.done.title': 'Список желаемого получен',
   'steam.done.titlesTitle': 'Названия дотянуты',
-  'steam.done.titlesText': 'В списке {items}, из них {titles} с названием из Steam.',
+  'steam.done.titlesText': 'В списке {items}, с названием из Steam: {titles}.',
   'steam.done.text':
-    'Аккаунт Steam {account}: в списке {items}, из них {titles} с названием из Steam.',
+    'Аккаунт Steam {account}. В списке {items}, с названием из Steam: {titles}.',
   'steam.done.missing.one': 'Steam не отдал {count} название: эта позиция показана по App ID.',
   'steam.done.missing.few': 'Steam не отдал {count} названия: эти позиции показаны по App ID.',
   'steam.done.missing.many': 'Steam не отдал {count} названий: эти позиции показаны по App ID.',
@@ -1067,7 +1081,7 @@ const RU = {
   'categorize.toImport': 'Перейти к импорту',
   'categorize.position': 'Позиция в вашем wishlist: {position}',
   'categorize.current': 'Сейчас: {category}. Выберите другую категорию, чтобы изменить.',
-  'categorize.legendLeft': 'осталось {items}',
+  'categorize.legendLeft': 'осталось: {items}',
   'categorize.firstItem': 'Это первая позиция списка.',
   'categorize.noneLeft': 'Больше нераспределённых позиций нет.',
   'categorize.postponed': '{title} отложена, вернёмся к ней в конце круга.',
@@ -1085,7 +1099,7 @@ const RU = {
   'compare.heading': 'Какую игру хочется больше?',
   'compare.headingDone': 'Сравнения закончены',
   'compare.hint': 'Выбирайте быстро. Пару, о которой не получается решить, можно отложить.',
-  'compare.progress': 'Категория «{category}» · {made} · примерно {left} осталось',
+  'compare.progress': 'Категория «{category}» · {made} · осталось примерно: {left}',
   'compare.deferred': 'отложено: {pairs}',
   'compare.preferA': 'Хочу больше <kbd>A</kbd>',
   'compare.preferB': 'Хочу больше <kbd>D</kbd>',
@@ -1150,7 +1164,7 @@ const RU = {
 
   /* -- экран результата: сводка ------------------------------------------ */
   'result.summary.eyebrow': 'Уже можно пользоваться',
-  'result.summary.headline': '{items} стоят по вашим ответам',
+  'result.summary.headline': 'По вашим ответам расставлено: {items}',
   'result.summary.headlineAll': 'Весь список стоит по вашим ответам',
   'result.summary.headlineNone': 'Ни одно место пока не определено ответами',
   'result.summary.rest':
@@ -1161,7 +1175,7 @@ const RU = {
     + 'улучшает его.',
   'result.summary.done': 'Сравнивать больше нечего. Перенесите порядок в Steam.',
   'result.summary.empty': 'Список пуст: пока нечего показывать.',
-  'result.summary.allRemoved': 'Все {marked} на удаление из желаемого, упорядочивать нечего.',
+  'result.summary.allRemoved': 'Упорядочивать нечего: {marked} на удаление из желаемого.',
   'result.stats.total': 'в списке',
   'result.stats.confirmed': 'подтверждено',
   'result.stats.removed': 'помечено на удаление',
@@ -1169,11 +1183,11 @@ const RU = {
   'result.built.categories':
     'Сначала идут категории, в порядке интереса; внутри категории место определяют сравнения.',
   'result.built.resolved':
-    'Ваши ответы определяют место {resolved} из {total}. Остальные {fallback} стоят там же, где '
-    + 'стояли в списке желаемого, — это запасной порядок, и в списке он отмечен.',
+    'Ваши ответы определяют место {resolved} из {total}. Остальные позиции ({fallback}) стоят там '
+    + 'же, где стояли в списке желаемого, — это запасной порядок, и в списке он отмечен.',
   'result.built.answers': 'Ответов на сравнения: {count}.',
   'result.built.manual':
-    'Вручную переставлено {items}. Ручная перестановка накладывается поверх того, что дают '
+    'Вручную переставлено: {items}. Ручная перестановка накладывается поверх того, что дают '
     + 'сравнения, поэтому новые ответы продолжают улучшать список вокруг неё.',
   'result.built.noManual': 'Вручную ничего не переставляли.',
   'result.built.complete': 'Сортировка завершена: на каждую нужную пару есть ответ.',
@@ -1309,8 +1323,8 @@ const RU = {
     'Это не список желаемого Steam. Откройте store.steampowered.com/wishlist, войдите в аккаунт и '
     + 'нажмите закладку там. Ничего не отправлено.',
   'bookmarklet.confirm':
-    'Сейчас порядок {items} будет записан в список желаемого того аккаунта, под которым вошёл этот '
-    + 'браузер. Ничего не удаляется. Отменить это будет нельзя: после записи приоритет получат все '
+    'Сейчас этот порядок ({items}) будет записан в список желаемого того аккаунта, под которым '
+    + 'вошёл этот браузер. Ничего не удаляется. Отменить это будет нельзя: после записи приоритет получат все '
     + 'позиции, включая те, у которых его не было, и никакая резервная копия этого не вернёт.',
   'bookmarklet.write': 'Записать порядок',
   'bookmarklet.cancel': 'Отмена',
@@ -1684,7 +1698,7 @@ const DE = {
     'Der Stand wurde gelesen, aber der Browser hat das Speichern verweigert.',
   'state.confirm.title': 'Den Stand über den aktuellen laden?',
   'state.confirm.text':
-    'Die Liste enthält gerade {items} und {comparisons}. Die Datei ersetzt das alles im Ganzen: '
+    'Aktueller Stand: {items}, {comparisons}. Die Datei ersetzt das alles im Ganzen: '
     + 'die Liste, die Kategorien, die Antworten und die Verschiebungen von Hand. Das lässt sich '
     + 'nicht rückgängig machen.',
   'state.confirm.confirm': 'Den aktuellen Stand ersetzen',
@@ -1817,9 +1831,9 @@ const DE = {
     'Zuerst kommen die Kategorien, in der Reihenfolge des Interesses; innerhalb einer Kategorie '
     + 'entscheiden die Vergleiche über den Platz.',
   'result.built.resolved':
-    'Deine Antworten legen den Platz von {resolved} von {total} Einträgen fest. Die übrigen '
-    + '{fallback} behalten den Platz, den sie in der Wunschliste hatten — die Ersatzreihenfolge, '
-    + 'in der Liste gekennzeichnet.',
+    'Von deinen Antworten festgelegte Plätze: {resolved} von {total}. Die übrigen '
+    + 'Einträge ({fallback}) behalten den Platz, den sie in der Wunschliste hatten — die '
+    + 'Ersatzreihenfolge, in der Liste gekennzeichnet.',
   'result.built.answers': 'Bisher beantwortete Vergleiche: {count}.',
   'result.built.manual':
     'Von Hand verschoben: {items}. Eine Verschiebung von Hand wird über das gelegt, was die '
@@ -2187,7 +2201,7 @@ const FR = {
     'La liste contient pour l’instant {items} : {sorted} avec une catégorie, {plain} sans. '
     + 'Comparaisons effectuées : {comparisons}. Réimporter rafraîchit les entrées et conserve le '
     + 'travail déjà fait.',
-  'import.announce': 'Importés : {count}. La liste en contient maintenant {total}.',
+  'import.announce': 'Import terminé : {count}. La liste en contient maintenant {total}.',
   'import.source.file': 'Fichier {name}',
   'import.source.pasted': 'Texte collé',
   'import.source.demo': 'Jeu de démonstration',
@@ -2402,7 +2416,7 @@ const FR = {
   'compare.hint':
     'Choisissez vite. Une paire sur laquelle vous bloquez peut être remise à plus tard.',
   'compare.progress': 'Catégorie « {category} » · {made} · encore {left} environ',
-  'compare.deferred': 'remises à plus tard : {pairs}',
+  'compare.deferred': 'en attente : {pairs}',
   'compare.preferA': 'J’en ai plus envie <kbd>A</kbd>',
   'compare.preferB': 'J’en ai plus envie <kbd>D</kbd>',
   'compare.drop': 'Plus envie du tout',
@@ -2490,9 +2504,9 @@ const FR = {
     'Les catégories viennent d’abord, dans l’ordre de l’envie ; à l’intérieur d’une catégorie, la '
     + 'place est décidée par les comparaisons.',
   'result.built.resolved':
-    'Vos réponses fixent la place de {resolved} éléments sur {total}. Les {fallback} autres '
-    + 'gardent la place qu’ils avaient dans la liste de souhaits — l’ordre de repli, signalé dans '
-    + 'la liste.',
+    'Places fixées par vos réponses : {resolved} sur {total}. Les autres ({fallback}) gardent '
+    + 'la place qu’elles avaient dans la liste de souhaits — l’ordre de repli, signalé dans la '
+    + 'liste.',
   'result.built.answers': 'Comparaisons réglées jusqu’ici : {count}.',
   'result.built.manual':
     'À la main, vous avez déplacé {items}. Un déplacement fait à la main est rejoué par-dessus ce '
@@ -2589,7 +2603,7 @@ const FR = {
   'result.row.aria': '{position}. {title}. {category}. {kind}. {note}',
   'result.row.categoryAria': 'Catégorie : {title}',
   'result.shown.all': '{rows}',
-  'result.shown.filtered': '{shown} sur {total} affichés',
+  'result.shown.filtered': 'affichage : {shown} sur {total}',
   'result.empty.filter': 'Ni le filtre ni la recherche n’ont trouvé le moindre élément.',
   'result.empty.noItems': 'Importez une liste de souhaits, et le résultat apparaîtra ici.',
   'result.empty.allRemoved':
@@ -4016,6 +4030,1276 @@ const PT_BR = {
   'export.kind.unknown': 'Desconhecido',
 };
 
+/* ------------------------------------------------------------- polish */
+
+/** @type {Readonly<Record<string, string>>} */
+const PL = {
+  /* -- counted phrases -------------------------------------------- */
+  'count.items.one': '{count} pozycja',
+  'count.items.few': '{count} pozycje',
+  'count.items.many': '{count} pozycji',
+  'count.records.one': '{count} rekord',
+  'count.records.few': '{count} rekordy',
+  'count.records.many': '{count} rekordów',
+  'count.comparisonsMade.one': '{count} wykonane porównanie',
+  'count.comparisonsMade.few': '{count} wykonane porównania',
+  'count.comparisonsMade.many': '{count} wykonanych porównań',
+  'count.comparisonsDone.one': 'wykonano {count} porównanie',
+  'count.comparisonsDone.few': 'wykonano {count} porównania',
+  'count.comparisonsDone.many': 'wykonano {count} porównań',
+  'count.pairs.one': '{count} para',
+  'count.pairs.few': '{count} pary',
+  'count.pairs.many': '{count} par',
+  'count.rows.one': '{count} wiersz',
+  'count.rows.few': '{count} wiersze',
+  'count.rows.many': '{count} wierszy',
+  'count.moves.one': '{count} przestawienie',
+  'count.moves.few': '{count} przestawienia',
+  'count.moves.many': '{count} przestawień',
+  'count.answers.one': '{count} odpowiedź',
+  'count.answers.few': '{count} odpowiedzi',
+  'count.answers.many': '{count} odpowiedzi',
+  'count.marked.one': '{count} pozycja jest oznaczona do usunięcia',
+  'count.marked.few': '{count} pozycje są oznaczone do usunięcia',
+  'count.marked.many': '{count} pozycji jest oznaczonych do usunięcia',
+
+  /* -- chrome ------------------------------------------------------ */
+  'meta.description':
+    'Lokalne narzędzie, które porządkuje listę życzeń na Steamie porównaniami parami.',
+  'a11y.skipToContent': 'Przejdź do treści',
+  'a11y.progress.import': 'Wczytywanie listy życzeń',
+  'a11y.progress.categorize': 'Pozycje z przypisaną kategorią',
+  'a11y.progress.compare': 'Odpowiedzi na porównania',
+  'nav.aria': 'Etapy',
+  'nav.import': 'Lista życzeń',
+  'nav.categorize': 'Kategorie',
+  'nav.compare': 'Porównania',
+  'nav.result': 'Wynik',
+  'nav.state.done': 'etap ukończony',
+  'nav.state.current': 'bieżący etap',
+  'nav.state.locked': 'etap jeszcze niedostępny',
+  'settings.title': 'Ustawienia',
+  'settings.covers': 'Wczytuj okładki',
+  'settings.language': 'Język interfejsu',
+  'settings.theme': 'Motyw',
+  'theme.modern': 'Nowoczesny',
+  'theme.steam': 'Jak na Steamie',
+  'actions.saveState': 'Zapisz kopię',
+  'actions.loadState': 'Wczytaj kopię',
+  'actions.skipStage': 'Pomiń kategorie',
+  'actions.reset': 'Zacznij od nowa',
+  'privacy.short': 'Działa lokalnie · twoje dane nie trafiają na cudze serwery',
+  'privacy.details': 'Szczegóły',
+  'privacy.note':
+    'Dane nie opuszczają przeglądarki. Jedyne zapytanie na zewnątrz, jakie aplikacja wysyła sama '
+    + 'z siebie, to pobranie okładek gier z CDN Steama pod publicznym adresem; wyłącza je '
+    + 'przełącznik „Wczytuj okładki”. O import prosto z konta pyta lokalny serwer na twoim własnym '
+    + 'komputerze: zapytanie idzie do Steama i do nikogo więcej, i tylko wtedy, gdy naciśniesz '
+    + 'przycisk.',
+  'dialog.title': 'Potwierdź działanie',
+  'dialog.cancel': 'Anuluj',
+  'dialog.confirm': 'Kontynuuj',
+
+  /* -- shared item bits -------------------------------------------- */
+  'common.openInSteam': 'Otwórz na Steamie ↗',
+  'common.openInSteamAria': 'Otwórz „{title}” na Steamie, w nowej karcie',
+  'category.must': 'Bardzo chcę',
+  'category.want': 'Chcę',
+  'category.maybe': 'Może',
+  'category.unlikely': 'Raczej nie',
+  'category.meh': 'Prawie mnie nie interesuje',
+  'category.remove': 'Usuń z listy życzeń',
+  'category.none': 'Bez kategorii',
+  'kind.game': 'Gra',
+  'kind.dlc': 'DLC',
+  'kind.unknown': 'Typ nieznany',
+  'cover.none': 'Bez okładki',
+  'cover.off': 'Okładki są wyłączone',
+  'cover.failed': 'Okładka się nie wczytała',
+
+  /* -- application ------------------------------------------------- */
+  'app.saveFailed':
+    'Nie udało się zapisać stanu w przeglądarce. Zapisz go do pliku, żeby nic nie przepadło.',
+  'app.saveFailedReason': 'Nie udało się zapisać stanu: {message}',
+  'app.loadFailed':
+    'Zapisanego stanu nie udało się odczytać ({message}). Zaczynamy od pustej listy.',
+  'app.covers.on': 'Okładki są włączone: aplikacja pobiera obrazki z CDN Steama.',
+  'app.covers.off': 'Okładki są wyłączone: aplikacja nie wysyła żadnego zapytania na zewnątrz.',
+  'app.language.changed': 'Język interfejsu: {language}.',
+  'app.theme.changed': 'Motyw: {theme}.',
+  'app.reset.title': 'Zacząć od nowa?',
+  'app.reset.text':
+    'Usunięte zostanie wszystko: {items}, kategorie, odpowiedzi z porównań i ręczne przestawienia. '
+    + 'Tego nie da się cofnąć — jeśli praca może się jeszcze przydać, zapisz ją najpierw do pliku.',
+  'app.reset.confirm': 'Usuń wszystko i zacznij od nowa',
+  'app.reset.done': 'Stan wyczyszczony.',
+  'app.state.buildFailed': 'Nie udało się złożyć pliku stanu: {message}',
+  'app.state.saved': 'Stan zapisany do pliku.',
+  'app.saved': 'Postęp zapisany w tej przeglądarce',
+
+  /* -- import screen ------------------------------------------------ */
+  'import.eyebrow': 'Kolejność, którą wybrałeś sam',
+  'import.promise': 'Ustaw gry według tego, jak bardzo naprawdę chcesz w nie zagrać',
+  'import.lead':
+    'Najpierw szybko rozłóż listę życzeń według zainteresowania, potem wybieraj między dwiema '
+    + 'grami. Przerwać można w każdej chwili — postęp zapisuje się sam.',
+  'import.step.load': 'Wczytaj listę życzeń',
+  'import.step.group': 'Rozłóż według zainteresowania',
+  'import.step.compare': 'Porównaj gry',
+  'import.step.send': 'Wyślij kolejność na Steama',
+  'import.sessions':
+    'Pełne sortowanie może zająć kilka posiedzeń. Bieżący wynik jest dostępny zawsze.',
+  'import.other': 'Inne sposoby importu',
+  'import.file.title': 'Plik JSON',
+  'import.file.hint': 'Eksport ze Steama albo plik zebrany przez userscript.',
+  'import.file.button': 'Wybierz plik…',
+  'import.file.none': 'Nie wybrano pliku',
+  'import.paste.title': 'Wklej JSON',
+  'import.paste.hint': 'Treść odpowiedzi Steama można wkleić tak, jak jest.',
+  'import.paste.label': 'JSON listy życzeń',
+  'import.paste.placeholder': '[ { "appid": 620, "name": "Portal 2" }, … ]',
+  'import.paste.run': 'Importuj z tekstu',
+  'import.userscript.title': 'Ze strony Steama, przez userscript',
+  'import.userscript.hint':
+    'Pobrany przez niego plik wczytuje się tutaj pozycją „Plik JSON” wyżej.',
+  'import.state.title': 'Zapisany stan',
+  'import.state.hint':
+    'Plik zapisany wcześniej przyciskiem „Zapisz kopię”: wracają i kategorie, i wszystkie '
+    + 'odpowiedzi.',
+  'import.state.button': 'Wybierz plik stanu…',
+  'import.demo.button': 'Wypróbuj na 20 grach',
+  'import.ready.eyebrow': 'Gotowe',
+  'import.ready.count.one': 'Wczytano {count} pozycję',
+  'import.ready.count.few': 'Wczytano {count} pozycje',
+  'import.ready.count.many': 'Wczytano {count} pozycji',
+  'import.ready.next':
+    'Dalej rozłożymy gry na pięć poziomów zainteresowania. Właśnie to skraca liczbę porównań.',
+  'import.ready.start': 'Zacznij rozkładać',
+  'import.ready.again': 'Wczytaj inną listę',
+  'import.current':
+    'Na liście jest teraz: {items} — {sorted} z kategorią, {plain} bez. Wykonanych porównań: '
+    + '{comparisons}. Ponowny import odświeża pozycje i zachowuje już wykonaną pracę.',
+  'import.announce': 'Zaimportowano: {count}. Na liście jest teraz: {total}.',
+  'import.source.file': 'Plik {name}',
+  'import.source.pasted': 'Wklejony tekst',
+  'import.source.demo': 'Zestaw demonstracyjny',
+  'import.report.title': '{source}: wczytano {records}',
+  'import.report.added': 'dodano',
+  'import.report.updated': 'zaktualizowano',
+  'import.report.duplicates': 'duplikatów',
+  'import.report.skipped': 'pominięto',
+  'import.issue.line': '{where}: {what}',
+  'import.issue.entry': 'rekord nr {number}',
+  'import.issue.key': 'klucz „{key}”',
+  'import.issue.more': '…i jeszcze {count}',
+  'import.skip.notAnObject': 'rekord nie wygląda ani na pozycję, ani na app id',
+  'import.skip.missingAppId': 'brak identyfikatora aplikacji',
+  'import.skip.invalidAppId': 'identyfikator aplikacji nie jest liczbą',
+  'import.skip.duplicateInInput': 'pozycja już wystąpiła w tym samym pliku',
+  'import.error.title': 'Import się nie udał',
+  'import.error.emptyInput': 'Nie ma czego importować: plik albo pole są puste.',
+  'import.error.invalidJson':
+    'To nie jest JSON. Wygląda na to, że tekst skopiowano nie w całości albo trafiło do niego coś '
+    + 'zbędnego.',
+  'import.error.unrecognizedFormat':
+    'JSON został odczytany, ale nie wygląda na listę życzeń. Potrzebna jest tablica pozycji, '
+    + 'obiekt postaci { "440": { … } } albo odpowiedź Steama z polem response.items.',
+  'import.error.emptyResultTitle': 'Import się udał, ale lista jest pusta',
+  'import.error.emptyResultText':
+    'Nie udało się odczytać ani jednej pozycji. Sprawdź, czy w pliku naprawdę jest lista życzeń.',
+  'import.error.fileRead': 'Pliku nie udało się odczytać',
+  'import.demo.failedTitle': 'Zestaw demonstracyjny się nie wczytał',
+  'import.demo.failedText':
+    '{message}. Plik {url} musi leżeć obok index.html — a strona musi być otwarta przez http(s), '
+    + 'a nie jako file://.',
+  'import.demo.httpError': 'serwer odpowiedział {status}',
+
+  /* -- import straight from a Steam account ------------------------- */
+  'steam.title': 'Wczytaj ze Steama',
+  'steam.subtitle': 'Najprostsza droga dla otwartej listy życzeń',
+  'steam.field': 'Twój profil Steam',
+  'steam.placeholder': 'steamcommunity.com/id/twojanazwa, nick albo SteamID64',
+  'steam.run': 'Sprawdź i wczytaj',
+  'steam.cancel': 'Zatrzymaj',
+  'steam.checking': 'Szukamy lokalnego serwera…',
+  'steam.warning': 'Automatyczny import działa, gdy „Szczegóły gier” są publiczne.',
+  'steam.privateAsk': 'A jeśli są prywatne?',
+  'steam.privateHelp':
+    'Otwórz swój profil Steam, wybierz „Edytuj profil”, potem „Ustawienia prywatności” i ustaw '
+    + '„Szczegóły gier” na „Publiczne”. Jeśli wolisz ich nie otwierać, userscript z „Innych '
+    + 'sposobów importu” czyta stronę, na której już jesteś zalogowany, i radzi sobie z prywatną '
+    + 'listą.',
+  'steam.settingsLink': 'Otwórz ustawienia Steama ↗',
+  'steam.blocked.title': 'Steam nie udostępnił listy życzeń',
+  'steam.blocked.text':
+    'Zwykle znaczy to, że „Szczegóły gier” są prywatne: lista życzeń idzie właśnie za tym jednym '
+    + 'ustawieniem.',
+  'steam.blocked.unavailableTitle': 'Nie udało się pobrać listy życzeń',
+  'steam.blocked.unavailableText':
+    'Steam odpowiedział błędem, a błędem odpowiada zarówno na listę, której nie oddaje, jak i na '
+    + 'własne kłopoty. Dlatego tak: jeśli „Szczegóły gier” są prywatne, kroki niżej je otwierają; '
+    + 'jeśli już są publiczne, poczekaj kilka minut i naciśnij „Sprawdź jeszcze raz”.',
+  'steam.blocked.step1': 'Otwórz swój profil Steam i wybierz „Edytuj profil”.',
+  'steam.blocked.step2': 'Otwórz „Ustawienia prywatności”.',
+  'steam.blocked.step3': 'Ustaw „Szczegóły gier” na „Publiczne”.',
+  'steam.blocked.step4': 'Wróć tutaj i naciśnij „Sprawdź jeszcze raz”.',
+  'steam.blocked.settings': 'Otwórz ustawienia Steama',
+  'steam.blocked.again': 'Sprawdź jeszcze raz',
+  'steam.blocked.keepPrivate': 'Nie chcę tego upubliczniać',
+  'steam.userscript.lead':
+    'Zbierz listę prosto ze strony Steama. Userscript czyta stronę listy życzeń, na której już '
+    + 'jesteś zalogowany, więc ustawienie prywatności mu nie przeszkadza, i sam nie wysyła żadnego '
+    + 'zapytania.',
+  'steam.userscript.step1':
+    'Zainstaluj Tampermonkey — jest dla Chrome, Edge, Firefoksa i Opery.',
+  'steam.userscript.step2': 'Zainstaluj skrypt „steam-wishlist-export.user.js” z repozytorium.',
+  'steam.userscript.step3':
+    'Otwórz stronę swojej listy życzeń i naciśnij „Collect the list”, potem „Download JSON”.',
+  'steam.userscript.step4': 'Wróć tutaj i wybierz ten plik w „Innych sposobach importu”.',
+  'steam.userscript.link': 'Otwórz skrypt na GitHubie ↗',
+  'steam.offline.title': 'Wczytaj moją listę życzeń',
+  'steam.offline.subtitle': 'Wybierz prostszą drogę',
+  'steam.offline.text':
+    'Przeglądarka nie pozwala tej stronie czytać Steama wprost, a lokalnego serwera, który '
+    + 'zapytałby za nią, za stroną nie ma. Twoje dane i tak zostają twoje.',
+  'steam.offline.instructions': 'Pokaż instrukcję',
+  'steam.offline.userscript.badge': 'Działa też z prywatnymi listami',
+  'steam.offline.userscript.title': 'Import ze strony Steama',
+  'steam.offline.local.title': 'Uruchom wersję lokalną',
+  'steam.offline.local.text': 'Dalej wystarczy odnośnik do publicznego profilu.',
+  'steam.offline.local.download': 'Pobierz',
+  'steam.offline.local.step1': 'Zainstaluj Node.js 20 albo nowszy.',
+  'steam.offline.local.step2': 'Rozpakuj archiwum gdziekolwiek.',
+  'steam.offline.local.step3':
+    'Uruchom „start.bat” w Windowsie albo „node server.js” w macOS i Linuksie.',
+  'steam.offline.local.step4': 'Otwórz w przeglądarce http://localhost:8080/.',
+  'steam.step.account': 'Szukamy konta…',
+  'steam.step.wishlist': 'Pytamy Steama o listę życzeń…',
+  'steam.step.titles': 'Tytuły: {done} z {total}',
+  'steam.step.waiting': 'Steam ogranicza liczbę zapytań. Czekamy {seconds} s i pytamy znowu…',
+  'steam.note':
+    'Jeden tytuł to jedno zapytanie, więc długa lista zajmuje minuty. Wszystko, co już przyszło, '
+    + 'jest zapisane — zatrzymanie niczego nie traci.',
+  'steam.done.title': 'Lista życzeń dotarła',
+  'steam.done.titlesTitle': 'Tytuły zostały pobrane',
+  'steam.done.titlesText': 'Na liście: {items}, z tytułem ze Steama: {titles}.',
+  'steam.done.text': 'Konto Steam {account}. Na liście: {items}, z tytułem ze Steama: {titles}.',
+  'steam.done.missing.one':
+    'Steam nie oddał {count} tytułu: ta pozycja jest pokazana przez App ID.',
+  'steam.done.missing.few':
+    'Steam nie oddał {count} tytułów: te pozycje są pokazane przez App ID.',
+  'steam.done.missing.many':
+    'Steam nie oddał {count} tytułów: te pozycje są pokazane przez App ID.',
+  'steam.done.throttled':
+    'Steam przestał odpowiadać przy tytule {done} z {total}: ogranicza liczbę zapytań. Wszystko, '
+    + 'co zdążyło przyjść, jest już na liście — spróbuj przycisku znowu za kilka minut.',
+  'steam.missing.text.one':
+    '{count} pozycja na liście jest wciąż pokazana przez App ID, a nie przez tytuł.',
+  'steam.missing.text.few':
+    '{count} pozycje na liście są wciąż pokazane przez App ID, a nie przez tytuł.',
+  'steam.missing.text.many':
+    '{count} pozycji na liście jest wciąż pokazanych przez App ID, a nie przez tytuł.',
+  'steam.missing.run': 'Pobierz pozostałe tytuły',
+  'steam.cancelled': 'Zatrzymane. Wszystko, co zdążyło przyjść, zostało na liście.',
+  'steam.error.title': 'Import ze Steama się nie udał',
+  'steam.error.emptyInput':
+    'Pole jest puste: wpisz SteamID64, nazwę profilu albo odnośnik do profilu.',
+  'steam.error.invalidAccount':
+    'To nie jest ani SteamID64 (17 cyfr), ani nazwa profilu Steam, ani odnośnik do profilu na '
+    + 'steamcommunity.com.',
+  'steam.error.accountNotFound':
+    'Takiego konta na Steamie nie ma. Sprawdź pisownię — albo otwórz swój profil w przeglądarce '
+    + 'i skopiuj adres strony.',
+  'steam.error.wishlistEmpty': 'Lista życzeń tego konta jest pusta: nie ma jeszcze czego sortować.',
+  'steam.error.rateLimited':
+    'Steam ogranicza liczbę zapytań: z tego adresu przyszło ich za dużo. Po kilku minutach '
+    + 'ograniczenie znika — wtedy spróbuj jeszcze raz.',
+  'steam.error.network':
+    'Do Steama nie da się dobić. Sprawdź połączenie i to, czy lokalny serwer nadal działa.',
+  'steam.error.steamError':
+    'Steam odpowiedział czymś nieoczekiwanym. Zwykle to chwilowe kłopoty po jego stronie; spróbuj '
+    + 'trochę później.',
+  'steam.error.notLocal': 'Lokalny serwer odpowiada tylko na zapytania z localhosta.',
+  'steam.error.unknown': 'Nieoczekiwany błąd: {message}',
+
+  /* -- state file --------------------------------------------------- */
+  'state.error.invalidJson': 'Plik stanu nie czyta się jako JSON.',
+  'state.error.foreignState':
+    'To JSON innej aplikacji: nie ma w nim podpisu Steam Wishlist Sorter.',
+  'state.error.unsupportedVersion':
+    'Plik został zapisany przez inną wersję formatu i nie jest obsługiwany.',
+  'state.error.invalidState': 'Plik wygląda na stan, ale nie ma w nim sesji.',
+  'state.error.writeFailed': 'Stan został odczytany, ale przeglądarka odmówiła jego zapisania.',
+  'state.confirm.title': 'Wczytać stan na miejsce bieżącego?',
+  'state.confirm.text':
+    'Obecny stan: {items}, {comparisons}. Plik zastępuje to wszystko w całości: listę, kategorie, '
+    + 'odpowiedzi i ręczne przestawienia. Tego nie da się cofnąć.',
+  'state.confirm.confirm': 'Zastąp bieżący stan',
+  'state.confirm.cancelled': 'Import stanu anulowany — nic się nie zmieniło.',
+  'state.restored.title': 'Stan przywrócony',
+  'state.restored.items': 'pozycji',
+  'state.restored.comparisons': 'wykonanych porównań',
+  'state.restored.moves': 'ręcznych przestawień',
+  'state.restored.toast': 'Stan przywrócony z pliku.',
+
+  /* -- categories screen -------------------------------------------- */
+  'categorize.eyebrow': 'Krok 2 z 4',
+  'categorize.heading': 'Jak bardzo interesuje cię ta gra?',
+  'categorize.hint': 'Nie zastanawiaj się długo — kategorię można zmienić później.',
+  'categorize.buttonsAria': 'Poziomy zainteresowania',
+  'categorize.more': 'Bardziej interesuje',
+  'categorize.less': 'Mniej interesuje',
+  'categorize.or': 'albo',
+  'categorize.counter': '{index} z {total}',
+  'categorize.back': '← Poprzednia',
+  'categorize.defer': 'Odłóż <kbd>Space</kbd>',
+  'categorize.done': 'Każda pozycja ma kategorię.',
+  'categorize.toCompare': 'Przejdź do porównań',
+  'categorize.empty': 'Lista jest pusta: najpierw zaimportuj listę życzeń.',
+  'categorize.toImport': 'Przejdź do importu',
+  'categorize.position': 'Miejsce na twojej liście życzeń: {position}',
+  'categorize.current': 'Teraz: {category}. Wybierz inną kategorię, żeby to zmienić.',
+  'categorize.legendLeft': 'pozostało: {items}',
+  'categorize.firstItem': 'To pierwsza pozycja listy.',
+  'categorize.noneLeft': 'Nie ma już nierozłożonych pozycji.',
+  'categorize.postponed': '{title} — odłożone, wrócimy do tego na końcu rundy.',
+  'categorize.announce': '{title}: {category}',
+  'categorize.skipTitle': 'Pominąć kategorie?',
+  'categorize.skipText':
+    'Wszystkie pozycje zostaną bez kategorii, a porównania pójdą po całej liście jak po jednej '
+    + 'grupie — pytań będzie znacznie więcej niż przy pięciu mniejszych grupach. Nic nie przepada: '
+    + 'do tego etapu można wrócić w każdej chwili.',
+  'categorize.skipConfirm': 'Pomiń i przejdź do porównań',
+  'categorize.skipDone': 'Etap pominięty: porównania idą po całej liście.',
+
+  /* -- comparisons screen -------------------------------------------- */
+  'compare.eyebrow': 'Krok 3 z 4',
+  'compare.heading': 'Na którą grę masz większą ochotę?',
+  'compare.headingDone': 'Porównania skończone',
+  'compare.hint': 'Wybieraj szybko. Parę, o której nie da się zdecydować, można odłożyć.',
+  'compare.progress': 'Kategoria „{category}” · {made} · pozostało około: {left}',
+  'compare.deferred': 'odłożono: {pairs}',
+  'compare.preferA': 'Chcę bardziej <kbd>A</kbd>',
+  'compare.preferB': 'Chcę bardziej <kbd>D</kbd>',
+  'compare.drop': 'Już mnie nie interesuje',
+  'compare.or': 'albo',
+  'compare.tie': 'Mniej więcej tak samo <kbd>S</kbd>',
+  'compare.defer': 'Nie umiem zdecydować <kbd>Space</kbd>',
+  'compare.undo': 'Cofnij <kbd>Backspace</kbd>',
+  'compare.finish': 'Skończ na dziś',
+  'compare.finishNote': 'Postęp jest zapisany — bieżący wynik można od razu obejrzeć.',
+  'compare.done': 'Nie ma już czego porównywać: kolejność jest ustalona.',
+  'compare.empty': 'Nie ma czego porównywać: lista jest pusta.',
+  'compare.toResult': 'Zobacz wynik',
+  'compare.toImport': 'Przejdź do importu',
+  'compare.banner.allDeferred':
+    'Wszystkie inne pytania są odłożone ({count}), a bez odpowiedzi na to nie da się iść dalej. '
+    + '„Mniej więcej tak samo” to też odpowiedź i sortowanie ruszy dalej.',
+  'compare.banner.forced': 'Ta para jest potrzebna, żeby iść dalej.',
+  'compare.rejected': 'Odpowiedź nie została przyjęta: {message}',
+  'compare.dropped': '„{title}” trafiło na listę do usunięcia z listy życzeń.',
+  'compare.nothingToUndo': 'Nie ma czego cofać.',
+  'compare.undone': 'Ostatnia odpowiedź cofnięta.',
+  'compare.chosen': 'Wybrane: {title}.',
+  'compare.tied': '{a} i {b} — mniej więcej tak samo.',
+  'compare.postponed': 'Para odłożona.',
+
+  /* -- the one-off explanations -------------------------------------- */
+  'onboarding.start': 'Jasne',
+  'onboarding.categorize.title': 'Najpierw z grubsza rozdziel gry według zainteresowania',
+  'onboarding.categorize.lead':
+    'Gry będą pokazywane po jednej, a każdą trzeba postawić na skali pięciu poziomów — albo od '
+    + 'razu na liście do usunięcia z listy życzeń.',
+  'onboarding.categorize.why':
+    'To właśnie skraca sortowanie: gry porównuje się tylko wewnątrz własnej grupy, więc zgrubny '
+    + 'podział teraz oszczędza setki pytań później.',
+  'onboarding.categorize.later':
+    'Nie zastanawiaj się długo. Kategorię można zmienić w każdej chwili — wróć do gry przyciskiem '
+    + '„Poprzednia” albo zmień ją na ekranie wyniku.',
+  'onboarding.compare.title': 'Teraz wybieramy między dwiema grami',
+  'onboarding.compare.lead':
+    'Po dwie gry naraz, obie z tej samej grupy. Wybierz tę, na którą masz większą ochotę — '
+    + 'klawisze A i D albo strzałki.',
+  'onboarding.compare.tie':
+    'Jeśli masz ochotę tak samo, powiedz „Mniej więcej tak samo”: to też odpowiedź i sortowanie ją '
+    + 'wykorzysta.',
+  'onboarding.compare.defer':
+    'Trudną parę można odłożyć spacją — wróci, gdy skończą się łatwe.',
+  'onboarding.compare.stop':
+    'Skończyć można kiedykolwiek. Każda odpowiedź jest zapisywana, a wynik można obejrzeć w każdej '
+    + 'chwili — skończony czy nie.',
+
+  /* -- result screen -------------------------------------------------- */
+  'result.eyebrow': 'Krok 4 z 4',
+  'result.head.usable': 'Wyniku można już używać',
+  'result.head.ready': 'Twoja kolejność jest gotowa',
+  'result.head.empty': 'Nie ma jeszcze czego porządkować',
+  'result.lead.usable': 'Przenieś ją na Steama teraz albo poprawiaj dalej kolejnymi odpowiedziami.',
+  'result.lead.ready': 'Każde miejsce w niej wynika z twoich własnych odpowiedzi.',
+  'result.lead.empty': 'Zaimportuj listę życzeń, a kolejność pojawi się tutaj.',
+  'result.continue': 'Kontynuuj porównania',
+  'result.complete': 'Sortowanie zakończone',
+  'result.toImport': 'Przejdź do importu',
+
+  /* -- result screen: the summary -------------------------------------- */
+  'result.summary.eyebrow': 'Można już używać',
+  'result.summary.headline': 'Ułożone według twoich odpowiedzi: {items}',
+  'result.summary.headlineAll': 'Cała lista jest ułożona według twoich odpowiedzi',
+  'result.summary.headlineNone': 'Żadne miejsce nie wynika jeszcze z odpowiedzi',
+  'result.summary.rest':
+    'Reszta zachowuje kolejność, którą miała na liście życzeń; na liście niżej widać które.',
+  'result.summary.choice':
+    'Tę kolejność można przenieść na Steama od razu albo porównywać dalej — każda odpowiedź ją '
+    + 'poprawia.',
+  'result.summary.done': 'Nie ma już czego porównywać. Przenieś kolejność na Steama.',
+  'result.summary.empty': 'Lista jest pusta: nie ma jeszcze czego pokazywać.',
+  'result.summary.allRemoved': 'Nie ma czego porządkować: {marked} z listy życzeń.',
+  'result.stats.total': 'na liście',
+  'result.stats.confirmed': 'potwierdzonych',
+  'result.stats.removed': 'oznaczonych do usunięcia',
+  'result.built.summary': 'Jak powstała ta kolejność?',
+  'result.built.categories':
+    'Najpierw idą kategorie, w kolejności zainteresowania; wewnątrz kategorii o miejscu decydują '
+    + 'porównania.',
+  'result.built.resolved':
+    'Miejsca ustalone twoimi odpowiedziami: {resolved} z {total}. Pozostałe pozycje ({fallback}) '
+    + 'stoją tam, gdzie stały na liście życzeń — to kolejność zapasowa, oznaczona na liście.',
+  'result.built.answers': 'Odpowiedzi na porównania do tej pory: {count}.',
+  'result.built.manual':
+    'Ręcznie przestawiono: {items}. Ręczne przestawienie jest nakładane na to, co dają porównania, '
+    + 'więc nowe odpowiedzi dalej poprawiają listę wokół niego.',
+  'result.built.noManual': 'Ręcznie niczego nie przestawiano.',
+  'result.built.complete':
+    'Sortowanie zakończone: na każdą parę, której wymagała kolejność, jest odpowiedź.',
+  'result.built.incomplete': 'Sortowanie nie jest skończone — można je wznowić w każdej chwili.',
+  'result.legend.sorted': 'potwierdzone porównaniami',
+  'result.legend.fallback': 'wciąż w dawnej kolejności — według miejsca na liście życzeń',
+  'result.legend.manual': 'przestawione ręcznie',
+  'result.legend.tied': 'na równi z wierszem wyżej',
+
+  /* -- result screen: carrying the order into Steam --------------------- */
+  'result.transfer.eyebrow': 'Główne działanie',
+  'result.transfer.heading': 'Przenieś kolejność na Steama',
+  'result.transfer.sub': 'Bez rozszerzeń i bez dodatkowych programów',
+  'result.transfer.step1': 'Pokaż pasek zakładek',
+  'result.transfer.shortcut':
+    '<kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>B</kbd> — w Chrome, Edge i Firefoksie.',
+  'result.transfer.shortcutMac':
+    '<kbd>⌘</kbd> + <kbd>Shift</kbd> + <kbd>B</kbd> — w Chrome, Edge i Firefoksie.',
+  'result.transfer.shortcutSafari': 'W Safari: menu „Widok” → „Pokaż pasek ulubionych”.',
+  'result.transfer.step2': 'Przeciągnij ten odnośnik na pasek',
+  'result.transfer.step3': 'Otwórz swoją listę życzeń i naciśnij zakładkę',
+  'result.transfer.openWishlist': 'Otwórz moją listę życzeń ↗',
+  'result.transfer.link': 'Przenieś moją kolejność na Steama',
+  'result.transfer.copy': 'Skopiuj odnośnik',
+  'result.transfer.carries': 'Zawartość odnośnika: {items}.',
+  'result.transfer.fresh':
+    'Odnośnik składa się od nowa przy każdej zmianie, więc stąd zawsze zabierasz bieżącą '
+    + 'kolejność.',
+  'result.transfer.taken':
+    'To ten sam odnośnik, który zabrałeś, i wciąż zapisuje dokładnie tę kolejność, co niżej.',
+  'result.transfer.stale': 'Kolejność się zmieniła — zastąp starą zakładkę odnośnikiem po zmianie.',
+  'result.transfer.copied': 'Odnośnik skopiowany. Utwórz zakładkę ręcznie i wklej go jako adres.',
+  'result.transfer.copyFailed':
+    'Przeglądarka odmówiła dostępu do schowka — przeciągnij odnośnik na pasek zakładek.',
+  'result.transfer.clickToast':
+    'Tego odnośnika nie naciska się tutaj: przeciągnij go na pasek zakładek i naciśnij już na '
+    + 'stronie listy życzeń na Steamie.',
+  'result.transfer.empty': 'Lista jest pusta — nie ma jeszcze czego przenosić.',
+  'result.transfer.failed': 'Nie udało się złożyć odnośnika: {message}',
+  'result.transfer.mobile':
+    'Na telefonie albo tablecie jest to niewygodne: bookmarklet trzeba przeciągnąć na pasek '
+    + 'zakładek. Przeniesienie łatwiej zrobić w przeglądarce na komputerze.',
+  'result.transfer.warnAccount':
+    'Kolejność zapisuje się na koncie, na które zalogowana jest ta przeglądarka.',
+  'result.transfer.warnNoDelete':
+    'Nic nie jest usuwane: pozycje oznaczone do usunięcia trafiają na koniec listy.',
+  'result.transfer.warnPriority':
+    'Po zapisie każda pozycja ma priorytet, także te, które go wcześniej nie miały.',
+  'result.transfer.warnNoBackup':
+    'Bookmarklet nie robi kopii zapasowej i potem niczego nie sprawdza.',
+  'result.transfer.warnReload':
+    'Gdy będzie po wszystkim, przeładuj stronę Steama i przełącz sortowanie na własną kolejność.',
+  'result.transfer.advanced': 'Potrzebna kopia zapasowa i automatyczne sprawdzenie?',
+  'result.transfer.advancedText':
+    'Userscript czyta samą stronę listy życzeń: zapisuje do pliku kolejność, która jest teraz, '
+    + 'zapisuje nową i potem sprawdza, czy dojechała. Potrzebuje Tampermonkey — dlatego to droga '
+    + 'dłuższa, a nie główna.',
+  'result.transfer.advancedStep2':
+    'Zainstaluj skrypt „steam-wishlist-import-order.user.js” z repozytorium.',
+  'result.transfer.advancedStep3':
+    'Otwórz stronę swojej listy życzeń i idź za panelem, który postawi skrypt.',
+
+  /* -- result screen: the list ------------------------------------------ */
+  'result.list.heading': 'Twoja kolejność',
+  'result.search': 'Szukaj po tytule albo App ID',
+  'result.filterAria': 'Co pokazywać',
+  'result.filter.all': 'Wszystko',
+  'result.filter.game': 'Gry',
+  'result.filter.dlc': 'DLC',
+  'result.hint':
+    'Wiersz można przeciągnąć myszą albo zaznaczyć i przenieść <kbd>Ctrl</kbd> + <kbd>↑</kbd> / '
+    + '<kbd>Ctrl</kbd> + <kbd>↓</kbd>. Przestawienia są zapisywane i przeżywają przeładowanie.',
+  'result.removed.hint': 'Te pozycje nie wchodzą do numeracji końcowej listy.',
+  'result.mark.confirmed': 'Potwierdzone porównaniami',
+  'result.mark.fallback': 'Wciąż w dawnej kolejności',
+  'result.mark.manual': 'Przestawione ręcznie',
+  'result.mark.tied': 'Na równi z wierszem wyżej',
+  'result.row.appId': 'App ID {appId}',
+  'result.row.where': '{category} · {position} w kategorii',
+  'result.row.aria': '{position}. {title}. {category}. {kind}. {note}',
+  'result.row.categoryAria': 'Kategoria: {title}',
+  'result.shown.all': '{rows}',
+  'result.shown.filtered': 'widoczne: {shown} z {total}',
+  'result.empty.filter': 'Pod filtr ani pod wyszukiwanie nie trafiła żadna pozycja.',
+  'result.empty.noItems': 'Zaimportuj listę życzeń, a wynik pojawi się tutaj.',
+  'result.empty.allRemoved': 'Każda pozycja jest oznaczona do usunięcia — nie ma czego porządkować.',
+  'result.move.failed': 'Nie udało się przestawić: {message}',
+  'result.move.announce': '„{title}” {where}{category}.',
+  'result.move.place': 'na miejsce {position}',
+  'result.move.newPlace': 'na nowe miejsce',
+  'result.move.categorySuffix': ', kategoria: {category}',
+  'result.move.categoryToast': '„{title}” przeniesione do „{category}”.',
+  'result.move.edge':
+    'To {edge} wiersz kategorii „{category}”. Kategorię zmienia się wyborem w samym wierszu.',
+  'result.move.edgeFirst': 'pierwszy',
+  'result.move.edgeLast': 'ostatni',
+  'result.category.failed': 'Nie udało się zmienić kategorii: {message}',
+  'result.category.toast': '„{title}” — {category}.',
+
+  /* -- result screen: the files and the two resets ---------------------- */
+  'result.export.summary': 'Pobierz albo udostępnij',
+  'result.export.hint':
+    'Pliki powstają tutaj, w przeglądarce, i zapisujesz je ty — nic nigdzie nie jest wysyłane.',
+  'result.exportJson': 'Kolejność jako JSON',
+  'result.exportCsv': 'Lista jako CSV',
+  'result.copyText': 'Skopiuj jako listę',
+  'result.saveState': 'Kopia zapasowa stanu',
+  'result.export.empty': 'Nie ma czego wyeksportować: lista jest pusta.',
+  'result.export.failed': 'Nie udało się złożyć pliku: {message}',
+  'result.export.jsonDone': 'Końcowa kolejność zapisana jako JSON.',
+  'result.export.csvDone': 'Końcowa lista zapisana jako CSV.',
+  'result.copy.empty': 'Nie ma czego kopiować: lista jest pusta.',
+  'result.copy.done': 'Numerowana lista skopiowana do schowka.',
+  'result.copy.failed':
+    'Przeglądarka odmówiła dostępu do schowka — lista została zapisana jako plik.',
+  'result.resetManual': 'Wyzeruj ręczne przestawienia',
+  'result.resetManual.none': 'Nie ma ręcznych przestawień.',
+  'result.resetManual.title': 'Wyzerować ręczne przestawienia?',
+  'result.resetManual.text':
+    'Do skasowania: {moves}. Lista wróci do kolejności, którą dają porównania. Odpowiedzi z '
+    + 'porównań zostają.',
+  'result.resetManual.confirm': 'Wyzeruj przestawienia',
+  'result.resetManual.done': 'Ręczne przestawienia wyzerowane.',
+  'result.resetAnswers': 'Wyzeruj odpowiedzi z porównań',
+  'result.resetAnswers.none': 'Nie ma jeszcze odpowiedzi.',
+  'result.resetAnswers.title': 'Wyzerować odpowiedzi z porównań?',
+  'result.resetAnswers.text':
+    'Do usunięcia: {answers}. Porównania zaczną się od zera, a lista pozycji, kategorie i ręczne '
+    + 'przestawienia zostają. Tego nie da się cofnąć.',
+  'result.resetAnswers.confirm': 'Wyzeruj odpowiedzi',
+  'result.resetAnswers.done': 'Odpowiedzi z porównań wyzerowane.',
+
+  /* -- the bookmarklet: what it says on the Steam page ------------------ */
+  'bookmarklet.title': 'Steam Wishlist Sorter',
+  'bookmarklet.wrongPage':
+    'To nie jest lista życzeń Steama. Otwórz store.steampowered.com/wishlist, zaloguj się i '
+    + 'naciśnij zakładkę tam. Nic nie zostało wysłane.',
+  'bookmarklet.confirm':
+    'Ta kolejność ({items}) zostanie zapisana na liście życzeń konta, na które zalogowana jest ta '
+    + 'przeglądarka. Nic nie jest usuwane. Tego nie da się cofnąć: po zapisie każda pozycja ma '
+    + 'priorytet, także te, które go wcześniej nie miały, i żadna kopia zapasowa tego nie '
+    + 'przywróci.',
+  'bookmarklet.write': 'Zapisz kolejność',
+  'bookmarklet.cancel': 'Anuluj',
+  'bookmarklet.close': 'Zamknij',
+  'bookmarklet.sending': 'Wysyłamy kolejność na Steama…',
+  'bookmarklet.done':
+    'Steam przyjął kolejność. Przeładuj stronę listy życzeń i spójrz na nią: ten bookmarklet '
+    + 'strony nie czyta, więc sprawdzenie należy do ciebie.',
+  'bookmarklet.unclear':
+    'Steam odpowiedział, ale z odpowiedzi nie wynika ani tak, ani nie. Przeładuj stronę listy '
+    + 'życzeń i spójrz na kolejność, zanim powtórzysz.',
+  'bookmarklet.refused':
+    'Steam odrzucił kolejność i nie powiedział nic użytecznego o powodzie. Przeładuj stronę listy '
+    + 'życzeń i spójrz na kolejność, zanim powtórzysz.',
+  'bookmarklet.badRequest':
+    'Steam odrzucił zapytanie już na progu: 400 i puste ciało — do kolejności nawet nie dotarł, '
+    + 'więc nic nie zostało zapisane. Tak odpowiada, gdy zapytaniu brakuje czegoś, czego wymaga, '
+    + 'a sama odpowiedź tego nie nazywa. Wygląda na to, że endpoint się zmienił; co z tym zrobić, '
+    + 'jest napisane na stronie projektu.',
+  'bookmarklet.signedOut':
+    'Steam nie przyjął sesji — najczęściej po prostu wygasła. Zaloguj się na Steama jeszcze raz, '
+    + 'przeładuj listę życzeń i naciśnij zakładkę ponownie. Nic nie zostało zapisane.',
+  'bookmarklet.rateLimited':
+    'Steam odpowiedział „za dużo zapytań”. Poczekaj parę minut i naciśnij zakładkę znowu — nic się '
+    + 'nie zmieniło.',
+  'bookmarklet.tooLarge':
+    'Zapytanie jest dla Steama za duże: cała kolejność idzie jednym zapytaniem, a to się nie '
+    + 'zmieściło. Nic nie zostało zapisane. Do takiej listy potrzebny jest userscript — on umie '
+    + 'zamiast zapisu oznaczyć wiersze prosto na stronie.',
+  'bookmarklet.serverError':
+    'Kłopot jest po stronie Steama — odpowiedział błędem serwera. Spróbuj za kilka minut; nic nie '
+    + 'zostało zapisane.',
+  'bookmarklet.offline':
+    'Zapytanie w ogóle nie dotarło do Steama. Może nie ma sieci, a może zablokowało je '
+    + 'rozszerzenie. Nic nie zostało zapisane — sprawdź połączenie i naciśnij zakładkę znowu.',
+
+  /* -- exported files -------------------------------------------------- */
+  'export.csv.number': 'Nr',
+  'export.csv.appId': 'App ID',
+  'export.csv.title': 'Tytuł',
+  'export.csv.category': 'Kategoria',
+  'export.csv.kind': 'Typ',
+  'export.csv.positionInCategory': 'Miejsce w kategorii',
+  'export.csv.origin': 'Skąd kolejność',
+  'export.csv.wishlistPosition': 'Miejsce na liście życzeń',
+  'export.csv.url': 'Odnośnik',
+  'export.origin.manual': 'ręcznie',
+  'export.origin.comparisons': 'porównania',
+  'export.origin.fallback': 'kolejność zapasowa',
+  'export.kind.game': 'Gra',
+  'export.kind.dlc': 'DLC',
+  'export.kind.unknown': 'Nieznany',
+};
+
+/* ------------------------------------------------------------ turkish */
+
+/** @type {Readonly<Record<string, string>>} */
+const TR = {
+  /* -- counted phrases -------------------------------------------- */
+  'count.items.one': '{count} öğe',
+  'count.items.few': '{count} öğe',
+  'count.items.many': '{count} öğe',
+  'count.records.one': '{count} kayıt okundu',
+  'count.records.few': '{count} kayıt okundu',
+  'count.records.many': '{count} kayıt okundu',
+  'count.comparisonsMade.one': '{count} yapılmış karşılaştırma',
+  'count.comparisonsMade.few': '{count} yapılmış karşılaştırma',
+  'count.comparisonsMade.many': '{count} yapılmış karşılaştırma',
+  'count.comparisonsDone.one': '{count} karşılaştırma yanıtlandı',
+  'count.comparisonsDone.few': '{count} karşılaştırma yanıtlandı',
+  'count.comparisonsDone.many': '{count} karşılaştırma yanıtlandı',
+  'count.pairs.one': '{count} çift',
+  'count.pairs.few': '{count} çift',
+  'count.pairs.many': '{count} çift',
+  'count.rows.one': '{count} satır',
+  'count.rows.few': '{count} satır',
+  'count.rows.many': '{count} satır',
+  'count.moves.one': '{count} taşıma',
+  'count.moves.few': '{count} taşıma',
+  'count.moves.many': '{count} taşıma',
+  'count.answers.one': '{count} yanıt',
+  'count.answers.few': '{count} yanıt',
+  'count.answers.many': '{count} yanıt',
+  'count.marked.one': '{count} öğe istek listesinden çıkarılmak üzere işaretlendi',
+  'count.marked.few': '{count} öğe istek listesinden çıkarılmak üzere işaretlendi',
+  'count.marked.many': '{count} öğe istek listesinden çıkarılmak üzere işaretlendi',
+
+  /* -- chrome ------------------------------------------------------ */
+  'meta.description':
+    'Bir Steam istek listesini ikili karşılaştırmalarla sıraya koyan yerel bir araç.',
+  'a11y.skipToContent': 'İçeriğe geç',
+  'a11y.progress.import': 'İstek listesi yükleniyor',
+  'a11y.progress.categorize': 'Kategorisi verilen öğeler',
+  'a11y.progress.compare': 'Yanıtlanan karşılaştırmalar',
+  'nav.aria': 'Aşamalar',
+  'nav.import': 'İstek listesi',
+  'nav.categorize': 'Kategoriler',
+  'nav.compare': 'Karşılaştırmalar',
+  'nav.result': 'Sonuç',
+  'nav.state.done': 'aşama tamamlandı',
+  'nav.state.current': 'şu anki aşama',
+  'nav.state.locked': 'aşama henüz kullanılamıyor',
+  'settings.title': 'Ayarlar',
+  'settings.covers': 'Kapakları yükle',
+  'settings.language': 'Arayüz dili',
+  'settings.theme': 'Tema',
+  'theme.modern': 'Modern',
+  'theme.steam': 'Steam görünümü',
+  'actions.saveState': 'Yedek kaydet',
+  'actions.loadState': 'Yedek yükle',
+  'actions.skipStage': 'Kategorileri atla',
+  'actions.reset': 'Baştan başla',
+  'privacy.short': 'Yerel çalışır · verileriniz başkasının sunucusuna gitmez',
+  'privacy.details': 'Ayrıntılar',
+  'privacy.note':
+    'Verileriniz tarayıcıdan çıkmaz. Uygulamanın kendiliğinden yaptığı tek dış istek, oyun '
+    + 'kapaklarını herkese açık bir adresten, Steam’in CDN’inden indirmektir; bunu “Kapakları '
+    + 'yükle” anahtarı kapatır. Doğrudan hesaptan içe aktarmayı kendi bilgisayarınızdaki yerel '
+    + 'sunucu ister: istek yalnızca Steam’e gider, başka kimseye değil, ve yalnızca siz düğmeye '
+    + 'bastığınızda.',
+  'dialog.title': 'İşlemi onaylayın',
+  'dialog.cancel': 'Vazgeç',
+  'dialog.confirm': 'Devam et',
+
+  /* -- shared item bits -------------------------------------------- */
+  'common.openInSteam': 'Steam’de aç ↗',
+  'common.openInSteamAria': '“{title}” oyununu yeni bir sekmede Steam’de aç',
+  'category.must': 'Gerçekten istiyorum',
+  'category.want': 'İstiyorum',
+  'category.maybe': 'Belki',
+  'category.unlikely': 'Pek sanmıyorum',
+  'category.meh': 'Neredeyse ilgilenmiyorum',
+  'category.remove': 'İstek listesinden çıkar',
+  'category.none': 'Kategorisiz',
+  'kind.game': 'Oyun',
+  'kind.dlc': 'DLC',
+  'kind.unknown': 'Tür bilinmiyor',
+  'cover.none': 'Kapak yok',
+  'cover.off': 'Kapaklar kapalı',
+  'cover.failed': 'Kapak yüklenmedi',
+
+  /* -- application ------------------------------------------------- */
+  'app.saveFailed':
+    'Durum tarayıcıya kaydedilemedi. Hiçbir şey kaybolmasın diye bir dosyaya kaydedin.',
+  'app.saveFailedReason': 'Durum kaydedilemedi: {message}',
+  'app.loadFailed': 'Kayıtlı durum okunamadı ({message}). Boş bir listeyle başlıyoruz.',
+  'app.covers.on': 'Kapaklar açık: uygulama görselleri Steam’in CDN’inden indiriyor.',
+  'app.covers.off': 'Kapaklar kapalı: uygulama tek bir dış istek bile yapmıyor.',
+  'app.language.changed': 'Arayüz dili: {language}.',
+  'app.theme.changed': 'Tema: {theme}.',
+  'app.reset.title': 'Baştan başlansın mı?',
+  'app.reset.text':
+    'Şunların hepsi silinecek: {items}, kategoriler, karşılaştırma yanıtları ve elle yapılan '
+    + 'taşımalar. Bu geri alınamaz — çalışma hâlâ işinize yarayabilecekse önce bir dosyaya '
+    + 'kaydedin.',
+  'app.reset.confirm': 'Her şeyi sil ve baştan başla',
+  'app.reset.done': 'Durum temizlendi.',
+  'app.state.buildFailed': 'Durum dosyası oluşturulamadı: {message}',
+  'app.state.saved': 'Durum bir dosyaya kaydedildi.',
+  'app.saved': 'İlerleme bu tarayıcıya kaydedildi',
+
+  /* -- import screen ------------------------------------------------ */
+  'import.eyebrow': 'Kendi seçtiğiniz bir sıra',
+  'import.promise': 'Oyunları gerçekten oynamak isteme derecenize göre sıralayın',
+  'import.lead':
+    'Önce istek listenizi ilgi derecesine göre hızlıca gruplayın, sonra iki oyun arasında seçim '
+    + 'yapın. İstediğiniz an bırakabilirsiniz — ilerleme kendiliğinden kaydedilir.',
+  'import.step.load': 'İstek listesini yükle',
+  'import.step.group': 'İlgiye göre grupla',
+  'import.step.compare': 'Oyunları karşılaştır',
+  'import.step.send': 'Sırayı Steam’e gönder',
+  'import.sessions':
+    'Tam bir sıralama birkaç oturum sürebilir. Şu anki sonucunuz her zaman elinizin altındadır.',
+  'import.other': 'Diğer içe aktarma yolları',
+  'import.file.title': 'JSON dosyası',
+  'import.file.hint': 'Steam’den bir dışa aktarma ya da userscript’in topladığı bir dosya.',
+  'import.file.button': 'Dosya seç…',
+  'import.file.none': 'Dosya seçilmedi',
+  'import.paste.title': 'JSON yapıştır',
+  'import.paste.hint': 'Steam’in yanıtının gövdesi olduğu gibi yapıştırılabilir.',
+  'import.paste.label': 'İstek listesi JSON’u',
+  'import.paste.placeholder': '[ { "appid": 620, "name": "Portal 2" }, … ]',
+  'import.paste.run': 'Metinden içe aktar',
+  'import.userscript.title': 'Steam sayfasından, userscript ile',
+  'import.userscript.hint':
+    'İndirdiği dosya burada, yukarıdaki “JSON dosyası” ile yüklenir.',
+  'import.state.title': 'Kayıtlı durum',
+  'import.state.hint':
+    'Daha önce “Yedek kaydet” ile kaydettiğiniz bir dosya: hem kategoriler hem de her yanıt geri '
+    + 'gelir.',
+  'import.state.button': 'Durum dosyası seç…',
+  'import.demo.button': '20 oyunla deneyin',
+  'import.ready.eyebrow': 'Hazır',
+  'import.ready.count.one': '{count} öğe yüklendi',
+  'import.ready.count.few': '{count} öğe yüklendi',
+  'import.ready.count.many': '{count} öğe yüklendi',
+  'import.ready.next':
+    'Sırada oyunları beş ilgi düzeyine ayırmak var. Karşılaştırma sayısını kısan tam da budur.',
+  'import.ready.start': 'Gruplamaya başla',
+  'import.ready.again': 'Başka bir istek listesi yükle',
+  'import.current':
+    'Listede şu anda: {items} — {sorted} kategorili, {plain} kategorisiz. Yapılan karşılaştırma: '
+    + '{comparisons}. Yeniden içe aktarmak kayıtları tazeler ve şimdiye kadarki çalışmayı korur.',
+  'import.announce': 'İçe aktarıldı: {count}. Listede şu anda: {total}.',
+  'import.source.file': '{name} dosyası',
+  'import.source.pasted': 'Yapıştırılan metin',
+  'import.source.demo': 'Tanıtım kümesi',
+  'import.report.title': '{source}: {records}',
+  'import.report.added': 'eklendi',
+  'import.report.updated': 'güncellendi',
+  'import.report.duplicates': 'yinelenen',
+  'import.report.skipped': 'atlandı',
+  'import.issue.line': '{where}: {what}',
+  'import.issue.entry': '{number}. kayıt',
+  'import.issue.key': '“{key}” anahtarı',
+  'import.issue.more': '…ve {count} tane daha',
+  'import.skip.notAnObject': 'kayıt ne bir öğeye ne de bir app id’ye benziyor',
+  'import.skip.missingAppId': 'uygulama kimliği yok',
+  'import.skip.invalidAppId': 'uygulama kimliği bir sayı değil',
+  'import.skip.duplicateInInput': 'öğe bu dosyada zaten geçmişti',
+  'import.error.title': 'İçe aktarma başarısız oldu',
+  'import.error.emptyInput': 'İçe aktarılacak bir şey yok: dosya ya da alan boş.',
+  'import.error.invalidJson':
+    'Bu JSON değil. Görünüşe göre metin eksik kopyalanmış ya da içine fazladan bir şey karışmış.',
+  'import.error.unrecognizedFormat':
+    'JSON okundu, ama bir istek listesine benzemiyor. Gereken şey bir öğe dizisi, { "440": { … } } '
+    + 'biçiminde bir nesne ya da response.items alanı olan bir Steam yanıtı.',
+  'import.error.emptyResultTitle': 'İçe aktarma oldu, ama liste boş',
+  'import.error.emptyResultText':
+    'Tek bir öğe bile okunamadı. Dosyada gerçekten bir istek listesi olduğunu doğrulayın.',
+  'import.error.fileRead': 'Dosya okunamadı',
+  'import.demo.failedTitle': 'Tanıtım kümesi yüklenmedi',
+  'import.demo.failedText':
+    '{message}. {url} dosyası index.html ile yan yana durmalı — ve sayfa file:// olarak değil, '
+    + 'http(s) üzerinden açılmalı.',
+  'import.demo.httpError': 'sunucu {status} yanıtı verdi',
+
+  /* -- import straight from a Steam account ------------------------- */
+  'steam.title': 'Steam’den yükle',
+  'steam.subtitle': 'Herkese açık bir istek listesi için en kolay yol',
+  'steam.field': 'Steam profiliniz',
+  'steam.placeholder': 'steamcommunity.com/id/adiniz, bir takma ad ya da bir SteamID64',
+  'steam.run': 'Denetle ve yükle',
+  'steam.cancel': 'Durdur',
+  'steam.checking': 'Yerel sunucu aranıyor…',
+  'steam.warning': 'Otomatik içe aktarma, “Oyun ayrıntıları” herkese açıkken çalışır.',
+  'steam.privateAsk': 'Peki gizliyse?',
+  'steam.privateHelp':
+    'Steam profilinizi açın, “Profili Düzenle”yi, sonra “Gizlilik Ayarları”nı seçin ve “Oyun '
+    + 'ayrıntıları”nı “Herkese Açık” yapın. Açmak istemiyorsanız, “Diğer içe aktarma yolları” '
+    + 'altındaki userscript oturum açtığınız sayfayı okur ve gizli bir listeyle de çalışır.',
+  'steam.settingsLink': 'Steam ayarlarını aç ↗',
+  'steam.blocked.title': 'Steam istek listesini vermedi',
+  'steam.blocked.text':
+    'Bu genellikle “Oyun ayrıntıları”nın gizli olduğu anlamına gelir: istek listesi tam olarak bu '
+    + 'tek ayarı izler.',
+  'steam.blocked.unavailableTitle': 'İstek listesi alınamadı',
+  'steam.blocked.unavailableText':
+    'Steam bir hatayla yanıt verdi; hata ise hem vermek istemediği bir liste için hem de kendi kötü '
+    + 'bir dakikası için verdiği yanıttır. Bu yüzden: “Oyun ayrıntıları” gizliyse aşağıdaki adımlar '
+    + 'onu açar; zaten açıksa birkaç dakika bekleyip “Yeniden denetle”ye basın.',
+  'steam.blocked.step1': 'Steam profilinizi açın ve “Profili Düzenle”yi seçin.',
+  'steam.blocked.step2': '“Gizlilik Ayarları”nı açın.',
+  'steam.blocked.step3': '“Oyun ayrıntıları”nı “Herkese Açık” yapın.',
+  'steam.blocked.step4': 'Buraya dönün ve “Yeniden denetle”ye basın.',
+  'steam.blocked.settings': 'Steam ayarlarını aç',
+  'steam.blocked.again': 'Yeniden denetle',
+  'steam.blocked.keepPrivate': 'Herkese açık yapmak istemiyorum',
+  'steam.userscript.lead':
+    'Listeyi doğrudan Steam sayfasından toplayın. Userscript, oturum açtığınız istek listesi '
+    + 'sayfasını okur, bu yüzden gizlilik ayarı onu engellemez ve kendisi hiçbir ağ isteği yapmaz.',
+  'steam.userscript.step1':
+    'Tampermonkey’i kurun — Chrome, Edge, Firefox ve Opera için var.',
+  'steam.userscript.step2': 'Depodaki “steam-wishlist-export.user.js” betiğini kurun.',
+  'steam.userscript.step3':
+    'İstek listesi sayfanızı açın ve “Collect the list”e, sonra “Download JSON”a basın.',
+  'steam.userscript.step4':
+    'Buraya dönün ve o dosyayı “Diğer içe aktarma yolları” altından seçin.',
+  'steam.userscript.link': 'Betiği GitHub’da aç ↗',
+  'steam.offline.title': 'İstek listemi yükle',
+  'steam.offline.subtitle': 'En kolay yolu seçin',
+  'steam.offline.text':
+    'Tarayıcınız bu sayfanın Steam’i doğrudan okumasına izin vermiyor ve onun adına soracak bir '
+    + 'yerel sunucu da arkasında yok. Verileriniz yine de sizin kalır.',
+  'steam.offline.instructions': 'Yönergeleri göster',
+  'steam.offline.userscript.badge': 'Gizli listelerle de çalışır',
+  'steam.offline.userscript.title': 'Steam sayfanızdan içe aktarma',
+  'steam.offline.local.title': 'Yerel sürümü çalıştırın',
+  'steam.offline.local.text': 'Sonrası için herkese açık bir profil bağlantısı yeter.',
+  'steam.offline.local.download': 'İndir',
+  'steam.offline.local.step1': 'Node.js 20 ya da daha yenisini kurun.',
+  'steam.offline.local.step2': 'Arşivi istediğiniz yere açın.',
+  'steam.offline.local.step3':
+    'Windows’ta “start.bat”ı, macOS ve Linux’ta “node server.js”i çalıştırın.',
+  'steam.offline.local.step4': 'Tarayıcıda http://localhost:8080/ adresini açın.',
+  'steam.step.account': 'Hesap aranıyor…',
+  'steam.step.wishlist': 'Steam’den istek listesi isteniyor…',
+  'steam.step.titles': 'Başlıklar: {done} / {total}',
+  'steam.step.waiting':
+    'Steam istekleri sınırlıyor. {seconds} sn beklenip yeniden sorulacak…',
+  'steam.note':
+    'Bir başlık, bir istek; bu yüzden uzun bir liste dakikalar alır. Gelen her şey kaydedilir — '
+    + 'durdurmak hiçbir şey kaybettirmez.',
+  'steam.done.title': 'İstek listesi geldi',
+  'steam.done.titlesTitle': 'Başlıklar alındı',
+  'steam.done.titlesText': 'Listede: {items}, bunlardan Steam’den gelen başlığa sahip: {titles}.',
+  'steam.done.text':
+    'Steam hesabı {account}. Listede: {items}, bunlardan Steam’den gelen başlığa sahip: {titles}.',
+  'steam.done.missing.one':
+    'Steam {count} başlık vermedi: o öğe App ID’siyle gösteriliyor.',
+  'steam.done.missing.few':
+    'Steam {count} başlık vermedi: o öğeler App ID’leriyle gösteriliyor.',
+  'steam.done.missing.many':
+    'Steam {count} başlık vermedi: o öğeler App ID’leriyle gösteriliyor.',
+  'steam.done.throttled':
+    'Steam {total} başlığın {done}. sırasında yanıt vermeyi bıraktı: istekleri sınırlıyor. Alınan '
+    + 'her şey zaten listede — birkaç dakika sonra düğmeyi yeniden deneyin.',
+  'steam.missing.text.one':
+    'Listedeki {count} öğe hâlâ başlıkla değil, bir App ID ile gösteriliyor.',
+  'steam.missing.text.few':
+    'Listedeki {count} öğe hâlâ başlıkla değil, bir App ID ile gösteriliyor.',
+  'steam.missing.text.many':
+    'Listedeki {count} öğe hâlâ başlıkla değil, bir App ID ile gösteriliyor.',
+  'steam.missing.run': 'Kalan başlıkları getir',
+  'steam.cancelled': 'Durduruldu. O ana dek gelen her şey listede kaldı.',
+  'steam.error.title': 'Steam’den içe aktarma başarısız oldu',
+  'steam.error.emptyInput':
+    'Alan boş: bir SteamID64, bir profil adı ya da profile bir bağlantı yazın.',
+  'steam.error.invalidAccount':
+    'Bu ne bir SteamID64 (17 basamak), ne bir Steam profil adı, ne de steamcommunity.com '
+    + 'üzerindeki bir profile bağlantı.',
+  'steam.error.accountNotFound':
+    'Steam’de böyle bir hesap yok. Yazımı denetleyin — ya da profilinizi tarayıcıda açıp sayfanın '
+    + 'adresini kopyalayın.',
+  'steam.error.wishlistEmpty':
+    'Bu hesabın istek listesi boş: sıralanacak bir şey henüz yok.',
+  'steam.error.rateLimited':
+    'Steam istekleri sınırlıyor: bu adresten çok fazla istek geldi. Birkaç dakika sonra bırakıyor — '
+    + 'o zaman yeniden deneyin.',
+  'steam.error.network':
+    'Steam’e ulaşılamadı. Bağlantınızı ve yerel sunucunun hâlâ çalıştığını denetleyin.',
+  'steam.error.steamError':
+    'Steam beklenmedik bir şeyle yanıt verdi. Bu genellikle Steam’in kendi kötü bir anıdır; biraz '
+    + 'sonra yeniden deneyin.',
+  'steam.error.notLocal': 'Yerel sunucu yalnızca localhost’tan gelen isteklere yanıt verir.',
+  'steam.error.unknown': 'Beklenmedik hata: {message}',
+
+  /* -- state file --------------------------------------------------- */
+  'state.error.invalidJson': 'Durum dosyası JSON olarak okunmuyor.',
+  'state.error.foreignState':
+    'Bu başka bir uygulamanın JSON’u: üzerinde Steam Wishlist Sorter imzası yok.',
+  'state.error.unsupportedVersion':
+    'Dosya biçimin başka bir sürümüyle kaydedilmiş ve desteklenmiyor.',
+  'state.error.invalidState': 'Dosya bir duruma benziyor, ama içinde oturum yok.',
+  'state.error.writeFailed': 'Durum okundu, ama tarayıcı kaydetmeyi reddetti.',
+  'state.confirm.title': 'Durum, şu ankinin üzerine yüklensin mi?',
+  'state.confirm.text':
+    'Şu anki durum: {items}, {comparisons}. Dosya bunların hepsinin yerine bir bütün olarak geçer: '
+    + 'liste, kategoriler, yanıtlar ve elle yapılan taşımalar. Bu geri alınamaz.',
+  'state.confirm.confirm': 'Şu anki durumun yerine geç',
+  'state.confirm.cancelled': 'Durum içe aktarma iptal edildi — hiçbir şey değişmedi.',
+  'state.restored.title': 'Durum geri yüklendi',
+  'state.restored.items': 'öğe',
+  'state.restored.comparisons': 'yapılmış karşılaştırma',
+  'state.restored.moves': 'elle taşıma',
+  'state.restored.toast': 'Durum dosyadan geri yüklendi.',
+
+  /* -- categories screen -------------------------------------------- */
+  'categorize.eyebrow': '4 adımdan 2.’si',
+  'categorize.heading': 'Bu oyun ne kadar ilginizi çekiyor?',
+  'categorize.hint': 'Uzun düşünmeyin — kategori sonradan değiştirilebilir.',
+  'categorize.buttonsAria': 'İlgi düzeyleri',
+  'categorize.more': 'Daha çok ilgimi çekiyor',
+  'categorize.less': 'Daha az ilgimi çekiyor',
+  'categorize.or': 'ya da',
+  'categorize.counter': '{index} / {total}',
+  'categorize.back': '← Önceki',
+  'categorize.defer': 'Ertele <kbd>Space</kbd>',
+  'categorize.done': 'Her öğenin bir kategorisi var.',
+  'categorize.toCompare': 'Karşılaştırmalara geç',
+  'categorize.empty': 'Liste boş: önce bir istek listesi içe aktarın.',
+  'categorize.toImport': 'İçe aktarmaya geç',
+  'categorize.position': 'İstek listenizdeki yeri: {position}',
+  'categorize.current': 'Şu anda: {category}. Değiştirmek için başka bir kategori seçin.',
+  'categorize.legendLeft': 'kalan: {items}',
+  'categorize.firstItem': 'Bu, listenin ilk öğesi.',
+  'categorize.noneLeft': 'Kategorisi olmayan öğe kalmadı.',
+  'categorize.postponed': '{title} ertelendi, turun sonunda ona döneceğiz.',
+  'categorize.announce': '{title}: {category}',
+  'categorize.skipTitle': 'Kategoriler atlansın mı?',
+  'categorize.skipText':
+    'Her öğe kategorisiz kalır ve karşılaştırmalar tüm listeyi tek bir grup gibi dolaşır — beş '
+    + 'küçük grubun gerektireceğinden çok daha fazla soru demektir bu. Hiçbir şey kaybolmaz: bu '
+    + 'aşamaya istediğiniz an dönebilirsiniz.',
+  'categorize.skipConfirm': 'Atla ve karşılaştırmalara geç',
+  'categorize.skipDone': 'Aşama atlandı: karşılaştırmalar tüm liste üzerinde ilerliyor.',
+
+  /* -- comparisons screen -------------------------------------------- */
+  'compare.eyebrow': '4 adımdan 3.’sü',
+  'compare.heading': 'Hangi oyunu daha çok istiyorsunuz?',
+  'compare.headingDone': 'Karşılaştırmalar bitti',
+  'compare.hint': 'Çabuk seçin. Karar veremediğiniz bir çift ertelenebilir.',
+  'compare.progress': '“{category}” kategorisi · {made} · yaklaşık kalan: {left}',
+  'compare.deferred': 'ertelenen: {pairs}',
+  'compare.preferA': 'Bunu daha çok istiyorum <kbd>A</kbd>',
+  'compare.preferB': 'Bunu daha çok istiyorum <kbd>D</kbd>',
+  'compare.drop': 'Artık ilgilenmiyorum',
+  'compare.or': 'ya da',
+  'compare.tie': 'Aşağı yukarı aynı <kbd>S</kbd>',
+  'compare.defer': 'Karar veremiyorum <kbd>Space</kbd>',
+  'compare.undo': 'Geri al <kbd>Backspace</kbd>',
+  'compare.finish': 'Bugünlük bitir',
+  'compare.finishNote': 'İlerleme kaydedildi — şu anki sonucunuz kullanıma hazır.',
+  'compare.done': 'Karşılaştırılacak bir şey kalmadı: sıra belirlendi.',
+  'compare.empty': 'Karşılaştırılacak bir şey yok: liste boş.',
+  'compare.toResult': 'Sonucu gör',
+  'compare.toImport': 'İçe aktarmaya geç',
+  'compare.banner.allDeferred':
+    'Diğer bütün sorular ertelendi ({count}) ve buna yanıt vermeden ilerlemenin yolu yok. “Aşağı '
+    + 'yukarı aynı” da bir yanıttır ve sıralama onunla yoluna devam eder.',
+  'compare.banner.forced': 'İlerlemek için bu çift gerekli.',
+  'compare.rejected': 'Yanıt kabul edilmedi: {message}',
+  'compare.dropped': '“{title}” istek listesinden çıkarılacaklar listesinde.',
+  'compare.nothingToUndo': 'Geri alınacak bir şey yok.',
+  'compare.undone': 'Son yanıt geri alındı.',
+  'compare.chosen': 'Seçilen: {title}.',
+  'compare.tied': '{a} ile {b} — aşağı yukarı aynı.',
+  'compare.postponed': 'Çift ertelendi.',
+
+  /* -- the one-off explanations -------------------------------------- */
+  'onboarding.start': 'Anlaşıldı',
+  'onboarding.categorize.title': 'Önce oyunları ilgiye göre kabaca gruplayın',
+  'onboarding.categorize.lead':
+    'Oyunları teker teker göreceksiniz ve her birini beş düzeyli bir ölçeğe — ya da doğrudan istek '
+    + 'listesinden çıkarılacaklar listesine — koyacaksınız.',
+  'onboarding.categorize.why':
+    'Sıralamayı kısa tutan şey budur: oyunlar yalnızca kendi grupları içinde karşılaştırılır, '
+    + 'yani şimdi yapılan kaba bir ayrım sonradan yüzlerce soru kazandırır.',
+  'onboarding.categorize.later':
+    'Uzun düşünmeyin. Kategori istediğiniz an değiştirilebilir — “Önceki” ile oyuna geri dönün ya '
+    + 'da sonuç ekranında değiştirin.',
+  'onboarding.compare.title': 'Şimdi iki oyun arasında seçim yapıyoruz',
+  'onboarding.compare.lead':
+    'Her seferinde iki oyun, ikisi de aynı gruptan. Daha çok istediğinizi seçin — A ve D tuşları '
+    + 'ya da oklar.',
+  'onboarding.compare.tie':
+    'İkisini de aynı ölçüde istiyorsanız “Aşağı yukarı aynı” deyin: o da bir yanıttır ve sıralama '
+    + 'onu kullanır.',
+  'onboarding.compare.defer':
+    'Zor bir çift boşluk tuşuyla ertelenebilir; kolaylar yanıtlandığında geri gelir.',
+  'onboarding.compare.stop':
+    'İstediğiniz an bitirin. Her yanıt kaydedilir ve sonuç her an bakmaya hazırdır — bitmiş olsun '
+    + 'ya da olmasın.',
+
+  /* -- result screen -------------------------------------------------- */
+  'result.eyebrow': '4 adımdan 4.’sü',
+  'result.head.usable': 'Sonuç şimdiden kullanılabilir',
+  'result.head.ready': 'Sıranız hazır',
+  'result.head.empty': 'Henüz sıraya konacak bir şey yok',
+  'result.lead.usable':
+    'Şimdi Steam’e aktarın ya da yeni yanıtlarla iyileştirmeyi sürdürün.',
+  'result.lead.ready': 'İçindeki her yer sizin kendi yanıtlarınızla belirlendi.',
+  'result.lead.empty': 'Bir istek listesi içe aktarın, sıra burada belirsin.',
+  'result.continue': 'Karşılaştırmalara devam et',
+  'result.complete': 'Sıralama bitti',
+  'result.toImport': 'İçe aktarmaya geç',
+
+  /* -- result screen: the summary -------------------------------------- */
+  'result.summary.eyebrow': 'Kullanıma hazır',
+  'result.summary.headline': 'Yanıtlarınıza göre yerleşen: {items}',
+  'result.summary.headlineAll': 'Listenin tamamı yanıtlarınıza göre yerleşti',
+  'result.summary.headlineNone': 'Henüz hiçbir yer bir yanıtla belirlenmedi',
+  'result.summary.rest':
+    'Geri kalanlar istek listenizdeki sıralarını korur; aşağıdaki liste hangileri olduğunu söyler.',
+  'result.summary.choice':
+    'Bu sırayı şimdi Steam’e aktarın ya da karşılaştırmayı sürdürün — her yanıt onu iyileştirir.',
+  'result.summary.done': 'Karşılaştırılacak bir şey kalmadı. Sırayı Steam’e aktarın.',
+  'result.summary.empty': 'Liste boş: gösterilecek bir şey henüz yok.',
+  'result.summary.allRemoved': 'Sıraya konacak bir şey kalmadı: {marked}.',
+  'result.stats.total': 'listede',
+  'result.stats.confirmed': 'doğrulanan',
+  'result.stats.removed': 'çıkarılmak üzere işaretli',
+  'result.built.summary': 'Bu sıra nasıl oluştu?',
+  'result.built.categories':
+    'Önce kategoriler gelir, ilgi sırasına göre; bir kategorinin içinde yeri karşılaştırmalar '
+    + 'belirler.',
+  'result.built.resolved':
+    'Yanıtlarınızın belirlediği yerler: {resolved} / {total}. Geri kalan öğeler ({fallback}) '
+    + 'istek listesindeki yerlerini korur — listede işaretlenmiş olan yedek sıra.',
+  'result.built.answers': 'Şimdiye dek yanıtlanan karşılaştırma: {count}.',
+  'result.built.manual':
+    'Elle taşınan: {items}. Elle yapılan bir taşıma, karşılaştırmaların ürettiği sıranın üzerine '
+    + 'yeniden uygulanır, böylece yeni yanıtlar listeyi onun çevresinde iyileştirmeyi sürdürür.',
+  'result.built.noManual': 'Elle hiçbir şey taşınmadı.',
+  'result.built.complete': 'Sıralama bitti: sıranın gerektirdiği her çiftin bir yanıtı var.',
+  'result.built.incomplete': 'Sıralama bitmedi — istediğiniz an sürdürülebilir.',
+  'result.legend.sorted': 'karşılaştırmalarla doğrulandı',
+  'result.legend.fallback': 'hâlâ eski sırada — istek listesindeki yerine göre',
+  'result.legend.manual': 'elle taşındı',
+  'result.legend.tied': 'üstündeki satırla aynı düzeyde',
+
+  /* -- result screen: carrying the order into Steam --------------------- */
+  'result.transfer.eyebrow': 'Ana işlem',
+  'result.transfer.heading': 'Sırayı Steam’e aktarın',
+  'result.transfer.sub': 'Eklenti ya da ek yazılım gerekmez',
+  'result.transfer.step1': 'Yer imleri çubuğunu gösterin',
+  'result.transfer.shortcut':
+    '<kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>B</kbd> — Chrome, Edge ve Firefox’ta.',
+  'result.transfer.shortcutMac':
+    '<kbd>⌘</kbd> + <kbd>Shift</kbd> + <kbd>B</kbd> — Chrome, Edge ve Firefox’ta.',
+  'result.transfer.shortcutSafari':
+    'Safari’de: “Görünüm” menüsü → “Favoriler Çubuğunu Göster”.',
+  'result.transfer.step2': 'Bu bağlantıyı çubuğun üzerine sürükleyin',
+  'result.transfer.step3': 'İstek listenizi açın ve yer imine basın',
+  'result.transfer.openWishlist': 'İstek listemi aç ↗',
+  'result.transfer.link': 'Sıramı Steam’e aktar',
+  'result.transfer.copy': 'Bağlantıyı kopyala',
+  'result.transfer.carries': 'Bağlantının taşıdığı: {items}.',
+  'result.transfer.fresh':
+    'Bağlantı her değişiklikte yeniden kurulur, bu yüzden buradan aldığınız her zaman şu anki '
+    + 'sıradır.',
+  'result.transfer.taken':
+    'Bu, aldığınız bağlantının ta kendisi ve hâlâ tam olarak aşağıda görünen sırayı yazar.',
+  'result.transfer.stale': 'Sıra değişti — eski yer iminin yerine güncel bağlantıyı koyun.',
+  'result.transfer.copied':
+    'Bağlantı kopyalandı. Elle bir yer imi oluşturun ve onu adres olarak yapıştırın.',
+  'result.transfer.copyFailed':
+    'Tarayıcı pano erişimini reddetti — bunun yerine bağlantıyı yer imleri çubuğuna sürükleyin.',
+  'result.transfer.clickToast':
+    'Bu bağlantı burada basılmak için değil: yer imleri çubuğuna sürükleyin ve Steam istek listesi '
+    + 'sayfasında basın.',
+  'result.transfer.empty': 'Liste boş — henüz taşınacak bir sıra yok.',
+  'result.transfer.failed': 'Bağlantı oluşturulamadı: {message}',
+  'result.transfer.mobile':
+    'Telefonda ya da tablette bu zahmetlidir: bir bookmarklet’in yer imleri çubuğuna sürüklenmesi '
+    + 'gerekir. Aktarma masaüstü bir tarayıcıda daha kolaydır.',
+  'result.transfer.warnAccount':
+    'Sıra, bu tarayıcının oturum açtığı hesaba yazılır.',
+  'result.transfer.warnNoDelete':
+    'Hiçbir şey silinmez: çıkarılmak üzere işaretlediğiniz öğeler listenin sonuna gider.',
+  'result.transfer.warnPriority':
+    'Sonrasında her öğenin bir önceliği olur, daha önce hiç önceliği olmayanların da.',
+  'result.transfer.warnNoBackup':
+    'Bookmarklet yedek almaz ve sonucu sonradan denetlemez.',
+  'result.transfer.warnReload':
+    'İş bitince Steam sayfasını yeniden yükleyin ve sıralamayı kendi sıranıza geçirin.',
+  'result.transfer.advanced': 'Yedek ve otomatik doğrulama mı gerekiyor?',
+  'result.transfer.advancedText':
+    'Userscript istek listesi sayfasının kendisini okur: şu anda oradaki sırayı bir dosyaya '
+    + 'kaydeder, yenisini yazar ve sonra ulaştığını denetler. Tampermonkey gerektirir, uzun yol '
+    + 'olmasının ve ana yol olmamasının nedeni de budur.',
+  'result.transfer.advancedStep2':
+    'Depodaki “steam-wishlist-import-order.user.js” betiğini kurun.',
+  'result.transfer.advancedStep3':
+    'İstek listesi sayfanızı açın ve betiğin oraya koyduğu paneli izleyin.',
+
+  /* -- result screen: the list ------------------------------------------ */
+  'result.list.heading': 'Sıranız',
+  'result.search': 'Başlığa ya da App ID’ye göre ara',
+  'result.filterAria': 'Ne gösterilsin',
+  'result.filter.all': 'Hepsi',
+  'result.filter.game': 'Oyunlar',
+  'result.filter.dlc': 'DLC',
+  'result.hint':
+    'Bir satır fareyle sürüklenebilir ya da seçilip <kbd>Ctrl</kbd> + <kbd>↑</kbd> / '
+    + '<kbd>Ctrl</kbd> + <kbd>↓</kbd> ile taşınabilir. Taşımalar kaydedilir ve sayfa yenilense de '
+    + 'kalır.',
+  'result.removed.hint': 'Bu öğeler son listenin numaralandırmasına girmez.',
+  'result.mark.confirmed': 'Karşılaştırmalarla doğrulandı',
+  'result.mark.fallback': 'Hâlâ eski sırada',
+  'result.mark.manual': 'Elle taşındı',
+  'result.mark.tied': 'Üstündeki satırla aynı düzeyde',
+  'result.row.appId': 'App ID {appId}',
+  'result.row.where': '{category} · kategoride {position}',
+  'result.row.aria': '{position}. {title}. {category}. {kind}. {note}',
+  'result.row.categoryAria': 'Kategori: {title}',
+  'result.shown.all': '{rows}',
+  'result.shown.filtered': 'görünen: {shown} / {total}',
+  'result.empty.filter': 'Ne süzgeç ne de arama tek bir öğeyle eşleşti.',
+  'result.empty.noItems': 'Bir istek listesi içe aktarın, sonuç burada belirsin.',
+  'result.empty.allRemoved':
+    'Her öğe çıkarılmak üzere işaretli — sıraya konacak bir şey yok.',
+  'result.move.failed': 'Taşınamadı: {message}',
+  'result.move.announce': '“{title}” {where}{category}.',
+  'result.move.place': '{position}. sıraya',
+  'result.move.newPlace': 'yeni bir yere',
+  'result.move.categorySuffix': ', kategori: {category}',
+  'result.move.categoryToast': '“{title}” “{category}” kategorisine taşındı.',
+  'result.move.edge':
+    'Bu, “{category}” kategorisinin {edge} satırı. Kategori, satırın kendisindeki seçiciyle '
+    + 'değiştirilir.',
+  'result.move.edgeFirst': 'ilk',
+  'result.move.edgeLast': 'son',
+  'result.category.failed': 'Kategori değiştirilemedi: {message}',
+  'result.category.toast': '“{title}” — {category}.',
+
+  /* -- result screen: the files and the two resets ---------------------- */
+  'result.export.summary': 'İndirin ya da paylaşın',
+  'result.export.hint':
+    'Dosyalar burada, tarayıcıda oluşturulur ve onları siz kaydedersiniz — hiçbir şey yüklenmez.',
+  'result.exportJson': 'Sıra JSON olarak',
+  'result.exportCsv': 'Liste CSV olarak',
+  'result.copyText': 'Liste olarak kopyala',
+  'result.saveState': 'Durumun yedeği',
+  'result.export.empty': 'Dışa aktarılacak bir şey yok: liste boş.',
+  'result.export.failed': 'Dosya oluşturulamadı: {message}',
+  'result.export.jsonDone': 'Son sıra JSON olarak kaydedildi.',
+  'result.export.csvDone': 'Son liste CSV olarak kaydedildi.',
+  'result.copy.empty': 'Kopyalanacak bir şey yok: liste boş.',
+  'result.copy.done': 'Numaralı liste panoya kopyalandı.',
+  'result.copy.failed':
+    'Tarayıcı pano erişimini reddetti — liste bunun yerine bir dosya olarak kaydedildi.',
+  'result.resetManual': 'Elle yapılan taşımaları sıfırla',
+  'result.resetManual.none': 'Elle yapılmış taşıma yok.',
+  'result.resetManual.title': 'Elle yapılan taşımalar sıfırlansın mı?',
+  'result.resetManual.text':
+    'Unutulacak: {moves}; liste karşılaştırmaların verdiği sıraya döner. Karşılaştırma yanıtları '
+    + 'kalır.',
+  'result.resetManual.confirm': 'Taşımaları sıfırla',
+  'result.resetManual.done': 'Elle yapılan taşımalar sıfırlandı.',
+  'result.resetAnswers': 'Karşılaştırma yanıtlarını sıfırla',
+  'result.resetAnswers.none': 'Henüz yanıt yok.',
+  'result.resetAnswers.title': 'Karşılaştırma yanıtları sıfırlansın mı?',
+  'result.resetAnswers.text':
+    'Silinecek: {answers}; karşılaştırmalar sıfırdan başlar. Öğe listesi, kategoriler ve elle '
+    + 'yapılan taşımalar kalır. Bu geri alınamaz.',
+  'result.resetAnswers.confirm': 'Yanıtları sıfırla',
+  'result.resetAnswers.done': 'Karşılaştırma yanıtları sıfırlandı.',
+
+  /* -- the bookmarklet: what it says on the Steam page ------------------ */
+  'bookmarklet.title': 'Steam Wishlist Sorter',
+  'bookmarklet.wrongPage':
+    'Burası Steam istek listesi değil. store.steampowered.com/wishlist adresini açın, oturum açın '
+    + 've yer imine orada basın. Hiçbir şey gönderilmedi.',
+  'bookmarklet.confirm':
+    'Bu sıra ({items}) bu tarayıcının oturum açtığı hesabın istek listesine yazılacak. Hiçbir şey '
+    + 'silinmez. Bu geri alınamaz: yazma işleminden sonra her kaydın bir önceliği olur, daha önce '
+    + 'hiç önceliği olmayanların da, ve hiçbir yedek bunu geri getirmez.',
+  'bookmarklet.write': 'Sırayı yaz',
+  'bookmarklet.cancel': 'Vazgeç',
+  'bookmarklet.close': 'Kapat',
+  'bookmarklet.sending': 'Sıra Steam’e gönderiliyor…',
+  'bookmarklet.done':
+    'Steam sırayı kabul etti. İstek listesi sayfasını yeniden yükleyip ona bakın: bu bookmarklet '
+    + 'sayfayı okumaz, yani denetim sizde.',
+  'bookmarklet.unclear':
+    'Steam yanıt verdi, ama yanıt ne evet ne hayır diyor. Yinelemeden önce istek listesi sayfasını '
+    + 'yeniden yükleyip sıraya bakın.',
+  'bookmarklet.refused':
+    'Steam sırayı geri çevirdi ve nedeni hakkında işe yarar bir şey söylemedi. Yinelemeden önce '
+    + 'istek listesi sayfasını yeniden yükleyip sıraya bakın.',
+  'bookmarklet.badRequest':
+    'Steam isteği daha kapıda geri çevirdi: 400 ve boş bir gövde — sıraya hiç bakmadı, yani '
+    + 'hiçbir şey yazılmadı. İstekte kendi istediği bir şey eksik olduğunda böyle yanıt verir ve '
+    + 'yanıt bunun ne olduğunu söylemez. Görünüşe göre uç nokta değişmiş; bu konuda ne yapılacağı '
+    + 'projenin sayfasında yazıyor.',
+  'bookmarklet.signedOut':
+    'Steam oturumu kabul etmedi — çoğu zaman süresi dolmuştur. Steam’de yeniden oturum açın, istek '
+    + 'listesini yeniden yükleyin ve yer imine bir kez daha basın. Hiçbir şey yazılmadı.',
+  'bookmarklet.rateLimited':
+    'Steam “çok fazla istek” yanıtı verdi. Birkaç dakika bekleyip yer imine yeniden basın — '
+    + 'hiçbir şey değişmedi.',
+  'bookmarklet.tooLarge':
+    'İstek Steam için fazla büyük: sıranın tamamı tek bir istekle gider ve bu sığmadı. Hiçbir şey '
+    + 'yazılmadı. Böyle bir liste için userscript gerekir; o, yazmak yerine satırları sayfanın '
+    + 'kendisinde işaretleyebilir.',
+  'bookmarklet.serverError':
+    'Sorun Steam tarafında — bir sunucu hatasıyla yanıt verdi. Birkaç dakika sonra yeniden '
+    + 'deneyin; hiçbir şey yazılmadı.',
+  'bookmarklet.offline':
+    'İstek Steam’e hiç ulaşmadı. Ağ kopmuş ya da bir eklenti engellemiş olabilir. Hiçbir şey '
+    + 'yazılmadı — bağlantınızı denetleyin ve yer imine yeniden basın.',
+
+  /* -- exported files -------------------------------------------------- */
+  'export.csv.number': 'No',
+  'export.csv.appId': 'App ID',
+  'export.csv.title': 'Başlık',
+  'export.csv.category': 'Kategori',
+  'export.csv.kind': 'Tür',
+  'export.csv.positionInCategory': 'Kategorideki yeri',
+  'export.csv.origin': 'Sıra nereden geliyor',
+  'export.csv.wishlistPosition': 'İstek listesindeki yeri',
+  'export.csv.url': 'Bağlantı',
+  'export.origin.manual': 'elle',
+  'export.origin.comparisons': 'karşılaştırmalar',
+  'export.origin.fallback': 'yedek sıra',
+  'export.kind.game': 'Oyun',
+  'export.kind.dlc': 'DLC',
+  'export.kind.unknown': 'Bilinmiyor',
+};
+
 /** Every dictionary, by language code. @type {Readonly<Record<string, object>>} */
 export const DICTIONARIES = Object.freeze({
   en: Object.freeze(EN),
@@ -4024,6 +5308,8 @@ export const DICTIONARIES = Object.freeze({
   fr: Object.freeze(FR),
   es: Object.freeze(ES),
   'pt-BR': Object.freeze(PT_BR),
+  pl: Object.freeze(PL),
+  tr: Object.freeze(TR),
 });
 
 /** The language in use. English until something says otherwise. */
