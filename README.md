@@ -77,6 +77,11 @@ the state then lives in the `localStorage` of a local address and does not mix w
 ES modules do not load over the `file://` scheme, so the application is opened from an HTTP address.
 The server ships with the project — `server.js`, plain Node, without a single dependency.
 
+**[Download the project as a ZIP](https://github.com/Akynin99/Steam-Wishlist-Sorter/archive/refs/heads/master.zip)**
+and unpack it wherever you keep such things. The same file sits behind the green **Code** button
+at the top of this page, under **Download ZIP** — the link above just saves the two clicks.
+Cloning works as well, if you would rather: `git clone https://github.com/Akynin99/Steam-Wishlist-Sorter.git`
+
 **Windows:**
 
 1. Install [Node.js](https://nodejs.org/) 20 or newer (development happens on 24 LTS).
