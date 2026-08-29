@@ -52,9 +52,12 @@ that derives everything already implied by the answers given (see [Architecture]
 
 <https://akynin99.github.io/Steam-Wishlist-Sorter/>
 
-It is the same application, published as static files through GitHub Pages. Press **“Load the demo
-set”** on the import screen — a set of 20 games is inside, enough to walk all three stages, and no
-wishlist of your own is needed for that.
+It is the same application, published as static files through GitHub Pages. Press **“Try with 20
+games”** on the wishlist screen — a set of 20 games is inside, enough to walk all three stages, and
+no wishlist of your own is needed for that. The automatic import needs a server and there is none
+there, so the screen does not offer the form at all: it offers the two ways in that do work — the
+userscript, which reads the Steam page you are logged into, and a link to download the local
+version.
 
 > **Your data stays in your browser.** The demo is a static page: it has no backend, so there is
 > nothing to send your work with and nowhere to send it. Everything you import lives in the
@@ -127,9 +130,9 @@ done.
 
 ### Straight from your Steam account
 
-**The first card on the import screen. It works when you run the application yourself; on the demo
-page it is not available.** Type your SteamID64, the name of your profile or a link to either, and
-press **“Fetch the wishlist”**. All four of these are understood:
+**The card on the wishlist screen. It works when you run the application yourself; on the demo page
+it is not offered.** Paste a link to your profile — or type your SteamID64 or the name of your
+profile — and press **“Check and load”**. All four of these are understood:
 
 ```
 76561198093652313
@@ -160,15 +163,29 @@ of the data is “your browser → your own local server → Steam”, and nothi
 third-party CORS proxy would mean handing your wishlist to somebody else's server, which is the one
 thing this project will not do.
 
-**On the demo page the card explains itself instead of offering a button that cannot work.** GitHub
-Pages serves static files and has no server behind it, and the application asks about that
-(`GET /api/health`) before it draws the card.
+**On the demo page the form is not shown at all**, because it could not work: GitHub Pages serves
+static files and has no server behind it, and the application asks about that (`GET /api/health`)
+before it draws the card. In its place stand the two routes that do work — **“Import from your Steam
+page”**, which is the userscript and works with a private list as well, and **“Run the local
+version”**, whose **Download** button is a plain link to the archive of the `master` branch on
+GitHub. Both are the full application, not a showcase of one.
 
-**What it can say back**, each with what to do about it: the account was not found; the wishlist was
-not handed over, which almost always means the privacy settings (open Steam → your profile →
-*Edit profile* → *Privacy settings* and set *Game details* to *Public* — the wishlist follows that
-setting; the userscript works either way, because it reads the page you are logged into); the
-wishlist is empty; Steam is limiting the requests; there is no connection.
+**What it can say back**, each with what to do about it: the account was not found; the wishlist is
+empty; Steam is limiting the requests; there is no connection. Whatever it says, **the field keeps
+what you typed** — the second attempt is made with the same value.
+
+Two of those answers are not a line of text but a state of the card, with the way out inside it: the
+steps that open *Game details*, a link to the Steam settings page, a **“Check again”** button that
+simply asks for the list once more, and a folded **“I don’t want to make it public”** that explains
+the userscript instead. They are told apart because Steam tells them apart:
+
+- **it refused the list** — a `401` or a `403`, and the privacy setting is the reason. Open Steam →
+  your profile → *Edit profile* → *Privacy settings* and set *Game details* to *Public*: the
+  wishlist follows that one setting.
+- **it could not hand the list over** — a `5xx`, which is what Steam answers to a closed list *and*
+  what it answers when it is having trouble of its own. The card names both and does not pick one:
+  if the setting is private the steps open it, and if it is public already the thing to do is wait a
+  few minutes and press **“Check again”**.
 
 **The endpoint takes an account, never an address.** A local server that forwarded arbitrary URLs
 would be an open proxy into the home network of whoever runs it, so: the hosts are a closed list of
@@ -214,7 +231,8 @@ paste them into the Tampermonkey editor (“Create a new script”).
 
 #### Step 4. Load the file into the application
 
-On the import screen, **“JSON file”** — pick the downloaded file. That is it, the categories are next.
+On the wishlist screen, open **“Other import methods”** and pick the downloaded file under
+**“JSON file”**. That is it, the categories are next.
 
 Importing again **does not erase the work**: entries are matched by App ID, the categories and the
 comparison answers are kept, and only the titles, the covers and the wishlist positions are
@@ -276,7 +294,7 @@ nothing is lost.
 
 ### Way 2. Paste the JSON as text
 
-The import screen has a **“Paste JSON”** field — the body of the answer can go there without saving
+**“Other import methods”** on the wishlist screen has a **“Paste JSON”** field — the body of the answer can go there without saving
 a file. Understood are: an array of objects, an array of bare App IDs, an object shaped like
 `{ "440": { … } }`, `{ response: { items: [...] } }` and the application's own export.
 
@@ -433,7 +451,8 @@ item (and its twin, “Backup of the state”, on the result screen): it writes 
 the list, the categories, the answers, the manual moves — as one JSON.
 
 That file is both a backup and a way to move: on another machine, open the application and load it
-through **“Load backup”** in the same menu, or through **“Saved state”** on the import screen.
+through **“Load backup”** in the same menu, or through **“Saved state”** under **“Other import
+methods”** on the wishlist screen.
 Loading a state replaces the current work whole, so the application asks for a confirmation.
 
 Make a copy before you clear the browser data or change machines: it is the only way not to lose the
@@ -811,7 +830,9 @@ The manual edits are reset by a button of their own, without touching the compar
   link can be pasted into any editor and read there — it is percent encoded text, not a binary.
 - The same holds for the demo on GitHub Pages: the very same static files, only on somebody else's
   hosting. Your data stays in your browser — there is nobody to send it to and nothing to send it
-  with.
+  with. The two links that screen offers — **Download** for the archive of the `master` branch, and
+  the one that opens the export userscript — are ordinary links to github.com: nothing is requested
+  by the page, nothing is sent, and nothing happens at all until you click one yourself.
 
 The wording “no external requests”, without the note about the covers, about the import straight
 from an account and about the write the bookmarklet and the userscript perform on request, would be
