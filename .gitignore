@@ -21,3 +21,6 @@ coverage/
 # Local exports and backups
 /exports/
 /wishlist-state-*.json
+
+# Redesign mockups: working material for the sessions, not part of the project
+/docs/mockups/
