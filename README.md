@@ -11,8 +11,8 @@ through pairwise comparisons, with no backend and with your list staying on your
 
 ![The wishlist screen](docs/screenshots/import.png)
 
-The interface speaks six languages: **English by default, plus Русский, Deutsch, Français, Español
-and Português (Brasil)**, switched in the header. Nothing is lost when the language changes — not
+The interface speaks eight languages: **English by default, plus Русский, Deutsch, Français,
+Español, Português (Brasil), Polski and Türkçe**, switched in the header. Nothing is lost when the language changes — not
 one answer and not the place in the sorting.
 It also comes in two looks — the one above and one built out of the store's own blue-grey — switched
 in the same place; see [Two looks](#two-looks).
@@ -113,12 +113,20 @@ the same tests on every push and pull request.
 
 ## Language of the interface
 
-The interface speaks **English, Русский, Deutsch, Français, Español and Português (Brasil)**. The
-switch sits in the header, next to the **⋯** button that opens the settings, and every language
+The interface speaks **English, Русский, Deutsch, Français, Español, Português (Brasil), Polski
+and Türkçe**. The switch sits in the header, next to the **⋯** button that opens the settings, and every language
 names itself in the list, the way a reader who does not read the current one looks for it. **English
 is the default, always** — the browser language is deliberately not consulted, so the demo opens the
 same way for every visitor. The choice is stored next to the other settings and survives a reload;
 a state file that names a language this build does not have reads as English.
+
+Two of the eight need three plural forms rather than two, and they are not the same three.
+Russian and Polish both look at the last two digits, and they part company on every number that
+ends in a single 1 above ten: Russian calls 21 and 101 singular, Polish calls them `many`, because
+outside an ending of 2–4 it has no singular at all. So the Polish rule is written out on its own
+instead of reusing the Russian function, and a test pins the disagreement down. Turkish sits at the
+other end: a noun after a numeral never changes, so its two forms differ only where the sentence
+around them does.
 
 The Brazilian code is written in full, `pt-BR` and not `pt`: the wording is Brazilian, and a bare
 `pt` would promise European Portuguese as well — a promise the dictionary does not keep. A code is
@@ -132,8 +140,9 @@ language too — see [What comes out](#what-comes-out).
 
 ### The translations are not proofread by native speakers
 
-English and Russian are written by the author, who speaks both. **German, French, Spanish and
-Brazilian Portuguese are not reviewed by a native speaker**, and it is better to say so than to let
+English and Russian are written by the author, who speaks both. **German, French, Spanish,
+Brazilian Portuguese, Polish and Turkish are not reviewed by a native speaker**, and it is better to
+say so than to let
 a portfolio project imply a level of polish it does not have. They are complete — all 443 strings,
 not the buttons only — and they were written for meaning rather than word by word, but a native
 reader will find phrasing that is merely correct where it could be natural. Corrections are welcome:
@@ -820,7 +829,7 @@ in development.
 | File | What for |
 | --- | --- |
 | [`src/model.js`](src/model.js) | the model of an entry (`appId`, title, link, cover, position in the wishlist, type), the six categories, the normalization of anything into that model. It knows about neither the DOM nor the storage |
-| [`src/i18n.js`](src/i18n.js) | the six dictionaries and the lookup around them: `t()`, the plural forms, the current language. No DOM either, so it is tested directly — including the test that the key sets of every language match exactly |
+| [`src/i18n.js`](src/i18n.js) | the eight dictionaries and the lookup around them: `t()`, the plural forms, the current language. No DOM either, so it is tested directly — including the test that the key sets of every language match exactly |
 | [`src/import.js`](src/import.js) | bringing arbitrary JSON to the model: five shapes on the input, a report with reasons on the output. Merging by `appId`, so a repeated import breeds no duplicates and erases no work |
 | [`src/steam.js`](src/steam.js) | the import straight from an account: what the user typed to a SteamID64, the closed list of hosts every request is checked against, the reading of the Steam answers and the walk over the titles with its pauses and retries. It takes the `fetch` it should use, which is what lets the tests drive all of it without a single real request |
 | [`src/storage.js`](src/storage.js) | `localStorage` behind a wrapper: autosave, the export and import of the state as a file, the check of the signature and of the format version. It does not depend on the DOM — a test replaces it with an in-memory stub |
