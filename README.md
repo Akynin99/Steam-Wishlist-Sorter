@@ -428,13 +428,13 @@ week later — the application opens where you left it and offers the same quest
 
 What matters about `localStorage`: it is tied to **the browser and the address**
 (`http://localhost:8080` and the demo on GitHub Pages are different stores), it lives on one machine
-and it is erased along with the site data. That is why the application has a **“Save to a file”**
-button (and its twin, “Backup of the state”, on the result screen): it writes the whole state out —
+and it is erased along with the site data. That is why the settings menu has a **“Save backup”**
+item (and its twin, “Backup of the state”, on the result screen): it writes the whole state out —
 the list, the categories, the answers, the manual moves — as one JSON.
 
 That file is both a backup and a way to move: on another machine, open the application and load it
-through **“Saved state”** on the import screen. Loading a state replaces the current work whole, so
-the application asks for a confirmation.
+through **“Load backup”** in the same menu, or through **“Saved state”** on the import screen.
+Loading a state replaces the current work whole, so the application asks for a confirmation.
 
 Make a copy before you clear the browser data or change machines: it is the only way not to lose the
 comparisons you have made.
