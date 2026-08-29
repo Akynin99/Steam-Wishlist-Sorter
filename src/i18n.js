@@ -562,8 +562,8 @@ const EN = {
     'The categories come first, in the order of interest; inside a category the place is decided '
     + 'by the comparisons.',
   'result.built.resolved':
-    'Your answers settle the place of {resolved} of {total}. The other {fallback} keep the '
-    + 'position they had in the wishlist — the fallback order, marked in the list.',
+    'Your answers settle the place of {resolved} of {total}. Still in the order the wishlist '
+    + 'gave them: {fallback} — the fallback order, marked in the list.',
   'result.built.answers': 'Comparisons answered so far: {count}.',
   'result.built.manual':
     '{items} moved by hand. A hand made move is replayed over whatever the comparisons produce, '
