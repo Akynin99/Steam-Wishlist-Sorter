@@ -195,6 +195,8 @@ test('the CSV separator follows the language, comma for en and semicolon for the
   assert.equal(csvSeparator('ru'), ';');
   assert.equal(csvSeparator('de'), ';');
   assert.equal(csvSeparator('fr'), ';');
+  assert.equal(csvSeparator('es'), ';');
+  assert.equal(csvSeparator('pt-BR'), ';', 'the whole code is the key, hyphen and all');
   assert.equal(csvSeparator('klingon'), CSV_SEPARATORS.en, 'an unknown language reads as English');
 
   // The rule is the decimal mark, not the alphabet: every language here writes
@@ -225,6 +227,14 @@ test('the CSV separator follows the language, comma for en and semicolon for the
   setLanguage('fr');
   const french = headerLine(toCsv(session.getResult()));
   assert.ok(french.startsWith('N°;App ID;Titre;'), french);
+
+  setLanguage('es');
+  const spanish = headerLine(toCsv(session.getResult()));
+  assert.ok(spanish.startsWith('N.º;App ID;Título;'), spanish);
+
+  setLanguage('pt-BR');
+  const brazilian = headerLine(toCsv(session.getResult()));
+  assert.ok(brazilian.startsWith('N.º;App ID;Título;'), brazilian);
 });
 
 test('a title with a comma survives the English CSV, one with a semicolon the Russian', () => {

@@ -66,6 +66,37 @@ test('every language the switch offers has a dictionary and a name of its own', 
   );
 });
 
+/**
+ * A translation carries the same `{name}` placeholders as its English original.
+ *
+ * The parity test above catches a missing key; this one catches a key that is
+ * there and quietly wrong. A translator rewriting a sentence to make it read
+ * naturally can drop the `{count}` out of it, and nothing complains: the string
+ * exists, it is not empty, it renders — it simply says nothing about how many.
+ * A placeholder invented on the translated side is the other half of the same
+ * mistake: `format()` leaves an unknown name standing, so `{items}` appears on
+ * the screen in braces.
+ */
+test('every translation keeps the placeholders of its English original', () => {
+  const placeholders = (value) => [...String(value).matchAll(/\{(\w+)\}/g)]
+    .map((match) => match[1])
+    .sort();
+
+  const wrong = [];
+  for (const language of LANGUAGES) {
+    if (language === DEFAULT_LANGUAGE) continue;
+    for (const [key, english] of Object.entries(DICTIONARIES.en)) {
+      const expected = placeholders(english);
+      const actual = placeholders(DICTIONARIES[language][key]);
+      if (expected.join() !== actual.join()) {
+        wrong.push(`${language}/${key}: expected {${expected}}, has {${actual}}`);
+      }
+    }
+  }
+
+  assert.deepEqual(wrong.sort(), [], 'these translations lost or invented a placeholder');
+});
+
 test('every string of every dictionary is a non-empty string', () => {
   for (const language of LANGUAGES) {
     for (const [key, value] of Object.entries(DICTIONARIES[language])) {
@@ -96,12 +127,14 @@ test('the default language is English, and it is what a fresh module hands out',
   assert.equal(DEFAULT_LANGUAGE, 'en');
   assert.equal(getLanguage(), 'en', 'nothing has switched the language yet');
   assert.equal(t('nav.import'), 'Wishlist');
-  assert.deepEqual([...LANGUAGES], ['en', 'ru', 'de', 'fr']);
+  assert.deepEqual([...LANGUAGES], ['en', 'ru', 'de', 'fr', 'es', 'pt-BR']);
   assert.deepEqual(LANGUAGE_NAMES, {
     en: 'English',
     ru: 'Русский',
     de: 'Deutsch',
     fr: 'Français',
+    es: 'Español',
+    'pt-BR': 'Português (Brasil)',
   });
 });
 
@@ -110,9 +143,10 @@ test('the browser language is never consulted: only setLanguage decides', () => 
   assert.equal(normalizeLanguage('ru'), 'ru');
   assert.equal(normalizeLanguage('de'), 'de');
   assert.equal(normalizeLanguage('fr'), 'fr');
+  assert.equal(normalizeLanguage('es'), 'es');
   assert.equal(normalizeLanguage('ru-RU'), 'en', 'a locale tag is not a language of this application');
   assert.equal(normalizeLanguage('de-AT'), 'en');
-  assert.equal(normalizeLanguage('es'), 'en', 'a language with no dictionary yet is not offered');
+  assert.equal(normalizeLanguage('pl'), 'en', 'a language with no dictionary yet is not offered');
   assert.equal(normalizeLanguage(''), 'en');
   assert.equal(normalizeLanguage(undefined), 'en');
   assert.equal(normalizeLanguage(null), 'en');
@@ -122,6 +156,32 @@ test('the browser language is never consulted: only setLanguage decides', () => 
   assert.equal(getLanguage(), 'ru');
   assert.equal(setLanguage('klingon'), 'en', 'an unknown code falls back instead of throwing');
   assert.equal(getLanguage(), 'en');
+});
+
+/**
+ * `pt-BR` is the first code with a hyphen in it, and a hyphen is exactly what
+ * an over-helpful normaliser would cut off — leaving `pt`, which has no
+ * dictionary, so the whole interface would silently fall back to English. The
+ * code is one opaque string from end to end: nothing splits it, nothing
+ * lowercases it, and every table is keyed by the whole of it.
+ */
+test('a code with a hyphen survives normalisation and every table keyed by it', () => {
+  assert.equal(normalizeLanguage('pt-BR'), 'pt-BR', 'the hyphen is not a separator to cut at');
+  assert.equal(setLanguage('pt-BR'), 'pt-BR');
+  assert.equal(getLanguage(), 'pt-BR');
+  assert.equal(t('nav.result'), 'Resultado');
+
+  // The halves of the code are not languages of their own, and the case of the
+  // region is part of the name rather than something to be forgiving about.
+  assert.equal(normalizeLanguage('pt'), 'en');
+  assert.equal(normalizeLanguage('BR'), 'en');
+  assert.equal(normalizeLanguage('pt-br'), 'en');
+  assert.equal(normalizeLanguage('pt_BR'), 'en');
+
+  assert.ok(DICTIONARIES['pt-BR'], 'the dictionary is reached by the whole code');
+  assert.equal(LANGUAGE_NAMES['pt-BR'], 'Português (Brasil)');
+  assert.equal(hasKey('nav.result', 'pt-BR'), true);
+  assert.equal(plural('count.items', 2), '2 itens', 'the plural rule is found under the code too');
 });
 
 test('switching the language switches the strings', () => {
@@ -188,14 +248,27 @@ test('the plural rules pick the form each language needs', () => {
   assert.equal(plural('count.items', 2), '2 éléments');
   assert.equal(plural('count.items', 0), '0 élément', 'French counts zero as one');
   assert.equal(plural('count.items', 21), '21 éléments');
+
+  setLanguage('es');
+  assert.equal(plural('count.items', 1), '1 elemento');
+  assert.equal(plural('count.items', 2), '2 elementos');
+  assert.equal(plural('count.items', 0), '0 elementos', 'Spanish counts zero as many');
+  assert.equal(plural('count.items', 21), '21 elementos');
+
+  setLanguage('pt-BR');
+  assert.equal(plural('count.items', 1), '1 item');
+  assert.equal(plural('count.items', 2), '2 itens');
+  assert.equal(plural('count.items', 0), '0 item', 'Brazilian Portuguese counts zero as one');
+  assert.equal(plural('count.items', 21), '21 itens');
 });
 
 /**
- * The rules themselves, on the numbers where the four languages disagree.
+ * The rules themselves, on the numbers where the six languages disagree.
  * The table is the CLDR rule for each of them, written out; the test is that
  * the module picks the same form. It matters most where the difference is one
- * number wide — French takes `one` at zero and nowhere else does, Russian
- * takes `few` at 21 and `one` at 101, the other three take `many` at both.
+ * number wide — French and Brazilian Portuguese take `one` at zero and nobody
+ * else does, Russian takes `few` at 21 and `one` at 101, everyone else takes
+ * `many` at both.
  */
 test('the plural rules follow CLDR on the numbers that separate them', () => {
   const COUNTS = [0, 1, 2, 5, 11, 21, 101];
@@ -204,6 +277,8 @@ test('the plural rules follow CLDR on the numbers that separate them', () => {
     ru: ['many', 'one', 'few', 'many', 'many', 'one', 'one'],
     de: ['many', 'one', 'many', 'many', 'many', 'many', 'many'],
     fr: ['one', 'one', 'many', 'many', 'many', 'many', 'many'],
+    es: ['many', 'one', 'many', 'many', 'many', 'many', 'many'],
+    'pt-BR': ['one', 'one', 'many', 'many', 'many', 'many', 'many'],
   };
 
   assert.deepEqual(

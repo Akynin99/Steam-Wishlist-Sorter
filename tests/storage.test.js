@@ -188,10 +188,18 @@ test('a language the application does not have is read as English, a known one i
   assert.equal(validateState({ ...base, settings: { language: 'ru' } }).settings.language, 'ru');
   assert.equal(validateState({ ...base, settings: { language: 'de' } }).settings.language, 'de');
   assert.equal(validateState({ ...base, settings: { language: 'fr' } }).settings.language, 'fr');
+  assert.equal(validateState({ ...base, settings: { language: 'es' } }).settings.language, 'es');
+  // The hyphen of a regional code is part of the name and reaches the file
+  // whole: cut anywhere, `pt-BR` would come back as English on the next start.
+  assert.equal(
+    validateState({ ...base, settings: { language: 'pt-BR' } }).settings.language,
+    'pt-BR',
+  );
+  assert.equal(validateState({ ...base, settings: { language: 'pt' } }).settings.language, 'en');
   // A language the application does not have yet — a state file written by a
   // later version, or one edited by hand — reads as English rather than
   // leaving the interface with no dictionary at all.
-  assert.equal(validateState({ ...base, settings: { language: 'es' } }).settings.language, 'en');
+  assert.equal(validateState({ ...base, settings: { language: 'pl' } }).settings.language, 'en');
   assert.equal(validateState({ ...base, settings: { language: 42 } }).settings.language, 'en');
   assert.equal(validateState({ ...base, settings: { language: null } }).settings.language, 'en');
 });
@@ -203,6 +211,19 @@ test('the language of the settings survives the round trip through the backend',
 
   storage.save(state);
   assert.equal(storage.load().settings.language, 'ru');
+});
+
+test('a regional code survives the round trip through the backend with its hyphen', () => {
+  // The setting goes through JSON and back through `normalizeLanguage()`, so a
+  // code with a hyphen is the one that would show a mangling anywhere on that
+  // path — and the only sign of it would be an interface that quietly came
+  // back in English after a reload.
+  const storage = new StateStorage({ backend: createStubBackend() });
+  const state = createEmptyState();
+  state.settings.language = 'pt-BR';
+
+  storage.save(state);
+  assert.equal(storage.load().settings.language, 'pt-BR');
 });
 
 test('a state file saved before the second theme existed reads as Modern', () => {
