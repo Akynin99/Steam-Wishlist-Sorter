@@ -408,14 +408,21 @@ the network or a live Steam page.
 ## How to use it
 
 1. **Import.** A file, text, the demo set or a state file.
-2. **Categories.** Six buckets by the strength of the desire — from “Really want it” to “Barely
-   interested”, plus “Remove from the wishlist”. Keys `1`–`6`, `←` for back, `→` or space to
-   postpone. The stage can be skipped and everything compared in one heap, but with categories there
-   are noticeably fewer questions: an entry from “Really want it” is never compared with an entry
-   from “Unlikely”.
-3. **Comparisons.** One question, two games. The answers are “this one”, “that one”, **“about the
-   same”** (a tie) and **“cannot decide”** (the pair is postponed, it comes back later — and often
-   it does not have to, because the order follows from other answers). The last answer can be undone.
+2. **Categories.** One game at a time on a scale of five levels of interest — from “Really want
+   it” to “Barely interested”. The sixth value, “Remove from the wishlist”, stands apart from that
+   scale: it says nothing about how much a game is wanted. Keys `1`–`6`, `←` for back, `→` or
+   space to postpone. The stage can be skipped — the item is **“Skip the categories”** in the
+   settings menu, and it asks first, because the comparisons then run over the whole list as one
+   group. With categories there are noticeably fewer questions: an entry from “Really want it” is
+   never compared with an entry from “Unlikely”.
+3. **Comparisons.** One question, two games, and one line saying where the work stands: which
+   category is being sorted, how many comparisons are made and roughly how many are left. The
+   answers are “this one”, “that one”, **“about the same”** (a tie) and **“cannot decide”** (the
+   pair is postponed, it comes back later — and often it does not have to, because the order follows
+   from other answers). The last answer can be undone. **“Finish for today”** ends the session and
+   opens the result; nothing is lost by pressing it.
+
+Both stages explain themselves once, the first time they are opened, and never again.
 4. **Result.** A numbered list with a filter by category, a search, draggable rows and the exports.
 5. **Back into Steam**, if you want the order there and not only in a file: drag the link from the
    result screen onto the bookmarks bar and press it on your wishlist page — see
@@ -443,6 +450,11 @@ stands by seniority.
 The state is written into the `localStorage` of the browser under the key
 `steam-wishlist-sorter/state` after every action. Close the tab, turn the computer off, come back a
 week later — the application opens where you left it and offers the same question.
+
+Two smaller things live beside it under keys of their own: the screen you were last on, and
+whether the explanation of a stage has already been shown. Neither belongs to the wishlist, so
+neither travels inside a state file — and **“Start over”** does not bring the explanations back,
+because the person in front of the screen is the same one and has already read them.
 
 What matters about `localStorage`: it is tied to **the browser and the address**
 (`http://localhost:8080` and the demo on GitHub Pages are different stores), it lives on one machine
