@@ -431,6 +431,78 @@ const EN = {
   'result.resetAnswers.confirm': 'Reset the answers',
   'result.resetAnswers.done': 'The comparison answers are reset.',
 
+  /* -- the bookmarklet: the block on the result screen ----------------- */
+  'result.bookmarklet.heading': 'Write the order into Steam',
+  'result.bookmarklet.lead':
+    'The link below already carries your order. Drag it onto the bookmarks bar, open your Steam '
+    + 'wishlist and press the bookmark there: it asks once and writes the whole order in one request. '
+    + 'Nothing is ever deleted.',
+  'result.bookmarklet.step1':
+    'Show the bookmarks bar: <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>B</kbd>, or <kbd>⌘</kbd> + '
+    + '<kbd>Shift</kbd> + <kbd>B</kbd> on a Mac.',
+  'result.bookmarklet.step2': 'Drag the link onto it — do not click it here.',
+  'result.bookmarklet.step3':
+    'Open store.steampowered.com/wishlist and press the bookmark. Then reload the page and look at '
+    + 'the order.',
+  'result.bookmarklet.link': 'Write the order into Steam',
+  'result.bookmarklet.carries': 'The link carries {items}, in the language of this interface.',
+  'result.bookmarklet.regenerate':
+    'The link is rebuilt every time the order changes. If you move anything afterwards, drag the new '
+    + 'link onto the bar again — the old bookmark still holds the old order.',
+  'result.bookmarklet.limits':
+    'It does not read the Steam page, so it makes no backup and checks nothing afterwards: for those '
+    + 'there is the userscript. The order applies to the items that were in the list when the link '
+    + 'was built; anything added to the wishlist later stays at the end without a priority.',
+  'result.bookmarklet.clickToast':
+    'This link is not for clicking here: drag it onto the bookmarks bar and press it on the Steam '
+    + 'wishlist page.',
+  'result.bookmarklet.empty': 'The list is empty — there is no order to carry anywhere yet.',
+  'result.bookmarklet.failed': 'The link could not be built: {message}',
+
+  /* -- the bookmarklet: what it says on the Steam page ------------------ */
+  'bookmarklet.title': 'Steam Wishlist Sorter',
+  'bookmarklet.wrongPage':
+    'This is not the Steam wishlist. Open store.steampowered.com/wishlist, sign in, and press the '
+    + 'bookmark there. Nothing was sent.',
+  'bookmarklet.confirm':
+    'About to write the order of {items} into the wishlist of the account this browser is signed in '
+    + 'as. Nothing is deleted. This cannot be undone: after the write every entry has a priority, '
+    + 'including the ones that had none before, and no backup brings that back.',
+  'bookmarklet.write': 'Write the order',
+  'bookmarklet.cancel': 'Cancel',
+  'bookmarklet.close': 'Close',
+  'bookmarklet.sending': 'Sending the order to Steam…',
+  'bookmarklet.done':
+    'Steam accepted the order. Reload the wishlist page and look at it: this bookmarklet does not '
+    + 'read the page, so the check is yours.',
+  'bookmarklet.unclear':
+    'Steam answered, but the answer neither confirms nor denies anything. Reload the wishlist page '
+    + 'and look at the order before repeating.',
+  'bookmarklet.refused':
+    'Steam refused the order and said nothing useful about why. Reload the wishlist page and look at '
+    + 'the order before repeating.',
+  'bookmarklet.badRequest':
+    'Steam turned the request away at the door with a 400 and an empty body — it never looked at the '
+    + 'order, so nothing was written. That is what it answers when the request is missing something '
+    + 'it demands, and the answer names nothing. It looks like the endpoint has changed; the project '
+    + 'page has what to do about it.',
+  'bookmarklet.signedOut':
+    'Steam did not accept the session — most often it has simply expired. Sign in to Steam again, '
+    + 'reload the wishlist and press the bookmark once more. Nothing was written.',
+  'bookmarklet.rateLimited':
+    'Steam answered "too many requests". Wait a couple of minutes and press the bookmark again — '
+    + 'nothing was changed.',
+  'bookmarklet.tooLarge':
+    'The request is too big for Steam: the whole order goes in one request, and this one did not '
+    + 'fit. Nothing was written. Such a list needs the userscript, which can mark the rows on the '
+    + 'page instead.',
+  'bookmarklet.serverError':
+    'The trouble is on Steam’s side — it answered with a server error. Try again in a few '
+    + 'minutes; nothing was written.',
+  'bookmarklet.offline':
+    'The request never reached Steam. The network may be down, or an extension may have blocked it. '
+    + 'Nothing was written — check the connection and press the bookmark again.',
+
   /* -- exported files -------------------------------------------------- */
   'export.csv.number': '#',
   'export.csv.appId': 'App ID',
@@ -814,6 +886,78 @@ const RU = {
     + 'перестановки останутся. Отменить это будет нельзя.',
   'result.resetAnswers.confirm': 'Сбросить ответы',
   'result.resetAnswers.done': 'Ответы сравнений сброшены.',
+
+  /* -- букмарклет: блок на экране результата ---------------------------- */
+  'result.bookmarklet.heading': 'Записать порядок в Steam',
+  'result.bookmarklet.lead':
+    'В ссылке ниже уже лежит ваш порядок. Перетащите её на панель закладок, откройте свой список '
+    + 'желаемого в Steam и нажмите закладку там: она один раз переспросит и отправит весь порядок '
+    + 'одним запросом. Ничего никогда не удаляется.',
+  'result.bookmarklet.step1':
+    'Покажите панель закладок: <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>B</kbd>, на Mac — '
+    + '<kbd>⌘</kbd> + <kbd>Shift</kbd> + <kbd>B</kbd>.',
+  'result.bookmarklet.step2': 'Перетащите ссылку на неё — здесь на неё нажимать не надо.',
+  'result.bookmarklet.step3':
+    'Откройте store.steampowered.com/wishlist и нажмите закладку. Потом перезагрузите страницу и '
+    + 'посмотрите на порядок.',
+  'result.bookmarklet.link': 'Записать порядок в Steam',
+  'result.bookmarklet.carries': 'В ссылке {items}, на языке этого интерфейса.',
+  'result.bookmarklet.regenerate':
+    'Ссылка пересобирается при каждом изменении порядка. Если вы что-то переставите потом, '
+    + 'перетащите на панель новую ссылку: в старой закладке остался старый порядок.',
+  'result.bookmarklet.limits':
+    'Страницу Steam она не читает, поэтому не делает резервной копии и ничего потом не сверяет — '
+    + 'для этого есть userscript. Порядок применяется к тем позициям, что были в списке в момент '
+    + 'сборки ссылки; всё добавленное в желаемое позже останется в конце без приоритета.',
+  'result.bookmarklet.clickToast':
+    'На эту ссылку здесь нажимать не надо: перетащите её на панель закладок и нажмите уже на '
+    + 'странице списка желаемого в Steam.',
+  'result.bookmarklet.empty': 'Список пуст — переносить пока нечего.',
+  'result.bookmarklet.failed': 'Не удалось собрать ссылку: {message}',
+
+  /* -- букмарклет: что он говорит на странице Steam ---------------------- */
+  'bookmarklet.title': 'Steam Wishlist Sorter',
+  'bookmarklet.wrongPage':
+    'Это не список желаемого Steam. Откройте store.steampowered.com/wishlist, войдите в аккаунт и '
+    + 'нажмите закладку там. Ничего не отправлено.',
+  'bookmarklet.confirm':
+    'Сейчас порядок {items} будет записан в список желаемого того аккаунта, под которым вошёл этот '
+    + 'браузер. Ничего не удаляется. Отменить это будет нельзя: после записи приоритет получат все '
+    + 'позиции, включая те, у которых его не было, и никакая резервная копия этого не вернёт.',
+  'bookmarklet.write': 'Записать порядок',
+  'bookmarklet.cancel': 'Отмена',
+  'bookmarklet.close': 'Закрыть',
+  'bookmarklet.sending': 'Отправляем порядок в Steam…',
+  'bookmarklet.done':
+    'Steam принял порядок. Перезагрузите страницу списка желаемого и посмотрите на него: страницу '
+    + 'этот букмарклет не читает, так что проверка за вами.',
+  'bookmarklet.unclear':
+    'Steam ответил, но из ответа не следует ни да, ни нет. Перезагрузите страницу списка желаемого '
+    + 'и посмотрите на порядок, прежде чем повторять.',
+  'bookmarklet.refused':
+    'Steam отверг порядок и не объяснил почему. Перезагрузите страницу списка желаемого и '
+    + 'посмотрите на порядок, прежде чем повторять.',
+  'bookmarklet.badRequest':
+    'Steam отверг запрос на входе: 400 и пустое тело — до порядка он даже не дошёл, записано '
+    + 'ничего не было. Так он отвечает, когда запросу не хватает чего-то, чего Steam от него '
+    + 'требует, и сам ответ этого не называет. Похоже, эндпоинт изменился; что с этим делать, '
+    + 'написано на странице проекта.',
+  'bookmarklet.signedOut':
+    'Steam не принял сессию — чаще всего она просто истекла. Войдите в Steam заново, перезагрузите '
+    + 'список желаемого и нажмите закладку ещё раз. Ничего не записано.',
+  'bookmarklet.rateLimited':
+    'Steam ответил «слишком много запросов». Подождите пару минут и нажмите закладку снова — ничего '
+    + 'не изменилось.',
+  'bookmarklet.tooLarge':
+    'Запрос слишком велик для Steam: весь порядок уходит одним запросом, и этот не поместился. '
+    + 'Ничего не записано. Для такого списка нужен userscript — он умеет вместо записи разметить '
+    + 'строки прямо на странице.',
+  'bookmarklet.serverError':
+    'Беда на стороне Steam — он ответил ошибкой сервера. Попробуйте через несколько минут; ничего '
+    + 'не записано.',
+  'bookmarklet.offline':
+    'Запрос вообще не дошёл до Steam. Возможно, нет сети или его заблокировало расширение. Ничего '
+    + 'не записано — проверьте связь и нажмите закладку снова.',
 
   /* -- exported files -------------------------------------------------- */
   'export.csv.number': '№',
