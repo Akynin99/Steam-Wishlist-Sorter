@@ -19,6 +19,27 @@ in the same place; see [Two looks](#two-looks).
 
 ---
 
+## What is in this file
+
+- [Why this exists](#why-this-exists)
+- [Live demo](#live-demo)
+- [Running it](#running-it)
+- [Language of the interface](#language-of-the-interface)
+- [Two looks](#two-looks)
+- [Getting the wishlist into the application](#getting-the-wishlist-into-the-application)
+- [When the userscript stops working](#when-the-userscript-stops-working)
+- [Updating the selectors](#updating-the-selectors)
+- [How to use it](#how-to-use-it)
+- [What comes out](#what-comes-out)
+- [Carrying the order back into Steam](#carrying-the-order-back-into-steam)
+- [Architecture](#architecture)
+- [Privacy](#privacy)
+- [Limitations](#limitations)
+- [Repository layout](#repository-layout)
+- [License](#license)
+
+---
+
 ## Why this exists
 
 A wishlist grows for years, and the question is always the same: **what do I buy right now?**
@@ -156,6 +177,9 @@ block is enough on its own.
 
 ### Adding a language
 
+<details>
+<summary>The four edits a language takes</summary>
+
 A language is four edits, and none of them is a new mechanism:
 
 1. **The dictionary** — a block in `src/i18n.js` next to `EN` and `RU`, with the same 443 keys, and
@@ -178,6 +202,8 @@ every key a dictionary holds is asked for by somebody. Both walk `LANGUAGES`, so
 language the moment its code is in the list.
 
 ---
+
+</details>
 
 ## Two looks
 
@@ -283,6 +309,9 @@ that must never be called and check that it never is.
 
 ### The userscript
 
+<details>
+<summary>Installing it, and what it collects</summary>
+
 The repository holds two userscripts. The first one is the one that exports the list — it reads the
 wishlist page you are logged into, so it works whatever the privacy settings say.
 
@@ -339,7 +368,12 @@ refreshed. So a month later you can export the list again and continue from the 
 
 ---
 
+</details>
+
 ## When the userscript stops working
+
+<details>
+<summary>Three ways round it, step by step</summary>
 
 Steam changes the layout of the wishlist, and one day the selectors will break. The list can still
 be obtained — the application accepts several JSON shapes.
@@ -394,7 +428,12 @@ and the scripts are written so that it rarely has to be touched at all.
 
 ---
 
+</details>
+
 ## Updating the selectors
+
+<details>
+<summary>What the page looks like now, and how to follow it</summary>
 
 Everything that knows what the Steam markup looks like lives in one object, `STEAM`, at the top of
 [`steam-wishlist-export.user.js`](userscripts/steam-wishlist-export.user.js). **The same object is
@@ -491,6 +530,8 @@ the network or a live Steam page.
 
 ---
 
+</details>
+
 ## How to use it
 
 1. **Wishlist.** The list comes in: straight from your Steam account, from a file or from text
@@ -529,6 +570,9 @@ carries one instead of its number.
 
 ### The sorting can be abandoned halfway
 
+<details>
+<summary>What a half-finished sort gives you</summary>
+
 That is by design, not something that “happens to work”. A thousand comparisons are not done in one
 sitting, and a tool that gives nothing until the very end is useless.
 
@@ -547,7 +591,12 @@ stands by seniority: a ring with the share the answers carry, the count beside i
 behind it — the answers made, the moves made by hand, the fallback order — under
 **“How was this order built?”**.
 
+</details>
+
 ### Where the state lives and how to back it up
+
+<details>
+<summary>localStorage, the backup file, and what resets</summary>
 
 The state is written into the `localStorage` of the browser under the key
 `steam-wishlist-sorter/state` after every action. Close the tab, turn the computer off, come back a
@@ -573,6 +622,8 @@ Make a copy before you clear the browser data or change machines: it is the only
 comparisons you have made.
 
 ---
+
+</details>
 
 ## What comes out
 
@@ -663,6 +714,9 @@ Twenty items make a link of about seven kilobytes.
 
 ### What the bookmarklet does when you press it
 
+<details>
+<summary>The request, and every answer Steam can give</summary>
+
 1. **It checks where it is.** Not `store.steampowered.com/wishlist/…` — it says where to go and
    sends nothing.
 2. **It asks.** A panel in the corner of the page names the number of entries, says that nothing
@@ -692,6 +746,8 @@ Nothing in the request is a secret of yours, because none is needed: the address
 origin, so the browser attaches the cookie of the account it is signed in as, and the code never
 sees it. The app ids in the link are public numbers.
 
+</details>
+
 ### What the bookmarklet cannot do
 
 - **It makes no backup.** Reading the current order means reading the page, and reading the page is
@@ -706,6 +762,9 @@ sees it. The app ids in the link are public numbers.
   instead — see [What remains a limitation](#what-remains-a-limitation).
 
 ### The long way: the userscript
+
+<details>
+<summary>The route with a backup and a check afterwards</summary>
 
 [`userscripts/steam-wishlist-import-order.user.js`](userscripts/steam-wishlist-import-order.user.js)
 takes the “Order as JSON” file and writes that order into the wishlist, with a report before and a
@@ -743,6 +802,8 @@ pick the file.
    reload it, reads the order again and compares it with what was sent, entry by entry. A difference
    is shown as it is — how many entries stand as asked, where the first difference is, what left the
    list and what appeared in it. It is not swallowed.
+
+</details>
 
 ### What neither of them will do
 
@@ -824,6 +885,9 @@ bookmarklet in the panel it opens on the wishlist page.
 ---
 
 ## Architecture
+
+<details>
+<summary>Modules, the ranking algorithm, and the manual-order layer</summary>
 
 Vanilla JS, ES modules, no frameworks, no bundler, no transpilation. Node is needed only for the
 tests and for the local server. There is not a single third-party dependency, neither at runtime nor
@@ -926,6 +990,8 @@ The consequences are all intentional:
 The manual edits are reset by a button of their own, without touching the comparison answers.
 
 ---
+
+</details>
 
 ## Privacy
 
