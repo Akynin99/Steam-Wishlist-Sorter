@@ -214,6 +214,24 @@ export function isTypingTarget(target) {
 }
 
 /**
+ * Whether the hotkeys of the screens must stay quiet.
+ *
+ * A field is one reason and `isTypingTarget()` knows it. The other is a dialog
+ * standing over the page — the settings menu, the confirmation — where the
+ * focus is on a button that is neither an input nor a textarea, so nothing in
+ * the test above would have caught it and «1» would have gone on categorising
+ * the list behind the menu. Any open modal counts, so a dialog added later is
+ * covered without anyone remembering this function exists.
+ *
+ * @param {EventTarget|null} target
+ * @returns {boolean}
+ */
+export function isHotkeyBlocked(target) {
+  if (isTypingTarget(target)) return true;
+  return document.querySelector('dialog[open]') !== null;
+}
+
+/**
  * Fills the standard title / kind / link block of an item card.
  *
  * @param {{ title: HTMLElement, kind: HTMLElement, link: HTMLAnchorElement, cover: HTMLElement }} nodes
