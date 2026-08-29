@@ -98,6 +98,9 @@ const EN = {
   'nav.result': 'Result',
   'settings.covers': 'Load covers',
   'settings.language': 'Interface language',
+  'settings.theme': 'Interface theme',
+  'theme.modern': 'Modern',
+  'theme.steam': 'Steam-like',
   'actions.saveState': 'Save to a file',
   'actions.reset': 'Start over',
   'privacy.note':
@@ -134,6 +137,7 @@ const EN = {
   'app.covers.on': 'Covers are on: the application loads pictures from the Steam CDN.',
   'app.covers.off': 'Covers are off: the application makes no external request at all.',
   'app.language.changed': 'Interface language: {language}.',
+  'app.theme.changed': 'Theme: {theme}.',
   'app.reset.title': 'Start over?',
   'app.reset.text':
     'All {items}, the categories, the comparison answers and the manual moves will be deleted. '
@@ -562,6 +566,9 @@ const RU = {
   'nav.result': 'Результат',
   'settings.covers': 'Загружать обложки',
   'settings.language': 'Язык интерфейса',
+  'settings.theme': 'Тема оформления',
+  'theme.modern': 'Современная',
+  'theme.steam': 'Как в Steam',
   'actions.saveState': 'Сохранить в файл',
   'actions.reset': 'Начать заново',
   'privacy.note':
@@ -597,6 +604,7 @@ const RU = {
   'app.covers.on': 'Обложки включены: приложение загружает картинки с CDN Steam.',
   'app.covers.off': 'Обложки выключены: приложение не делает ни одного внешнего запроса.',
   'app.language.changed': 'Язык интерфейса: {language}.',
+  'app.theme.changed': 'Тема: {theme}.',
   'app.reset.title': 'Начать заново?',
   'app.reset.text':
     'Будут удалены все {items}, категории, ответы на сравнения и ручные перестановки. Отменить это '

@@ -12,6 +12,7 @@
 
 import { DEFAULT_LANGUAGE, normalizeLanguage } from './i18n.js';
 import { createSession } from './ranking.js';
+import { DEFAULT_THEME, normalizeTheme } from './theme.js';
 
 /** Key the state is stored under. */
 export const STORAGE_KEY = 'steam-wishlist-sorter/state';
@@ -40,7 +41,7 @@ export class StorageError extends Error {
  * @property {string} app       Application signature.
  * @property {number} version   Envelope version.
  * @property {string} savedAt   ISO timestamp of the last save.
- * @property {{ loadCovers: boolean, language: string }} settings
+ * @property {{ loadCovers: boolean, language: string, theme: string }} settings
  * @property {object} session   Output of `RankingSession.serialize()`.
  */
 
@@ -82,7 +83,8 @@ export function detectBackend() {
 }
 
 /**
- * A blank state: no items, no answers, covers enabled, interface in English.
+ * A blank state: no items, no answers, covers enabled, interface in English
+ * and in the theme the application has always looked like.
  *
  * @returns {AppState}
  */
@@ -91,7 +93,7 @@ export function createEmptyState() {
     app: APP_SIGNATURE,
     version: STATE_FORMAT_VERSION,
     savedAt: new Date(0).toISOString(),
-    settings: { loadCovers: true, language: DEFAULT_LANGUAGE },
+    settings: { loadCovers: true, language: DEFAULT_LANGUAGE, theme: DEFAULT_THEME },
     session: createSession().serialize(),
   };
 }
@@ -130,6 +132,9 @@ export function validateState(data) {
       // all, and a hand-edited one may hold anything: both read as English
       // rather than as a broken file.
       language: normalizeLanguage(data.settings?.language),
+      // The same for the theme: a file saved before the second theme existed
+      // carries none, and Modern is the look it was saved in.
+      theme: normalizeTheme(data.settings?.theme),
     },
     session: data.session,
   };
@@ -201,7 +206,7 @@ export class StateStorage {
   /**
    * Starts a new empty session and stores it, replacing whatever was there.
    *
-   * @param {{ settings?: { loadCovers?: boolean, language?: string } }} [options]
+   * @param {{ settings?: { loadCovers?: boolean, language?: string, theme?: string } }} [options]
    * @returns {AppState}
    */
   newSession(options = {}) {
