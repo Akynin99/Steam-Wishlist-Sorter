@@ -1130,7 +1130,18 @@ label.menu__row:hover {
    because the system widget stays light on a dark theme. */
 
 .input,
+/*
+ * A `<select>` is as wide as its widest option, and that width is a min-content
+ * floor the layout cannot argue with: one long translation of one option is
+ * enough to push the whole row off the side of a narrow screen. So every select
+ * is told it may shrink — `min-width: 0` removes the floor, `max-width: 100%`
+ * keeps it inside the box it was given — and the text is cut rather than the
+ * page made to scroll sideways. This is what keeps a language whose words are
+ * longer than the English ones from breaking a layout it never saw.
+ */
 .select {
+  min-width: 0;
+  max-width: 100%;
   padding: var(--pad-field);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
@@ -1138,6 +1149,7 @@ label.menu__row:hover {
   color: var(--text);
   font: inherit;
   font-size: 0.92rem;
+  text-overflow: ellipsis;
 }
 
 .input {
