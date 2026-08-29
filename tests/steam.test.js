@@ -351,7 +351,8 @@ test('every way Steam refuses a wishlist gets its own reason', async () => {
   const cases = [
     [{ status: 403, body: '' }, 'wishlist-private'],
     [{ status: 401, body: '' }, 'wishlist-private'],
-    [{ status: 500, body: '' }, 'wishlist-private'],
+    [{ status: 500, body: '' }, 'wishlist-unavailable'],
+    [{ status: 503, body: '' }, 'wishlist-unavailable'],
     [{ status: 429, body: '' }, 'rate-limited'],
     [{ status: 404, body: '' }, 'steam-error'],
     [{ body: '<html>not json</html>' }, 'steam-error'],
@@ -483,6 +484,28 @@ test('a Steam that keeps refusing stops the walk and keeps what was collected', 
   // Every retry was waited out before giving up, and 730 was never asked for.
   assert.deepEqual(sleep.waits, [350, 3000, 8000, 20000]);
   assert.ok(!fetchImpl.calls.includes(appDetailsUrl(730)), 'the walk stopped instead of hammering on');
+});
+
+test('a server error is not passed off as a privacy setting', async () => {
+  // 401 and 403 say what they mean: Steam knows the account and refuses to
+  // show its wishlist. A 5xx says nothing of the kind — it is the answer both
+  // to a closed list and to a Steam that is having a bad minute — so it gets
+  // its own code, and the interface names both possibilities instead of
+  // sending the user off to change a setting that may already be right.
+  const failing = stubFetch({ [WISHLIST_URL]: { status: 500, body: '' } });
+  await assert.rejects(
+    () => fetchWishlistEntries(STEAM_ID, { fetch: failing }),
+    (error) => error instanceof SteamError && error.code === 'wishlist-unavailable',
+  );
+
+  // And it is not turned into a missing account either: the profile is not
+  // even asked about, which the stub proves by not knowing that address.
+  const whole = stubFetch({ [WISHLIST_URL]: { status: 500, body: '' } });
+  await assert.rejects(
+    () => collect(collectWishlist(STEAM_ID, { fetch: whole, sleep: stubSleep() })),
+    (error) => error instanceof SteamError && error.code === 'wishlist-unavailable',
+  );
+  assert.deepEqual(whole.calls, [WISHLIST_URL]);
 });
 
 test('a wishlist that is closed for a real account is not called a missing account', async () => {

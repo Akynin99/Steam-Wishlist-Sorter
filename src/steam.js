@@ -81,8 +81,9 @@ export const MAX_APP_IDS = 5000;
 export class SteamError extends Error {
   /**
    * @param {string} code One of `empty-input`, `invalid-account`,
-   *   `account-not-found`, `wishlist-private`, `wishlist-empty`,
-   *   `rate-limited`, `blocked-host`, `steam-error`, `network`, `cancelled`.
+   *   `account-not-found`, `wishlist-private`, `wishlist-unavailable`,
+   *   `wishlist-empty`, `rate-limited`, `blocked-host`, `steam-error`,
+   *   `network`, `cancelled`.
    * @param {string} message
    */
   constructor(code, message) {
@@ -579,10 +580,15 @@ export async function fetchWishlistEntries(steamId, options = {}) {
     throw new SteamError('wishlist-private', 'Steam import: the wishlist is not public');
   }
   if (!response.ok) {
-    // Steam answers with a server error for a wishlist it will not hand over,
-    // so a 5xx is read as the closed list it almost always is.
+    // A server error is what Steam answers for a wishlist it will not hand
+    // over — and it is also what a server error looks like. The answer does
+    // not say which, so neither does the code: `wishlist-unavailable` carries
+    // both readings, and the interface offers what to do in either case.
     if (response.status >= 500) {
-      throw new SteamError('wishlist-private', 'Steam import: the wishlist was not handed over');
+      throw new SteamError(
+        'wishlist-unavailable',
+        `Steam import: the wishlist was not handed over, Steam answered ${response.status}`,
+      );
     }
     throw new SteamError('steam-error', `Steam import: Steam answered ${response.status}`);
   }
