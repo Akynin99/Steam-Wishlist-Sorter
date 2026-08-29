@@ -97,6 +97,11 @@ const EN = {
   'meta.description':
     'A local tool that puts a Steam wishlist in order through pairwise comparisons.',
   'a11y.skipToContent': 'Skip to the content',
+  /* Names of the three progress bars. A bar is a picture, and a picture with
+     no name is a number read out of nowhere. */
+  'a11y.progress.import': 'Loading the wishlist',
+  'a11y.progress.categorize': 'Items given a category',
+  'a11y.progress.compare': 'Comparisons answered',
   'nav.aria': 'Stages',
   /* The stage the wishlist arrives on. The key keeps the name of the screen,
      the caption names what the user goes there for. */
@@ -747,6 +752,9 @@ const RU = {
   'meta.description':
     'Локальный инструмент, который упорядочивает список желаемого в Steam попарными сравнениями.',
   'a11y.skipToContent': 'Перейти к содержимому',
+  'a11y.progress.import': 'Загрузка списка желаемого',
+  'a11y.progress.categorize': 'Позиций разложено по категориям',
+  'a11y.progress.compare': 'Сравнений отвечено',
   'nav.aria': 'Этапы работы',
   'nav.import': 'Список',
   'nav.categorize': 'Категории',

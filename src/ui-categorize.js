@@ -18,7 +18,7 @@
 
 import { plural, t } from './i18n.js';
 import { CATEGORIES, categoryLabel } from './model.js';
-import { element, renderItemCard } from './ui-common.js';
+import { element, renderItemCard, setProgress } from './ui-common.js';
 
 /** The value that is not a level of interest, and does not stand in the scale. */
 const APART = 'remove';
@@ -238,7 +238,7 @@ export function createCategorizeScreen(app) {
       nodes.back.disabled = true;
       nodes.defer.disabled = true;
       nodes.counter.textContent = t('categorize.counter', { index: 0, total: 0 });
-      nodes.bar.style.width = '0%';
+      setProgress(nodes.bar, 0);
       nodes.legend.textContent = '';
       nodes.doneText.textContent = t('categorize.empty');
       nodes.doneButton.textContent = t('categorize.toImport');
@@ -273,7 +273,7 @@ export function createCategorizeScreen(app) {
     // The counter and the bar say the same thing — how much of the list has a
     // category — so the big number never argues with the line under it.
     nodes.counter.textContent = t('categorize.counter', { index: classified, total });
-    nodes.bar.style.width = `${Math.round((classified / total) * 100)}%`;
+    setProgress(nodes.bar, (classified / total) * 100);
     nodes.legend.textContent =
       left > 0 ? t('categorize.legendLeft', { items: plural('count.items', left) }) : '';
 

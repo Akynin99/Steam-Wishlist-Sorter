@@ -33,6 +33,7 @@
 import { plural, t } from './i18n.js';
 import { isPlaceholderTitle } from './model.js';
 import { SteamError, readEventStream } from './steam.js';
+import { setProgress } from './ui-common.js';
 
 /** Endpoints of the local server, relative to the page. */
 const HEALTH_URL = 'api/health';
@@ -504,7 +505,7 @@ export function createSteamCard(host) {
     if (state === 'progress') {
       nodes.progressText.textContent = progressText();
       const share = progress.total > 0 ? Math.min(1, progress.done / progress.total) : 0;
-      nodes.progressFill.style.width = `${Math.round(share * 100)}%`;
+      setProgress(nodes.progressFill, share * 100);
       return;
     }
 

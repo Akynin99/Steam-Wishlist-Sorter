@@ -11,7 +11,7 @@
 
 import { plural, t } from './i18n.js';
 import { categoryLabel } from './model.js';
-import { renderItemCard } from './ui-common.js';
+import { renderItemCard, setProgress } from './ui-common.js';
 
 /**
  * @param {object} app
@@ -201,7 +201,7 @@ export function createCompareScreen(app) {
     pair = app.session.getNextPair();
 
     nodes.percent.textContent = `${progress.percent}%`;
-    nodes.bar.style.width = `${progress.percent}%`;
+    setProgress(nodes.bar, progress.percent);
     nodes.undo.disabled = !app.session.canUndo();
 
     nodes.deferred.hidden = progress.deferred === 0;

@@ -44,6 +44,23 @@ export function clear(node) {
 }
 
 /**
+ * Moves a progress bar to a share of its length.
+ *
+ * The width and the `aria-valuenow` of the bar around it are the same number
+ * said twice — once as a picture and once as a value — so they are set in one
+ * place. Written apart they drift: the width is what the eye checks and the
+ * value is what nobody looks at until a screen reader reads it out.
+ *
+ * @param {HTMLElement} fill The `.progress__fill` inside the bar.
+ * @param {number} percent Whole per cent, 0 to 100.
+ */
+export function setProgress(fill, percent) {
+  const value = Math.max(0, Math.min(100, Math.round(percent)));
+  fill.style.width = `${value}%`;
+  fill.parentElement?.setAttribute('aria-valuenow', String(value));
+}
+
+/**
  * Attributes of the markup that carry a dictionary key.
  *
  * `data-i18n-html` exists for the handful of strings that hold inline markup —

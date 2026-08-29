@@ -290,7 +290,14 @@
             <div class="steam-progress" id="steam-progress" hidden>
               <div class="progress">
                 <p class="progress__legend" id="steam-progress-text"></p>
-                <div class="progress__bar"><span class="progress__fill" id="steam-progress-fill"></span></div>
+                <!--
+                  A bar is a picture, so it says out loud what it draws: the
+                  role and the bounds are fixed here, and `aria-valuenow` is
+                  set next to the width by the module that moves it.
+                -->
+                <div class="progress__bar" role="progressbar" aria-valuemin="0" aria-valuemax="100"
+                     data-i18n-attr="aria-label:a11y.progress.import"
+                     aria-label="Loading the wishlist"><span class="progress__fill" id="steam-progress-fill"></span></div>
               </div>
               <p class="panel__hint" data-i18n="steam.note">
                 One title, one request, so a long list takes minutes. Everything that has already
@@ -591,7 +598,9 @@
           <p class="stage-head__counter" id="cat-counter">0 of 0</p>
         </div>
         <div class="progress">
-          <div class="progress__bar"><span class="progress__fill" id="cat-bar"></span></div>
+          <div class="progress__bar" role="progressbar" aria-valuemin="0" aria-valuemax="100"
+               data-i18n-attr="aria-label:a11y.progress.categorize"
+               aria-label="Items given a category"><span class="progress__fill" id="cat-bar"></span></div>
           <p class="progress__legend" id="cat-legend"></p>
         </div>
       </div>
@@ -657,7 +666,9 @@
           <p class="stage-head__counter" id="cmp-percent">0%</p>
         </div>
         <div class="progress">
-          <div class="progress__bar"><span class="progress__fill" id="cmp-bar"></span></div>
+          <div class="progress__bar" role="progressbar" aria-valuemin="0" aria-valuemax="100"
+               data-i18n-attr="aria-label:a11y.progress.compare"
+               aria-label="Comparisons answered"><span class="progress__fill" id="cmp-bar"></span></div>
           <p class="progress__legend">
             <span id="cmp-progress"></span>
             <span class="progress__aside" id="cmp-deferred" hidden></span>
