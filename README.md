@@ -399,6 +399,9 @@ the network or a live Steam page.
    same”** (a tie) and **“cannot decide”** (the pair is postponed, it comes back later — and often
    it does not have to, because the order follows from other answers). The last answer can be undone.
 4. **Result.** A numbered list with a filter by category, a search, draggable rows and the exports.
+5. **Back into Steam**, if you want the order there and not only in a file: drag the link from the
+   result screen onto the bookmarks bar and press it on your wishlist page — see
+   [Carrying the order back into Steam](#carrying-the-order-back-into-steam).
 
 ### The sorting can be abandoned halfway
 
@@ -440,7 +443,9 @@ comparisons you have made.
 
 ## What comes out
 
-The buttons on the “Result” screen:
+The buttons on the “Result” screen. Under them sits the block with the bookmarklet — the order goes
+into Steam through the link there, not through a file; see
+[Carrying the order back into Steam](#carrying-the-order-back-into-steam).
 
 | Button | What it gives | What for |
 | --- | --- | --- |
@@ -477,14 +482,93 @@ system ANSI code page and every non-Latin title turns into mojibake.
 
 ## Carrying the order back into Steam
 
-The second userscript —
+The final order can be written straight into your Steam wishlist. There are two ways to do it, and
+they send the very same request — what differs is how much they do around it.
+
+**The bookmarklet** is the short way, and the one to start with. The application builds a link that
+already holds your order; you drag it onto the bookmarks bar and press it on the Steam wishlist
+page. No extension, no developer mode, nothing to install.
+
+**The userscript** —
 [`userscripts/steam-wishlist-import-order.user.js`](userscripts/steam-wishlist-import-order.user.js)
-— takes the “Order as JSON” file and **writes that order into your Steam wishlist**.
+— is the long way, for when you want a backup of the current order and a check afterwards. It reads
+the page, so it can do both; it also needs Tampermonkey and it depends on Steam's layout.
 
-It is installed the same way as the first one. Then: open the wishlist → the panel in the bottom
-right corner → pick the file.
+### The short way: the bookmarklet
 
-### How it goes, step by step
+On the **Result** screen, under the exports, there is a block with a link in it.
+
+1. Show the bookmarks bar: <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>B</kbd>, or <kbd>⌘</kbd> +
+   <kbd>Shift</kbd> + <kbd>B</kbd> on a Mac.
+2. Drag the link onto the bar. Do not click it on the application's own page — a click there is
+   caught and answered with a reminder to drag it instead.
+3. Open [your Steam wishlist](https://store.steampowered.com/wishlist/) and press the bookmark.
+
+The order lives inside the address of the link. That is the whole idea: because the order is already
+in there, the bookmarklet has no reason to read the Steam page — no scrolling to the end of a
+virtualized list, no row selectors, no checking that the reading was complete. Everything that
+breaks when Steam changes its layout is simply not there. What is left is the write endpoint, which
+is the one thing that was measured on a live account.
+
+The link is rebuilt on every change of the order. If you move a row after dragging it onto the bar,
+drag the new link over the old bookmark — the one already on the bar holds the order of the moment
+it was dragged.
+
+It speaks the language the interface was in when it was built, and it holds nothing but the code,
+the app ids and those texts: no titles, no links, no tokens, and no address of the local server.
+Twenty items make a link of about seven kilobytes.
+
+### What the bookmarklet does when you press it
+
+1. **It checks where it is.** Not `store.steampowered.com/wishlist/…` — it says where to go and
+   sends nothing.
+2. **It asks.** A panel in the corner of the page names the number of entries, says that nothing
+   will be deleted, and states the one thing no backup undoes — see
+   [What the write cannot undo](#what-the-write-cannot-undo). Nothing has been sent yet.
+3. **It sends one request** — the one the page itself sends when a row is dragged:
+
+   ```
+   POST https://store.steampowered.com/wishlist/action
+   Content-Type: application/json; charset=utf-8
+   X-Valve-Request-Type: mutationAction
+   { "m": "Reorder", "mp": [ [ { "appid": 1509510, "priority": 1 }, … ] ] }
+   ```
+
+   `mp` is an array of one element, and that element is the list of pairs; the double brackets are
+   not a typo. `X-Valve-Request-Type` is not decoration either: the same request without it comes
+   back `400` with an empty body, and with it `200`. It is what marks the request as coming from
+   Steam's own page — another site can make your browser send a POST with your cookie on it, but it
+   cannot add a header. Steam answers `{ "data": { "result": 1 } }`.
+4. **It says what came back**, in the same panel: accepted, refused with a result of its own,
+   refused at the door with a `400`, session expired, too many requests, list too large, or the
+   network never let the request out. Each case in its own words, and the panel closes on a button.
+5. **It asks you to reload the wishlist and look at the order.** It does not read the page, so the
+   check is yours — and it says so instead of implying it checked.
+
+Nothing in the request is a secret of yours, because none is needed: the address is Steam's own
+origin, so the browser attaches the cookie of the account it is signed in as, and the code never
+sees it. The app ids in the link are public numbers.
+
+### What the bookmarklet cannot do
+
+- **It makes no backup.** Reading the current order means reading the page, and reading the page is
+  exactly what it does not do. If you want the order you have now saved to a file first, use the
+  userscript — and see [How to undo a write](#how-to-undo-a-write).
+- **It checks nothing afterwards.** Same reason. It asks you to look.
+- **It carries the list you had when the link was built.** Anything added to the wishlist after that
+  is not in the request, and stays at the end without a priority. Import the wishlist again, sort
+  the new entries in and drag a fresh link over.
+- **It is one request, so a very large wishlist may not fit.** Steam answers `413`, the panel says
+  so, and nothing is written. That list needs the userscript, which can mark the rows on the page
+  instead — see [What remains a limitation](#what-remains-a-limitation).
+
+### The long way: the userscript
+
+[`userscripts/steam-wishlist-import-order.user.js`](userscripts/steam-wishlist-import-order.user.js)
+takes the “Order as JSON” file and writes that order into the wishlist, with a report before and a
+check after. It is installed the same way as the export userscript — see
+[The userscript](#the-userscript). Then: open the wishlist → the panel in the bottom right corner →
+pick the file.
 
 1. **The file is read and checked.** It has to be the order file: the `kind` field is what tells it
    from a state dump, and a state dump is refused with a note saying which export is needed. The
@@ -508,52 +592,41 @@ right corner → pick the file.
    number of entries, the fact that the write goes to the account this browser is signed in as, and
    the one consequence a backup cannot undo — see
    [What the write cannot undo](#what-the-write-cannot-undo). Only that one sends anything.
-6. **The request.** The whole list goes to Steam in a single request — the very one the page sends
-   when a row is dragged:
-
-   ```
-   POST https://store.steampowered.com/wishlist/action
-   Content-Type: application/json; charset=utf-8
-   X-Valve-Request-Type: mutationAction
-   { "m": "Reorder", "mp": [ [ { "appid": 1509510, "priority": 1 }, … ] ] }
-   ```
-
-   `mp` is an array of one element, and that element is the list of pairs; the double brackets are
-   not a typo. `X-Valve-Request-Type` is not decoration either: the same request without it comes
-   back `400` with an empty body, and with it `200`. It is what marks the request as coming from
-   Steam's own page — another site can make your browser send a POST with your cookie on it, but it
-   cannot add a header. Steam answers `{ "data": { "result": 1 } }`, and the answer is read out into
-   one case with one message: accepted, refused with a result of its own, refused at the door with a
-   `400`, session expired, list too large, too many requests, not JSON at all, or the network never
-   let the request out.
+6. **The request.** The same one the bookmarklet sends, and the answer is read out into one case
+   with one message: accepted, refused with a result of its own, refused at the door with a `400`,
+   session expired, list too large, too many requests, not JSON at all, or the network never let the
+   request out.
 7. **The check.** The wishlist page does not redraw itself after the write, so the script offers to
    reload it, reads the order again and compares it with what was sent, entry by entry. A difference
    is shown as it is — how many entries stand as asked, where the first difference is, what left the
    list and what appeared in it. It is not swallowed.
 
-### What it will not do
+### What neither of them will do
 
-- **It deletes nothing.** The entries you put into “remove from the wishlist” are pushed to the end
-  of the order and listed in the panel with links, so that you take them off yourself. A deletion
-  cannot be undone, and the price of a mistake by a script is too high here.
-- **It loses nothing.** An entry that is on the page but not in the file — added after the export,
-  or left out of the ranking — keeps its place relative to the other such entries and is appended
-  after the ordered part. That is why the request always carries the whole wishlist: every place is
-  then stated outright, and none is left for Steam to decide.
-- **It does not write what it did not read.** A wishlist the script read only in part gives no
+- **They delete nothing.** The entries you put into “remove from the wishlist” are pushed to the end
+  of the order and listed in the panel, so that you take them off yourself. A deletion cannot be
+  undone, and the price of a mistake by a script is too high here.
+- **They lose nothing.** The request always carries the whole list: every place is then stated
+  outright, and none is left for Steam to decide. In the userscript that includes the entries which
+  are on the page but not in the file — added after the export, or left out of the ranking — which
+  keep their place relative to one another and are appended after the ordered part.
+- **The userscript does not write what it did not read.** A wishlist it read only in part gives no
   report, no plan and no write button — only the count it got, the count the page promised, and what
-  to do about it.
-- **It touches no secret of yours, because it needs none.** There is no `sessionid` and no
+  to do about it. The bookmarklet reads nothing, so the question does not arise: it writes the order
+  the application handed it.
+- **They touch no secret of yours, because they need none.** There is no `sessionid` and no
   `access_token` in the body: the address is the origin the page was loaded from, so the browser
-  attaches the cookie of the signed-in account itself, and the script never sees it. It reads no
-  cookies, writes nothing to a file or to the storage of the browser beyond the list of App IDs the
-  check needs after a reload, and sends nothing to the local server of the application.
+  attaches the cookie of the signed-in account itself, and neither of them ever sees it. They read
+  no cookies and send nothing to the local server of the application.
 
-### How to undo it
+### How to undo a write
 
-Pick the backup file with this same script and write it back. That is the whole procedure: the
-backup is an ordinary order file, and the script that wrote your order is the script that puts the
-old one back.
+Pick a backup file with the userscript and write it back. The backup is an ordinary order file, and
+the script that wrote your order is the script that puts the old one back.
+
+The bookmarklet has no part in this: it never made a backup, because it never read the order that
+was there. If undoing matters to you, take the backup with the userscript before the first write —
+after it, the order that was there is gone from everywhere except that file.
 
 ### What the write cannot undo
 
@@ -562,44 +635,49 @@ entries you have arranged by hand. Entries you have never arranged sit at the en
 and no number at all. On the account this was read off, 166 entries were 76 with the priorities
 1…76 and 90 with a zero.
 
-This script sends the list **whole**, numbered `1…N`. So after the write **every** entry has a
+Both ways send the list **whole**, numbered `1…N`. So after the write **every** entry has a
 priority, including the ones that had none before.
-The backup puts the order back; it cannot put back “never arranged”. The panel says so in the box
-above the write button and again at the confirmation, before anything is sent.
+A backup puts the order back; it cannot put back “never arranged”. Both say so before anything is
+sent: the userscript in the box above the write button and again at the confirmation, the
+bookmarklet in the panel it opens on the wishlist page.
 
 ### What remains a limitation
 
 - **The endpoint is undocumented and unsupported.** `POST /wishlist/action` with
   `{"m":"Reorder","mp":[[…]]}` is what the page itself sends when a row is dragged; Valve promises
-  nothing about it and may change it any day. When that happens, the script says what came back
-  instead of pretending it worked. The address it used before this —
+  nothing about it and may change it any day. When that happens, both say what came back instead of
+  pretending it worked. The address used before this —
   `/wishlist/profiles/<steamid>/reorder/` with a `sessionid` field — belonged to the previous
   version of the page, and the rewritten one does not use it at all: it puts no `g_sessionID` on the
   page, so that write never even started. What Steam demands of the request can change the same way:
   the `X-Valve-Request-Type` header turned a `400` with an empty body into a `200`, and an answer
   like that names nothing. So a `400` has a message of its own — refused at the door, nothing
-  written, compare the headers of a real drag in DevTools with the ones the script sends.
+  written, compare the headers of a real drag in DevTools with the ones the code sends.
 - **The write goes to the account this browser is signed in as, not to the page on the screen.** The
-  address names no account — the cookie decides. So opening somebody else's wishlist and running the
-  script would rearrange *your* list with *their* App IDs, read off their page. The script still
-  reads the page for the account it belongs to and names it in the report, as a check you can make
-  with your own eyes: seventeen digits in the address; `g_steamID`, the variable the old layout
-  defined; a link on the page to this wishlist by its numeric address; that address inside an inline
-  script; a `data-steamid` attribute.
-- **An account it could not work out is a sentence, not a lock.** Since the request is addressed to
-  nobody, there is nothing an unknown account could send astray, and the write is not blocked over
-  it — the report says the account is unknown, or that the page names more than one, and asks you to
-  look at the list. The single case still refused outright is the certain one: a numeric address
-  naming one account while the page says you are signed in as another.
+  address names no account — the cookie decides. So opening somebody else's wishlist and running
+  either of them would rearrange *your* list. The userscript reads the page for the account it
+  belongs to and names it in the report, as a check you can make with your own eyes: seventeen
+  digits in the address; `g_steamID`, the variable the old layout defined; a link on the page to
+  this wishlist by its numeric address; that address inside an inline script; a `data-steamid`
+  attribute. The bookmarklet does not read the page at all, so it names no account: it carries the
+  order the application built out of *your* wishlist, and where that order lands is decided by whom
+  the browser is signed in as.
+- **An account the userscript could not work out is a sentence, not a lock.** Since the request is
+  addressed to nobody, there is nothing an unknown account could send astray, and the write is not
+  blocked over it — the report says the account is unknown, or that the page names more than one,
+  and asks you to look at the list. The single case still refused outright is the certain one: a
+  numeric address naming one account while the page says you are signed in as another.
 - **A very large wishlist may not fit into one request.** 166 entries make a body of about seven
-  kilobytes, so the ceiling is far off — but it is a ceiling. Steam answers `413`, and the script says
-  so in words. Splitting the list is not a way out either: what Steam does with the entries a piece
+  kilobytes, so the ceiling is far off — but it is a ceiling. Steam answers `413`, and both say so
+  in words. Splitting the list is not a way out either: what Steam does with the entries a piece
   leaves out has never been measured, and a wishlist is a poor place to measure it. For such a list
-  the preview mode is still there: “Show the order on the page” marks every row with the number it
-  has to end up at, and the dragging is yours.
-- **The check reads the page.** For it to mean anything the wishlist has to be sorted by **Your
-  rank** with the filters cleared, which is also the sorting that shows the order you have just
-  written. The panel says so next to every difference it reports.
+  the userscript's preview mode is still there: “Show the order on the page” marks every row with
+  the number it has to end up at, and the dragging is yours.
+- **The userscript's check reads the page.** For it to mean anything the wishlist has to be sorted
+  by **Your rank** with the filters cleared, which is also the sorting that shows the order you have
+  just written. The panel says so next to every difference it reports. The bookmarklet has no check
+  to speak of and asks you to look with your own eyes instead.
+
 ---
 
 ## Architecture
@@ -619,6 +697,7 @@ in development.
 | [`src/storage.js`](src/storage.js) | `localStorage` behind a wrapper: autosave, the export and import of the state as a file, the check of the signature and of the format version. It does not depend on the DOM — a test replaces it with an in-memory stub |
 | [`src/ranking.js`](src/ranking.js) | the core: the preference graph, the pair scheduler, the layer of manual moves, the building of the result. All the ranking logic lives here, and the interface does not duplicate it |
 | [`src/export.js`](src/export.js) | the result as JSON, CSV and text. No DOM — which is why every format is checked by a test character by character, instead of by eye in a downloaded file |
+| [`src/bookmarklet.js`](src/bookmarklet.js) | the link that carries the order into Steam: the app ids in their final order, the interface texts of the moment, and the small program that sends the one write request. No DOM either, so a test can read the address apart character by character and make the generated code run against a fake page |
 | [`src/ui-*.js`](src/) | the screens on top of the core: import, categories, comparisons, result, the card of the direct import, the shared frame of the application and the confirmation dialog |
 | [`server.js`](server.js) | a server on plain Node: it serves the files of the project, is guarded against escaping the root, and answers the three endpoints of the direct import — the health check the card asks about, the wishlist and the missing titles |
 | [`userscripts/`](userscripts/) | two Tampermonkey scripts: the wishlist export and the writing of the order back into Steam. The half of the second one that decides what gets sent and what an answer means is loaded by `node --test` and covered by [`tests/reorder-userscript.test.js`](tests/reorder-userscript.test.js) |
@@ -723,29 +802,39 @@ The manual edits are reset by a button of their own, without touching the compar
   holds a secret of yours: the body of that one request carries the App IDs and their places and
   nothing else — no `sessionid`, no token. The right to write is the cookie the browser attaches by
   itself, because the address is the page's own.
+- **The bookmarklet makes that same one request and no other.** It is built by the page you are
+  looking at, it runs on the Steam wishlist page you pressed it on, and it goes nowhere except that
+  page's own origin — not to `server.js`, not anywhere else. What it carries is the code, the App
+  IDs in their order and the interface texts: App IDs are public numbers, and there is no token, no
+  `sessionid` and no cookie of yours anywhere in it. It reads no cookies and does not read the page.
+  The whole of it can be read in [`src/bookmarklet.js`](src/bookmarklet.js), and the address of the
+  link can be pasted into any editor and read there — it is percent encoded text, not a binary.
 - The same holds for the demo on GitHub Pages: the very same static files, only on somebody else's
   hosting. Your data stays in your browser — there is nobody to send it to and nothing to send it
   with.
 
-The wording “no external requests”, without the note about the covers and about the import straight
-from an account, would be untrue, which is why it is not here.
+The wording “no external requests”, without the note about the covers, about the import straight
+from an account and about the write the bookmarklet and the userscript perform on request, would be
+untrue, which is why it is not here.
 
 ---
 
 ## Limitations
 
-- **The order is written into Steam through an endpoint nobody documented.** The second userscript
-  sends what the wishlist page itself sends when a row is dragged, and Valve promises nothing about
-  it: it may change any day, and then the script will report what came back instead of pretending it
-  worked. A very large wishlist can also fail to fit into one request — Steam answers `413`, and the
-  preview mode with the marks on the rows is what is left. And one part of the write is undone by
+- **The order is written into Steam through an endpoint nobody documented.** The bookmarklet and the
+  second userscript send what the wishlist page itself sends when a row is dragged, and Valve
+  promises nothing about it: it may change any day, and then both will report what came back instead
+  of pretending it worked. A very large wishlist can also fail to fit into one request — Steam
+  answers `413`, and the userscript's preview mode with the marks on the rows is what is left. And one part of the write is undone by
   nothing: after it every entry carries a priority number, including the ones that carried none. In
   detail — in [“What the write cannot undo”](#what-the-write-cannot-undo) and
   [“What remains a limitation”](#what-remains-a-limitation).
 - **The Steam selectors will break one day.** The layout of the wishlist has changed more than once,
   and the class names of the current page change by themselves — they look like `S2Q8eqrNOA4-` and
   are minted by whatever built the page that day. When the reading breaks, the script says so and
-  stops; it will not hand over a silently empty file, and the second script will not write.
+  stops; it will not hand over a silently empty file, and the second script will not write. The
+  bookmarklet is the exception, and that is the reason it exists: it reads no rows, so there is no
+  selector in it to break.
 
   What to do about it is written out below, in
   [Updating the selectors](#updating-the-selectors).
@@ -770,7 +859,8 @@ index.html                 the entry point of the application
 styles.css                 the styles, a dark theme
 server.js                  the local static server on plain Node
 start.bat                  the launcher for Windows (Node, with Python as a fallback)
-src/                       the source: model, i18n, import, steam, storage, ranking, export, screens
+src/                       the source: model, i18n, import, steam, storage, ranking, export,
+                           bookmarklet, screens
 tests/                     the tests on node:test; tests/fixtures — the demo set and test data
                            tests/helpers — a mock of the wishlist markup, in both Steam layouts
 userscripts/               two Tampermonkey scripts for the Steam page
