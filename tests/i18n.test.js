@@ -71,7 +71,7 @@ test('a counted phrase defines every plural form in both languages', () => {
 test('the default language is English, and it is what a fresh module hands out', () => {
   assert.equal(DEFAULT_LANGUAGE, 'en');
   assert.equal(getLanguage(), 'en', 'nothing has switched the language yet');
-  assert.equal(t('nav.import'), 'Import');
+  assert.equal(t('nav.import'), 'Wishlist');
   assert.deepEqual([...LANGUAGES], ['en', 'ru']);
   assert.deepEqual(LANGUAGE_NAMES, { en: 'English', ru: 'Русский' });
 });

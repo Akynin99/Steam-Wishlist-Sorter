@@ -117,6 +117,14 @@
   --nav-active-border: var(--border-strong);
   --nav-active-bar: 0px;
 
+  /*
+   * The stages are a sequence, so something has to stand between them. Modern
+   * draws the short rule the mock-ups show; the store leaves the gap empty and
+   * lets the capitals do the separating.
+   */
+  --nav-sep-width: 14px;
+  --nav-badge-radius: var(--radius-pill);
+
   /* The interest scale. One meaning, one colour, in both themes. */
   --cat-must: #e05c5c;
   --cat-want: #e29a3c;
@@ -205,6 +213,9 @@
   --nav-active-bg: transparent;
   --nav-active-border: transparent;
   --nav-active-bar: 3px;
+
+  --nav-sep-width: 0px;
+  --nav-badge-radius: var(--radius-xs);
 }
 
 /* ------------------------------------------------------------- base */
@@ -310,11 +321,18 @@ kbd {
 
 /* ----------------------------------------------------------- header */
 
+/*
+ * Three columns: the mark and the name, the stages in the middle, the two
+ * settings on the right. The middle column takes what it needs and the two
+ * outer ones share the rest, which is what keeps the stages centred in the
+ * window rather than centred in what is left over.
+ */
+
 .topbar {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  gap: 12px 24px;
+  gap: 10px 20px;
   padding: var(--pad-topbar-y) clamp(12px, 3vw, 32px);
   border-bottom: 1px solid var(--border);
   background: var(--bg-header);
@@ -328,27 +346,96 @@ kbd {
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
   font-weight: var(--weight-heading);
   letter-spacing: var(--brand-spacing);
   text-transform: var(--brand-transform);
 }
 
 .topbar__mark {
-  width: 18px;
-  height: 18px;
-  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius);
   background: linear-gradient(140deg, var(--accent) 0%, var(--accent-deep) 100%);
+  /* The bars of the favicon, drawn on the accent instead of over it, so the
+     mark of the page and the mark in the tab are the same shape. */
+  color: var(--bg);
 }
 
+.topbar__mark svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+
+.topbar__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* An inline glyph that follows the text around it: it inherits the colour and
+   is sized in `em`, so it needs no variant per theme and none per context. */
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.icon svg {
+  width: 1.25em;
+  height: 1.25em;
+}
+
+.icon--sm svg {
+  width: 1em;
+  height: 1em;
+}
+
+/* -------------------------------------------------------- the stages */
+
 .topbar__nav {
+  min-width: 0;
+}
+
+.stages {
   display: flex;
+  align-items: center;
   flex-wrap: wrap;
-  gap: 4px;
-  margin-right: auto;
+  justify-content: center;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stages__item {
+  display: flex;
+  align-items: center;
+}
+
+/* The rule between two stages. It is a token, so the store theme takes it
+   down to nothing without this rule knowing that a second theme exists. */
+.stages__item + .stages__item::before {
+  content: "";
+  flex: none;
+  width: var(--nav-sep-width);
+  height: 1px;
+  margin-inline: 5px;
+  background: var(--border-strong);
 }
 
 .navbtn {
-  padding: 7px 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
   border: 1px solid transparent;
   border-radius: var(--radius-pill);
   background: transparent;
@@ -362,16 +449,49 @@ kbd {
   transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
+.navbtn__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--nav-badge-radius);
+  color: var(--text-dim);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+/* Passed: a tick instead of the number, and the accent behind it. The shape
+   says it as well as the colour does, which is the point. */
+.navbtn[data-state="done"] .navbtn__badge {
+  border-color: var(--accent);
+  background: var(--accent-tint-strong);
+  color: var(--accent);
+}
+
 .navbtn:hover:not(:disabled) {
   background: var(--bg-panel);
   color: var(--text);
 }
 
-.navbtn[aria-current="page"] {
+.navbtn[aria-current="step"] {
   border-color: var(--nav-active-border);
   background: var(--nav-active-bg);
   color: var(--accent);
+  font-weight: 700;
   box-shadow: inset 0 calc(-1 * var(--nav-active-bar)) 0 0 var(--accent);
+}
+
+.navbtn[aria-current="step"] .navbtn__badge {
+  border-color: var(--accent);
+  background: var(--accent);
+  /* The page colour on the accent: dark on turquoise, dark on the store blue.
+     One rule, readable in both themes. */
+  color: var(--bg);
 }
 
 .navbtn:disabled {
@@ -379,33 +499,260 @@ kbd {
   cursor: not-allowed;
 }
 
+/* ---------------------------------------------------- header settings */
+
 .topbar__tools {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: 10px;
+  justify-content: flex-end;
+  gap: 6px;
 }
 
-.switch {
+.toolswitch {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   color: var(--text-muted);
-  font-size: 0.9rem;
-  cursor: pointer;
-  user-select: none;
 }
 
-.switch input {
+.select--tool {
+  padding-block: 6px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.select--tool:hover {
+  color: var(--text);
+}
+
+.iconbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.iconbtn:hover,
+.iconbtn[aria-expanded="true"] {
+  border-color: var(--border-strong);
+  background: var(--bg-panel);
+  color: var(--text);
+}
+
+/* ------------------------------------------ privacy and saving strip */
+
+/*
+ * The promise of privacy is centred in the window, and the saving line hangs
+ * at the right edge without pushing it off centre. Below the breakpoint both
+ * simply stack, because there is no room to hold one still and place another.
+ */
+
+.shellbar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  padding: 10px clamp(12px, 3vw, 32px) 0;
+}
+
+.privacy {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  justify-content: center;
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  text-align: center;
+}
+
+.linkbtn {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.linkbtn:hover {
+  color: var(--accent-strong);
+}
+
+/*
+ * The saving status. It is not a toast and it holds no queue: `save()` runs
+ * after every answer of a comparison, so this line stays where it is, changes
+ * nothing but its opacity, and fades out once the writing stops.
+ */
+.savestatus {
   position: absolute;
+  right: clamp(12px, 3vw, 32px);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent);
+  font-size: 0.8rem;
   opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+
+.savestatus.is-visible {
+  opacity: 1;
+}
+
+.privacy-full {
+  max-width: 900px;
+  margin: 10px auto 0;
+  padding: var(--pad-block);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+/* ----------------------------------------------------- settings menu */
+
+/*
+ * A `<dialog>` and not a hand-made popover: the focus trap, the Escape key
+ * and the page going inert behind it are the browser's job, not ours. What is
+ * left to do is put it under the button, and the two coordinates for that are
+ * measured in `ui-app.js` and arrive as custom properties — so that a narrow
+ * window can still override them below.
+ */
+
+.menu {
+  position: fixed;
+  inset: auto;
+  top: var(--menu-top, 60px);
+  right: var(--menu-right, 12px);
+  left: auto;
+  width: min(300px, calc(100vw - 24px));
+  max-width: none;
+  margin: 0;
+  /* No padding of its own: a click that reports the dialog as its target is
+     then a click on the backdrop and nothing else, which is what closes it. */
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+.menu::backdrop {
+  background: transparent;
+}
+
+.menu__title {
+  padding: 14px 16px 8px;
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.menu__group {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 6px;
+}
+
+.menu__group + .menu__group {
+  border-top: 1px solid var(--border);
+}
+
+.menu__group:last-child {
+  padding-bottom: 8px;
+}
+
+.menu__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.92rem;
+  text-align: left;
+}
+
+.menu__row .icon {
+  color: var(--text-dim);
+}
+
+.menu__label {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.menu__row--action {
+  cursor: pointer;
+}
+
+label.menu__row {
+  cursor: pointer;
+}
+
+.menu__row--action:hover,
+label.menu__row:hover {
+  background: var(--bg-panel-hover);
+}
+
+.menu__row--danger {
+  color: var(--danger-text);
+}
+
+.menu__row--danger .icon {
+  color: var(--danger);
+}
+
+.menu__row--danger:hover {
+  background: color-mix(in srgb, var(--danger) 16%, transparent);
+}
+
+.select--menu {
+  flex: none;
+  max-width: 46%;
+  padding-block: 4px;
+  font-size: 0.85rem;
+}
+
+/* ------------------------------------------------------- the toggle */
+
+/* The switch of the covers row. The checkbox itself is the control — it keeps
+   the focus and the keyboard — and the track next to it is what is seen. */
+
+.switch__input {
+  position: absolute;
   width: 1px;
   height: 1px;
+  opacity: 0;
 }
 
 .switch__track {
   position: relative;
   display: inline-block;
+  flex: none;
   width: 38px;
   height: 21px;
   border: 1px solid var(--border-strong);
@@ -425,50 +772,19 @@ kbd {
   transition: transform 0.15s ease, background 0.15s ease;
 }
 
-.switch input:checked + .switch__track {
+.switch__input:checked + .switch__track {
   border-color: var(--accent);
   background: var(--accent-tint-strong);
 }
 
-.switch input:checked + .switch__track .switch__thumb {
+.switch__input:checked + .switch__track .switch__thumb {
   transform: translateX(17px);
   background: var(--accent);
 }
 
-.switch:hover .switch__label {
-  color: var(--text);
-}
-
-.switch input:focus-visible + .switch__track {
+.switch__input:focus-visible + .switch__track {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
-}
-
-/* Language and theme switches: they sit next to the covers toggle, because
-   they are the same kind of setting, not a stage of the work. */
-
-.toolswitch {
-  display: inline-flex;
-  align-items: center;
-}
-
-.select--tool {
-  padding-block: 6px;
-  color: var(--text-muted);
-  font-size: 0.9rem;
-}
-
-.select--tool:hover {
-  color: var(--text);
-}
-
-.privacy-note {
-  max-width: 1100px;
-  margin: 14px auto 0;
-  padding: 0 clamp(12px, 3vw, 32px);
-  color: var(--text-dim);
-  font-size: 0.82rem;
-  text-align: center;
 }
 
 /* -------------------------------------------------- shared elements */
@@ -1534,21 +1850,56 @@ kbd {
   }
 }
 
-@media (max-width: 720px) {
+/*
+ * The stages are wide, and holding them in the middle column costs the two
+ * outer ones the same width each. Once that squeezes the name of the
+ * application, the header stops being one line: the name and the settings
+ * keep the first, the stages take the whole of the second. The point it gives
+ * way at is the store theme's, whose capitals and letter-spacing make the same
+ * name the wider of the two.
+ */
+@media (max-width: 1140px) {
   .topbar {
-    gap: 10px 14px;
+    grid-template-columns: 1fr auto;
+    gap: 8px 14px;
   }
 
-  /* The narrow header folds into three rows: name, stages, tools. */
   .topbar__nav {
-    order: 2;
-    width: 100%;
-    margin-right: 0;
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
+@media (max-width: 900px) {
+  /* No room to hold the promise centred and hang the status beside it. */
+  .savestatus {
+    position: static;
+  }
+}
+
+@media (max-width: 720px) {
+  /*
+   * The sequence folds: every stage keeps its badge, and only the one the
+   * user is on says its name. The line stays one line, and the numbers still
+   * say how far along it is.
+   */
+  .navbtn:not([aria-current]) .navbtn__label {
+    display: none;
   }
 
-  .topbar__tools {
-    order: 3;
-    width: 100%;
+  .navbtn {
+    padding: 6px 9px;
+  }
+
+  .stages {
+    flex-wrap: nowrap;
+  }
+
+  .menu {
+    top: var(--menu-top, 60px);
+    right: 10px;
+    left: 10px;
+    width: auto;
   }
 
   /* On a narrow screen the number and the title stay in the first row,

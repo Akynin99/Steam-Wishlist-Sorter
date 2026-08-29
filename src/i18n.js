@@ -92,17 +92,28 @@ const EN = {
     'A local tool that puts a Steam wishlist in order through pairwise comparisons.',
   'a11y.skipToContent': 'Skip to the content',
   'nav.aria': 'Stages',
-  'nav.import': 'Import',
+  /* The stage the wishlist arrives on. The key keeps the name of the screen,
+     the caption names what the user goes there for. */
+  'nav.import': 'Wishlist',
   'nav.categorize': 'Categories',
   'nav.compare': 'Comparisons',
   'nav.result': 'Result',
+  /* Said only to a screen reader: on the screen the same three states are a
+     tick, a filled badge and a disabled button. */
+  'nav.state.done': 'stage completed',
+  'nav.state.current': 'current stage',
+  'nav.state.locked': 'stage not available yet',
+  'settings.title': 'Settings',
   'settings.covers': 'Load covers',
   'settings.language': 'Interface language',
-  'settings.theme': 'Interface theme',
+  'settings.theme': 'Theme',
   'theme.modern': 'Modern',
   'theme.steam': 'Steam-like',
-  'actions.saveState': 'Save to a file',
+  'actions.saveState': 'Save backup',
+  'actions.loadState': 'Load backup',
   'actions.reset': 'Start over',
+  'privacy.short': 'Runs locally · your data is not sent to third-party servers',
+  'privacy.details': 'Details',
   'privacy.note':
     'Your data never leaves the browser. The only external request the application makes at any '
     + 'point is loading game covers from the Steam CDN over a public URL; it is switched off by the '
@@ -146,6 +157,9 @@ const EN = {
   'app.reset.done': 'The state is cleared.',
   'app.state.buildFailed': 'The state file could not be built: {message}',
   'app.state.saved': 'The state is saved to a file.',
+  /* The saving status of the shell. It is not a toast: `save()` runs after
+     every answer, so this line updates in place and fades out. */
+  'app.saved': 'Progress saved in this browser',
 
   /* -- import screen ------------------------------------------------ */
   'import.heading': 'Import the wishlist',
@@ -560,20 +574,29 @@ const RU = {
     'Локальный инструмент, который упорядочивает список желаемого в Steam попарными сравнениями.',
   'a11y.skipToContent': 'Перейти к содержимому',
   'nav.aria': 'Этапы работы',
-  'nav.import': 'Импорт',
+  'nav.import': 'Список',
   'nav.categorize': 'Категории',
   'nav.compare': 'Сравнения',
   'nav.result': 'Результат',
+  'nav.state.done': 'этап пройден',
+  'nav.state.current': 'текущий этап',
+  'nav.state.locked': 'этап пока недоступен',
+  'settings.title': 'Настройки',
   'settings.covers': 'Загружать обложки',
   'settings.language': 'Язык интерфейса',
-  'settings.theme': 'Тема оформления',
+  'settings.theme': 'Тема',
   'theme.modern': 'Современная',
   'theme.steam': 'Как в Steam',
-  'actions.saveState': 'Сохранить в файл',
+  'actions.saveState': 'Сохранить копию',
+  'actions.loadState': 'Загрузить копию',
   'actions.reset': 'Начать заново',
+  'privacy.short': 'Работает локально · ваши данные не отправляются на сторонние серверы',
+  'privacy.details': 'Подробнее',
   'privacy.note':
-    'Данные не покидают браузер. Единственный внешний запрос за всё время работы приложения — '
-    + 'загрузка обложек игр с CDN Steam по публичному URL; он отключается тумблером «Загружать обложки».',
+    'Данные не покидают браузер. Единственный внешний запрос, который приложение делает само, — '
+    + 'загрузка обложек игр с CDN Steam по публичному URL; он отключается тумблером '
+    + '«Загружать обложки». Импорт прямо из аккаунта запрашивает локальный сервер на вашей же машине: '
+    + 'он уходит в Steam, больше никуда, и только когда вы нажимаете кнопку.',
   'dialog.title': 'Подтвердите действие',
   'dialog.cancel': 'Отмена',
   'dialog.confirm': 'Продолжить',
@@ -613,6 +636,7 @@ const RU = {
   'app.reset.done': 'Состояние очищено.',
   'app.state.buildFailed': 'Не удалось собрать файл состояния: {message}',
   'app.state.saved': 'Состояние сохранено в файл.',
+  'app.saved': 'Прогресс сохранён в этом браузере',
 
   /* -- import screen ------------------------------------------------ */
   'import.heading': 'Импорт списка желаемого',

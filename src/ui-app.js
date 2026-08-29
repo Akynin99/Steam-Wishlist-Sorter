@@ -15,7 +15,7 @@ import { LANGUAGE_NAMES, getLanguage, plural, setLanguage, t } from './i18n.js';
 import { deserializeSession, createSession } from './ranking.js';
 import { StateStorage, StorageError, createEmptyState } from './storage.js';
 import { normalizeTheme } from './theme.js';
-import { applyTranslations, downloadText, isTypingTarget } from './ui-common.js';
+import { applyTranslations, downloadText, isHotkeyBlocked } from './ui-common.js';
 import { createImportScreen } from './ui-import.js';
 import { createCategorizeScreen } from './ui-categorize.js';
 import { createCompareScreen } from './ui-compare.js';
@@ -36,6 +36,24 @@ const SCREEN_KEY = 'steam-wishlist-sorter/screen';
 const TOAST_MS = 3200;
 
 /**
+ * How long the saving status stays lit after the last write, in milliseconds.
+ *
+ * It is not a toast and it does not queue: `save()` runs after every answer of
+ * a comparison, so a queue would be a flicker. The line says one thing, and a
+ * new write only pushes the moment it goes out.
+ */
+const SAVE_STATUS_MS = 2600;
+
+/** Why a state file did not load. The codes come from `storage.js`. */
+const STATE_ERROR_KEYS = {
+  'invalid-json': 'state.error.invalidJson',
+  'foreign-state': 'state.error.foreignState',
+  'unsupported-version': 'state.error.unsupportedVersion',
+  'invalid-state': 'state.error.invalidState',
+  'write-failed': 'state.error.writeFailed',
+};
+
+/**
  * Builds the application and wires it to the document.
  *
  * @returns {object} The application context handed to every screen.
@@ -47,6 +65,10 @@ function createApp() {
   const coversToggle = document.getElementById('setting-covers');
   const languageSelect = document.getElementById('setting-language');
   const themeSelect = document.getElementById('setting-theme');
+  const saveStatus = document.getElementById('save-status');
+  const settingsMenu = document.getElementById('settings-menu');
+  const settingsButton = document.getElementById('settings-open');
+  const stateFileInput = document.getElementById('menu-state-file');
 
   let state;
   let loadError = null;
@@ -74,6 +96,7 @@ function createApp() {
   applyTheme(state.settings.theme);
 
   let toastTimer = 0;
+  let saveStatusTimer = 0;
   let current = null;
 
   /** @type {Record<string, { render: Function, handleKey?: Function }>} */
@@ -116,6 +139,7 @@ function createApp() {
       state.session = session.serialize();
       try {
         state = storage.save(state);
+        markSaved();
         return true;
       } catch (error) {
         app.toast(
@@ -173,6 +197,76 @@ function createApp() {
     },
 
     /**
+     * Offers the current state as a file.
+     *
+     * A method and not a button, because two places offer the same download —
+     * the settings menu and the result screen — and a button that clicks
+     * another button breaks silently the day one of them moves.
+     */
+    downloadState() {
+      let text;
+      try {
+        text = app.exportStateJson();
+      } catch (error) {
+        app.toast(t('app.state.buildFailed', { message: error.message }), 'error');
+        return;
+      }
+
+      downloadText(exportFileName('wishlist-state', 'json'), text, 'application/json');
+      app.toast(t('app.state.saved'), 'ok');
+    },
+
+    /**
+     * Puts a saved state file back in place of the current one.
+     *
+     * A wishlist import merges and loses nothing; a state import replaces
+     * everything, so it is the one that asks first.
+     *
+     * @param {File} file
+     * @returns {Promise<void>}
+     */
+    async loadState(file) {
+      let text;
+      try {
+        text = await file.text();
+      } catch (error) {
+        app.toast(`${t('import.error.fileRead')}: ${error.message}`, 'error');
+        return;
+      }
+
+      if (session.itemCount > 0) {
+        const { comparisons } = session.getProgress();
+        const confirmed = await app.confirm({
+          title: t('state.confirm.title'),
+          text: t('state.confirm.text', {
+            items: plural('count.items', session.itemCount),
+            comparisons: plural('count.comparisonsMade', comparisons),
+          }),
+          confirmLabel: t('state.confirm.confirm'),
+          danger: true,
+        });
+        if (!confirmed) {
+          app.toast(t('state.confirm.cancelled'));
+          return;
+        }
+      }
+
+      try {
+        app.importStateJson(text);
+      } catch (error) {
+        const key = error instanceof StorageError ? STATE_ERROR_KEYS[error.code] : undefined;
+        app.toast(key ? t(key) : `${t('import.error.title')}: ${error.message}`, 'error');
+        return;
+      }
+
+      // Every screen is redrawn, not only the one on top: the whole session
+      // underneath them has just been replaced.
+      app.refreshAll();
+      app.show(session.itemCount > 0 ? app.screen : 'import');
+      app.toast(t('state.restored.toast'), 'ok');
+    },
+
+    /**
      * Shows a screen and renders it.
      *
      * @param {string} name One of `SCREEN_IDS`.
@@ -183,11 +277,8 @@ function createApp() {
       for (const id of SCREEN_IDS) {
         document.getElementById(`screen-${id}`).hidden = id !== target;
       }
-      for (const button of document.querySelectorAll('.navbtn')) {
-        if (button.dataset.screen === target) button.setAttribute('aria-current', 'page');
-        else button.removeAttribute('aria-current');
-      }
       rememberScreen(target);
+      app.refreshNav();
       // A screen may want to place itself before drawing — the categories
       // screen jumps to the first item that still needs one. It happens on
       // arrival only, so that walking back through the list is not undone.
@@ -195,8 +286,9 @@ function createApp() {
       screens[target].render();
     },
 
-    /** Re-renders the screen that is open. */
+    /** Re-renders the screen that is open, and the stages above it. */
     refresh() {
+      app.refreshNav();
       if (current) screens[current].render();
     },
 
@@ -209,11 +301,56 @@ function createApp() {
       for (const id of SCREEN_IDS) screens[id].render();
     },
 
-    /** Enables the stages that need items and disables the ones that do not. */
+    /**
+     * Draws the four stages as the sequence they are: what has been passed,
+     * where the user stands and what is not reachable yet.
+     *
+     * A stage is passed when its own work is finished, not when the user has
+     * merely walked past it — the wishlist is loaded, every item has a
+     * category, no comparison is left to ask. The result is never «passed»:
+     * it is the place the work ends up in, not a task to close.
+     *
+     * The tick, the filled badge and the disabled button say the same three
+     * things, so nothing here rests on colour alone; the word behind them is
+     * for a screen reader, and it is set with `t()` so a change of language
+     * carries it along.
+     */
     refreshNav() {
       const hasItems = session.itemCount > 0;
-      for (const button of document.querySelectorAll('.navbtn[data-needs-items]')) {
-        button.disabled = !hasItems;
+      const done = {
+        import: hasItems,
+        categorize: hasItems && session.getCategoryAssignments().length === session.itemCount,
+        compare: hasItems && session.getProgress().done,
+        result: false,
+      };
+
+      let number = 0;
+      for (const button of document.querySelectorAll('.navbtn')) {
+        const name = button.dataset.screen;
+        number += 1;
+
+        if (button.hasAttribute('data-needs-items')) button.disabled = !hasItems;
+
+        const isCurrent = name === current;
+        const isDone = done[name] === true;
+        const stage = button.disabled ? 'locked' : isDone ? 'done' : 'todo';
+        button.dataset.state = stage;
+
+        if (isCurrent) button.setAttribute('aria-current', 'step');
+        else button.removeAttribute('aria-current');
+
+        button.querySelector('.navbtn__badge').textContent = isDone ? '✓' : String(number);
+
+        // A stage that is simply still ahead says nothing: its number and its
+        // place in the list already say it.
+        const stateKey = isCurrent
+          ? 'nav.state.current'
+          : stage === 'locked'
+            ? 'nav.state.locked'
+            : stage === 'done'
+              ? 'nav.state.done'
+              : '';
+        button.querySelector('.navbtn__state').textContent = stateKey ? t(stateKey) : '';
       }
     },
 
@@ -264,6 +401,55 @@ function createApp() {
 
   /* ------------------------------------------------------- chrome */
 
+  /**
+   * Lights the saving line and sets the moment it goes out again.
+   *
+   * The text itself is never touched: it sits in the markup with its key, so a
+   * change of language repaints it like everything else, and a hundred saves
+   * in a row change nothing but a timer. That is the whole reason this is not
+   * a toast — `save()` runs after every answer of a comparison, and a queue of
+   * toasts would be a flicker.
+   */
+  function markSaved() {
+    saveStatus.classList.add('is-visible');
+    clearTimeout(saveStatusTimer);
+    saveStatusTimer = setTimeout(() => saveStatus.classList.remove('is-visible'), SAVE_STATUS_MS);
+  }
+
+  /**
+   * Opens the settings menu under the button that asked for it.
+   *
+   * `<dialog>` places itself in the middle of the window, and this menu hangs
+   * off a button in the corner, so the two coordinates are measured and handed
+   * to the stylesheet. They are custom properties and not `top` and `right`
+   * directly, because a narrow window wants the menu across the whole width
+   * and an inline style would have outranked the media query saying so.
+   */
+  function openSettings() {
+    const rect = settingsButton.getBoundingClientRect();
+    settingsMenu.style.setProperty('--menu-top', `${Math.round(rect.bottom + 8)}px`);
+    settingsMenu.style.setProperty(
+      '--menu-right',
+      `${Math.round(Math.max(8, window.innerWidth - rect.right))}px`,
+    );
+    settingsButton.setAttribute('aria-expanded', 'true');
+    if (typeof settingsMenu.showModal === 'function') settingsMenu.showModal();
+    else settingsMenu.setAttribute('open', '');
+    settingsMenu.querySelector('#setting-covers')?.focus();
+  }
+
+  /**
+   * Closes the settings menu and hands the keyboard back to the button that
+   * opened it, so that Escape does not drop the focus at the top of the page.
+   */
+  function closeSettings() {
+    const inside = settingsMenu.contains(document.activeElement);
+    if (typeof settingsMenu.close === 'function') settingsMenu.close();
+    else settingsMenu.removeAttribute('open');
+    settingsButton.setAttribute('aria-expanded', 'false');
+    if (inside) settingsButton.focus();
+  }
+
   coversToggle.checked = app.loadCovers;
   coversToggle.addEventListener('change', () => {
     state.settings.loadCovers = coversToggle.checked;
@@ -274,10 +460,13 @@ function createApp() {
 
   // Changing the language redraws, it does not restart: the session object is
   // untouched, so not one answer and not one position in the sorting is lost.
+  // The menu is redrawn along with the page — every word in it carries a key,
+  // so this holds with the menu standing open.
   languageSelect.addEventListener('change', () => {
     state.settings.language = applyLanguage(languageSelect.value);
     app.save();
     app.refreshAll();
+    app.refreshNav();
     app.toast(t('app.language.changed', { language: LANGUAGE_NAMES[app.language] }));
   });
 
@@ -289,11 +478,53 @@ function createApp() {
     app.toast(t('app.theme.changed', { theme: t(`theme.${app.theme}`) }));
   });
 
+  /* --------------------------------------------------- settings menu */
+
+  settingsButton.addEventListener('click', () => {
+    if (settingsMenu.open) closeSettings();
+    else openSettings();
+  });
+
+  // A click on the backdrop is reported with the dialog itself as the target,
+  // and the dialog has no padding of its own, so nothing else produces one.
+  settingsMenu.addEventListener('click', (event) => {
+    if (event.target === settingsMenu) closeSettings();
+  });
+
+  // Escape is the browser's own way out of a modal dialog, and it takes it
+  // without asking us. Taken over here rather than left to the `close` event,
+  // because the button outside the dialog carries the open state and the
+  // focus has to come back to it: one way out, one place that tidies up.
+  settingsMenu.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    event.preventDefault();
+    closeSettings();
+  });
+
+  // Every other way the dialog may close — the browser's own, a future one.
+  settingsMenu.addEventListener('close', () => {
+    settingsButton.setAttribute('aria-expanded', 'false');
+  });
+
   document.getElementById('action-save-state').addEventListener('click', () => {
-    downloadStateFile(app);
+    closeSettings();
+    app.downloadState();
+  });
+
+  document.getElementById('action-load-state').addEventListener('click', () => {
+    closeSettings();
+    stateFileInput.click();
+  });
+
+  stateFileInput.addEventListener('change', () => {
+    const file = stateFileInput.files?.[0];
+    // Cleared straight away, so that choosing the same file again fires this.
+    stateFileInput.value = '';
+    if (file) app.loadState(file);
   });
 
   document.getElementById('action-reset').addEventListener('click', async () => {
+    closeSettings();
     const confirmed = await app.confirm({
       title: t('app.reset.title'),
       text: t('app.reset.text', { items: plural('count.items', session.itemCount) }),
@@ -305,13 +536,31 @@ function createApp() {
     app.toast(t('app.reset.done'));
   });
 
+  /* -------------------------------------------------- privacy strip */
+
+  // The promise itself stays on the screen always — it is not something to
+  // hide in a menu. What folds away is the paragraph naming exactly which
+  // requests leave the machine and when.
+  const privacyToggle = document.getElementById('privacy-toggle');
+  const privacyFull = document.getElementById('privacy-full');
+  privacyToggle.addEventListener('click', () => {
+    const opened = privacyFull.hidden;
+    privacyFull.hidden = !opened;
+    privacyToggle.setAttribute('aria-expanded', String(opened));
+  });
+
+  /* -------------------------------------------------------- the rest */
+
   for (const button of document.querySelectorAll('.navbtn')) {
     button.addEventListener('click', () => app.show(button.dataset.screen));
   }
 
   document.addEventListener('keydown', (event) => {
     if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
-    if (isTypingTarget(event.target)) return;
+    // A field takes the key, and so does a dialog standing over the page: the
+    // «1» that files an item under a category must not reach the list behind
+    // an open settings menu.
+    if (isHotkeyBlocked(event.target)) return;
     screens[current]?.handleKey?.(event);
   });
 
@@ -360,25 +609,6 @@ function applyTheme(name) {
   const select = document.getElementById('setting-theme');
   if (select) select.value = theme;
   return theme;
-}
-
-/**
- * Offers the current state as a file. The download never leaves the machine:
- * the blob is built in the page and handed to the browser.
- *
- * @param {object} app
- */
-function downloadStateFile(app) {
-  let text;
-  try {
-    text = app.exportStateJson();
-  } catch (error) {
-    app.toast(t('app.state.buildFailed', { message: error.message }), 'error');
-    return;
-  }
-
-  downloadText(exportFileName('wishlist-state', 'json'), text, 'application/json');
-  app.toast(t('app.state.saved'), 'ok');
 }
 
 /**

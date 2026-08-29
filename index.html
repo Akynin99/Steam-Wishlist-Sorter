@@ -23,58 +23,129 @@
 <body>
   <a class="skip-link" href="#main" data-i18n="a11y.skipToContent">Skip to the content</a>
 
+  <!--
+    The shell: the mark and the name, the four stages as a sequence, and the
+    two things that are settings rather than steps — the language and the
+    menu. Every id named here is read once, when the screens are built, so a
+    rename in this block is felt at the first click and not at load.
+
+    The icons are inline SVG: a project with no external asset draws its own,
+    and a glyph that inherits `currentColor` follows both themes for free.
+  -->
   <header class="topbar">
     <div class="topbar__brand">
-      <span class="topbar__mark" aria-hidden="true"></span>
+      <span class="topbar__mark" aria-hidden="true">
+        <svg viewBox="0 0 32 32" focusable="false"><path d="M7 23h5V13H7zm6.5 0h5V6h-5zm6.5 0h5v-7h-5z"/></svg>
+      </span>
       <span class="topbar__name">Steam Wishlist Sorter</span>
     </div>
 
+    <!--
+      An ordered list, because the four stages are a sequence and not four
+      equal buttons: the number is part of the meaning, a passed stage carries
+      a tick instead of its number, and a stage with nothing to show yet is
+      disabled. `refreshNav()` in `ui-app.js` sets all of that.
+    -->
     <nav class="topbar__nav" data-i18n-attr="aria-label:nav.aria" aria-label="Stages">
-      <button type="button" class="navbtn" data-screen="import" data-i18n="nav.import">Import</button>
-      <button type="button" class="navbtn" data-screen="categorize" data-needs-items
-              data-i18n="nav.categorize">Categories</button>
-      <button type="button" class="navbtn" data-screen="compare" data-needs-items
-              data-i18n="nav.compare">Comparisons</button>
-      <button type="button" class="navbtn" data-screen="result" data-needs-items
-              data-i18n="nav.result">Result</button>
+      <ol class="stages">
+        <li class="stages__item">
+          <button type="button" class="navbtn" data-screen="import">
+            <span class="navbtn__badge" aria-hidden="true"></span>
+            <span class="navbtn__label" data-i18n="nav.import">Wishlist</span>
+            <span class="navbtn__state visually-hidden"></span>
+          </button>
+        </li>
+        <li class="stages__item">
+          <button type="button" class="navbtn" data-screen="categorize" data-needs-items>
+            <span class="navbtn__badge" aria-hidden="true"></span>
+            <span class="navbtn__label" data-i18n="nav.categorize">Categories</span>
+            <span class="navbtn__state visually-hidden"></span>
+          </button>
+        </li>
+        <li class="stages__item">
+          <button type="button" class="navbtn" data-screen="compare" data-needs-items>
+            <span class="navbtn__badge" aria-hidden="true"></span>
+            <span class="navbtn__label" data-i18n="nav.compare">Comparisons</span>
+            <span class="navbtn__state visually-hidden"></span>
+          </button>
+        </li>
+        <li class="stages__item">
+          <button type="button" class="navbtn" data-screen="result" data-needs-items>
+            <span class="navbtn__badge" aria-hidden="true"></span>
+            <span class="navbtn__label" data-i18n="nav.result">Result</span>
+            <span class="navbtn__state visually-hidden"></span>
+          </button>
+        </li>
+      </ol>
     </nav>
 
     <div class="topbar__tools">
-      <label class="switch" for="setting-covers">
-        <input type="checkbox" id="setting-covers" checked>
-        <span class="switch__track" aria-hidden="true"><span class="switch__thumb"></span></span>
-        <span class="switch__label" data-i18n="settings.covers">Load covers</span>
-      </label>
-      <!-- The theme sits next to the language because it is the same kind
-           of setting. Both move into the settings menu later. -->
-      <label class="toolswitch" for="setting-theme">
-        <span class="visually-hidden" data-i18n="settings.theme">Interface theme</span>
-        <select class="select select--tool" id="setting-theme">
-          <option value="modern" data-i18n="theme.modern">Modern</option>
-          <option value="steam" data-i18n="theme.steam">Steam-like</option>
-        </select>
-      </label>
       <label class="toolswitch" for="setting-language">
+        <span class="icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+               stroke-linecap="round" stroke-linejoin="round" focusable="false">
+            <circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17"/>
+            <path d="M12 3.5c2.4 2.5 3.7 5.4 3.7 8.5s-1.3 6-3.7 8.5c-2.4-2.5-3.7-5.4-3.7-8.5S9.6 6 12 3.5z"/>
+          </svg>
+        </span>
         <span class="visually-hidden" data-i18n="settings.language">Interface language</span>
         <!-- A language names itself: «Русский», not «Russian». -->
         <select class="select select--tool" id="setting-language">
-          <option value="en">English</option>
-          <option value="ru">Русский</option>
+          <option value="en">EN</option>
+          <option value="ru">RU</option>
         </select>
       </label>
-      <button type="button" class="btn btn--ghost" id="action-save-state"
-              data-i18n="actions.saveState">Save to a file</button>
-      <button type="button" class="btn btn--ghost btn--danger" id="action-reset"
-              data-i18n="actions.reset">Start over</button>
+      <button type="button" class="iconbtn" id="settings-open" aria-haspopup="dialog"
+              aria-expanded="false" aria-controls="settings-menu"
+              data-i18n-attr="aria-label:settings.title;title:settings.title" aria-label="Settings">
+        <span class="icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="currentColor" focusable="false">
+            <circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/>
+          </svg>
+        </span>
+      </button>
     </div>
   </header>
 
-  <p class="privacy-note" data-i18n="privacy.note">
-    Your data never leaves the browser. The only external request the application makes at any point
-    is loading game covers from the Steam CDN over a public URL; it is switched off by the
-    “Load covers” toggle. The import straight from an account is asked for by the local server on
-    your own machine: it goes to Steam, to nobody else, and only when you press the button.
-  </p>
+  <!--
+    The strip under the header. The promise of privacy stays visible always —
+    it is not something to hide in a menu — and says the short sentence, with
+    the full text one click away. The saving status shares the strip: it is a
+    line that updates in place and fades, not a toast, because `save()` runs
+    after every single answer and a queue of toasts would be a flicker.
+  -->
+  <div class="shellbar">
+    <p class="privacy">
+      <span class="icon icon--sm" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+             stroke-linecap="round" stroke-linejoin="round" focusable="false">
+          <rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/>
+        </svg>
+      </span>
+      <span data-i18n="privacy.short">Runs locally · your data is not sent to third-party servers</span>
+      <button type="button" class="linkbtn" id="privacy-toggle" aria-expanded="false"
+              aria-controls="privacy-full" data-i18n="privacy.details">Details</button>
+    </p>
+
+    <p class="savestatus" id="save-status">
+      <span class="icon icon--sm" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round" focusable="false">
+          <path d="m4.5 12.5 5 5 10-11"/>
+        </svg>
+      </span>
+      <span data-i18n="app.saved">Progress saved in this browser</span>
+    </p>
+  </div>
+
+  <div class="privacy-full" id="privacy-full" hidden>
+    <p data-i18n="privacy.note">
+      Your data never leaves the browser. The only external request the application makes at any point
+      is loading game covers from the Steam CDN over a public URL; it is switched off by the
+      “Load covers” toggle. The import straight from an account is asked for by the local server on
+      your own machine: it goes to Steam, to nobody else, and only when you press the button.
+    </p>
+  </div>
 
   <main id="main" class="main">
 
@@ -432,6 +503,87 @@
     </section>
 
   </main>
+
+  <!--
+    The settings menu. A `<dialog>` and not a hand-made popover: the focus
+    trap, the Escape key and the inertness of the page behind it come with it,
+    and `ui-app.js` only has to place it under the button that opened it.
+
+    Every word here carries a key, so a change of language while the menu is
+    open repaints it along with the rest of the page. A menu built once in
+    code would have stayed in the language it was built in.
+  -->
+  <dialog class="menu" id="settings-menu" aria-labelledby="settings-menu-title">
+    <h2 class="menu__title" id="settings-menu-title" data-i18n="settings.title">Settings</h2>
+
+    <div class="menu__group">
+      <label class="menu__row" for="setting-covers">
+        <span class="icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+               stroke-linecap="round" stroke-linejoin="round" focusable="false">
+            <rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="8.8" cy="10" r="1.6"/>
+            <path d="m4.5 17 4.6-4.2 3.7 3.2 3-2.5 3.7 3.3"/>
+          </svg>
+        </span>
+        <span class="menu__label" data-i18n="settings.covers">Load covers</span>
+        <input type="checkbox" class="switch__input" id="setting-covers" checked>
+        <span class="switch__track" aria-hidden="true"><span class="switch__thumb"></span></span>
+      </label>
+
+      <div class="menu__row menu__row--field">
+        <span class="icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" focusable="false">
+            <circle cx="12" cy="12" r="8.5"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor"/>
+          </svg>
+        </span>
+        <label class="menu__label" for="setting-theme" data-i18n="settings.theme">Theme</label>
+        <select class="select select--menu" id="setting-theme">
+          <option value="modern" data-i18n="theme.modern">Modern</option>
+          <option value="steam" data-i18n="theme.steam">Steam-like</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="menu__group">
+      <button type="button" class="menu__row menu__row--action" id="action-save-state">
+        <span class="icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+               stroke-linecap="round" stroke-linejoin="round" focusable="false">
+            <path d="M12 4v11"/><path d="m7.5 10.5 4.5 4.5 4.5-4.5"/><path d="M4.5 19.5h15"/>
+          </svg>
+        </span>
+        <span class="menu__label" data-i18n="actions.saveState">Save backup</span>
+      </button>
+
+      <button type="button" class="menu__row menu__row--action" id="action-load-state">
+        <span class="icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+               stroke-linecap="round" stroke-linejoin="round" focusable="false">
+            <path d="M12 19.5v-11"/><path d="m7.5 13 4.5-4.5 4.5 4.5"/><path d="M4.5 4.5h15"/>
+          </svg>
+        </span>
+        <span class="menu__label" data-i18n="actions.loadState">Load backup</span>
+      </button>
+      <!-- The picker of the backup file. It lives here rather than on the
+           import screen, because this is the button that opens it, and it is
+           kept out of the tab order: it is invisible, and an invisible tab
+           stop in the middle of a menu is a hole the keyboard falls into. -->
+      <input type="file" class="visually-hidden" id="menu-state-file" tabindex="-1"
+             aria-hidden="true" accept=".json,application/json">
+    </div>
+
+    <div class="menu__group menu__group--danger">
+      <button type="button" class="menu__row menu__row--action menu__row--danger" id="action-reset">
+        <span class="icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+               stroke-linecap="round" stroke-linejoin="round" focusable="false">
+            <path d="M4.5 7h15"/><path d="M9.5 7V4.5h5V7"/><path d="m6.8 7 1 12.5h8.4L17 7"/>
+          </svg>
+        </span>
+        <span class="menu__label" data-i18n="actions.reset">Start over</span>
+      </button>
+    </div>
+  </dialog>
 
   <!--
     One dialog serves every irreversible action: erasing the state, starting
