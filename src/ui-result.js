@@ -15,11 +15,17 @@
  *
  * The four exports are built by `export.js`; this module only hands the text
  * to the browser.
+ *
+ * The fifth way out is the bookmarklet: `bookmarklet.js` builds a link with
+ * the order inside its own address, and this module puts it on the screen and
+ * rebuilds it on every render, because a link dragged to the bookmarks bar
+ * carries the order of the moment it was dragged and nothing later.
  */
 
 import { plural, t } from './i18n.js';
 import { CATEGORIES, categoryLabel, isSortableCategory, uncategorizedLabel } from './model.js';
 import { exportFileName, toCsv, toOrderJson, toPlainText } from './export.js';
+import { bookmarkletAppIds, bookmarkletUrl } from './bookmarklet.js';
 import { clear, copyText, downloadText, element, kindLabel, renderCover } from './ui-common.js';
 
 /** What the kind filter can be set to. */
@@ -48,6 +54,9 @@ export function createResultScreen(app) {
     saveButton: document.getElementById('result-save'),
     resetManual: document.getElementById('result-reset-manual'),
     resetAnswers: document.getElementById('result-reset-answers'),
+    bookmarkletLink: document.getElementById('result-bookmarklet-link'),
+    bookmarkletCarries: document.getElementById('result-bookmarklet-carries'),
+    bookmarkletEmpty: document.getElementById('result-bookmarklet-empty'),
   };
 
   /** @type {'all'|'game'|'dlc'} */
@@ -547,6 +556,58 @@ export function createResultScreen(app) {
     document.getElementById('action-save-state').click();
   });
 
+  /* ---------------------------------------------------- bookmarklet */
+
+  /**
+   * Rebuilds the link that carries the order into Steam.
+   *
+   * It is rebuilt on every render and not once at start-up, because the order
+   * lives inside the address: a link generated before the last move would
+   * quietly write the list as it stood then. The user is told the same thing
+   * in words next to the link, since a bookmark already on the bar is a copy
+   * this page can no longer reach.
+   *
+   * @param {ReturnType<import('./ranking.js').RankingSession['getResult']>} result
+   *        The one `render` already asked for: building the link must not cost
+   *        a second pass over the whole ranking.
+   */
+  function renderBookmarklet(result) {
+    const count = bookmarkletAppIds(result).length;
+
+    let url;
+    if (count > 0) {
+      try {
+        url = bookmarkletUrl(result);
+      } catch (error) {
+        url = undefined;
+        nodes.bookmarkletEmpty.textContent = t('result.bookmarklet.failed', { message: error.message });
+      }
+    }
+
+    nodes.bookmarkletLink.hidden = url === undefined;
+    nodes.bookmarkletCarries.hidden = url === undefined;
+    nodes.bookmarkletEmpty.hidden = url !== undefined;
+
+    if (url === undefined) {
+      // An `href` of a link that is not offered must not keep the old order.
+      nodes.bookmarkletLink.removeAttribute('href');
+      if (count === 0) nodes.bookmarkletEmpty.textContent = t('result.bookmarklet.empty');
+      return;
+    }
+
+    nodes.bookmarkletLink.href = url;
+    nodes.bookmarkletCarries.textContent = t('result.bookmarklet.carries', {
+      items: plural('count.items', count),
+    });
+  }
+
+  // A click here would run the bookmarklet on our own page, where there is no
+  // wishlist to write — so it is caught, and the hint says what to do instead.
+  nodes.bookmarkletLink.addEventListener('click', (event) => {
+    event.preventDefault();
+    app.toast(t('result.bookmarklet.clickToast'));
+  });
+
   /* ---------------------------------------------- dangerous actions */
 
   nodes.resetManual.addEventListener('click', async () => {
@@ -624,7 +685,8 @@ export function createResultScreen(app) {
   }
 
   function render() {
-    const { entries, removed, summary } = app.session.getResult();
+    const result = app.session.getResult();
+    const { entries, removed, summary } = result;
     const loadCovers = app.loadCovers;
 
     renderSummary(summary);
@@ -640,6 +702,7 @@ export function createResultScreen(app) {
     }
 
     renderRemoved(removed);
+    renderBookmarklet(result);
 
     nodes.legend.hidden = entries.length === 0;
     nodes.hint.hidden = entries.length < 2;
