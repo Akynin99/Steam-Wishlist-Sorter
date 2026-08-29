@@ -64,6 +64,9 @@ const TOAST_MS = 3200;
  */
 const SAVE_STATUS_MS = 2600;
 
+/** How long the live region stays empty before the next sentence goes in. */
+const ANNOUNCE_DELAY_MS = 60;
+
 /** Why a state file did not load. The codes come from `storage.js`. */
 const STATE_ERROR_KEYS = {
   'invalid-json': 'state.error.invalidJson',
@@ -117,6 +120,7 @@ function createApp() {
 
   let toastTimer = 0;
   let saveStatusTimer = 0;
+  let announceTimer = 0;
   let current = null;
   let seenIntros = readSeenIntros();
 
@@ -398,10 +402,21 @@ function createApp() {
     /**
      * Says something to a screen reader without showing it.
      *
+     * A live region is only read out when its text changes, and the same
+     * sentence twice in a row is not a change: two answers undone, the same
+     * refusal pressed twice, and the second one is silent. So the region is
+     * emptied first and filled on the next tick, which makes every call a
+     * change of its own. The wait is short enough to be part of the same
+     * action and long enough for the two writes not to be seen as one.
+     *
      * @param {string} message
      */
     announce(message) {
-      liveRegion.textContent = message;
+      clearTimeout(announceTimer);
+      liveRegion.textContent = '';
+      announceTimer = setTimeout(() => {
+        liveRegion.textContent = message;
+      }, ANNOUNCE_DELAY_MS);
     },
 
     /**
