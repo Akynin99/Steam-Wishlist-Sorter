@@ -11,9 +11,9 @@ through pairwise comparisons, with no backend and with your list staying on your
 
 ![The wishlist screen](docs/screenshots/import.png)
 
-The interface speaks four languages: **English by default, plus Русский, Deutsch and Français**,
-switched in the header. Nothing is lost when the language changes — not one answer and not the place
-in the sorting.
+The interface speaks six languages: **English by default, plus Русский, Deutsch, Français, Español
+and Português (Brasil)**, switched in the header. Nothing is lost when the language changes — not
+one answer and not the place in the sorting.
 It also comes in two looks — the one above and one built out of the store's own blue-grey — switched
 in the same place; see [Two looks](#two-looks).
 
@@ -113,12 +113,18 @@ the same tests on every push and pull request.
 
 ## Language of the interface
 
-The interface speaks **English, Русский, Deutsch and Français**. The switch sits in the header,
-next to the **⋯** button that opens the settings, and every language names itself in the list, the
-way a reader who does not read the current one looks for it. **English is the default, always** —
-the browser language is deliberately not consulted, so the demo opens the same way for every
-visitor. The choice is stored next to the other settings and survives a reload; a state file that
-names a language this build does not have reads as English.
+The interface speaks **English, Русский, Deutsch, Français, Español and Português (Brasil)**. The
+switch sits in the header, next to the **⋯** button that opens the settings, and every language
+names itself in the list, the way a reader who does not read the current one looks for it. **English
+is the default, always** — the browser language is deliberately not consulted, so the demo opens the
+same way for every visitor. The choice is stored next to the other settings and survives a reload;
+a state file that names a language this build does not have reads as English.
+
+The Brazilian code is written in full, `pt-BR` and not `pt`: the wording is Brazilian, and a bare
+`pt` would promise European Portuguese as well — a promise the dictionary does not keep. A code is
+one opaque string everywhere it is used: nothing splits it at the hyphen, nothing lowercases the
+region, and every table — the dictionaries, the plural rules, the CSV separators — is keyed by the
+whole of it.
 
 Switching the language redraws the screens and touches nothing else: the answers, the categories,
 the manual moves and the exact place in the sorting stay where they were. The exports follow the
@@ -126,12 +132,13 @@ language too — see [What comes out](#what-comes-out).
 
 ### The translations are not proofread by native speakers
 
-English and Russian are written by the author, who speaks both. **German and French are not
-reviewed by a native speaker**, and it is better to say so than to let a portfolio project imply a
-level of polish it does not have. They are complete — all 443 strings, not the buttons only — and
-they were written for meaning rather than word by word, but a native reader will find phrasing that
-is merely correct where it could be natural. Corrections are welcome: an issue naming the key and a
-better wording is enough, and a pull request touching one language's block is enough on its own.
+English and Russian are written by the author, who speaks both. **German, French, Spanish and
+Brazilian Portuguese are not reviewed by a native speaker**, and it is better to say so than to let
+a portfolio project imply a level of polish it does not have. They are complete — all 443 strings,
+not the buttons only — and they were written for meaning rather than word by word, but a native
+reader will find phrasing that is merely correct where it could be natural. Corrections are welcome:
+an issue naming the key and a better wording is enough, and a pull request touching one language's
+block is enough on its own.
 
 ### Adding a language
 
@@ -575,13 +582,14 @@ other.
 ### Why the CSV separator follows the language
 
 In English the separator is a **comma**, exactly as
-[RFC 4180](https://datatracker.ietf.org/doc/html/rfc4180) asks for. In Russian, German and French it
-is a **semicolon** — a deliberate departure from the standard, and for a concrete reason: when Excel
-opens a `.csv` on a double click, it does not read the file by the RFC, it splits it by the **list
-separator of the system locale**. The rule is not about any one language, it is about the decimal
-mark: every locale that writes it as a comma sets the list separator to a semicolon, and all three
-of these do. A comma separated file opens there as one single column, and the user goes off to
-fight with the import wizard — which means the table the whole thing was for did not open.
+[RFC 4180](https://datatracker.ietf.org/doc/html/rfc4180) asks for. In every other language of the
+interface it is a **semicolon** — a deliberate departure from the standard, and for a concrete
+reason: when Excel opens a `.csv` on a double click, it does not read the file by the RFC, it splits
+it by the **list separator of the system locale**. The rule is not about any one language, it is
+about the decimal mark: every locale that writes it as a comma sets the list separator to a
+semicolon, and Russian, German, French, Spanish and Brazilian Portuguese all do. A comma separated
+file opens there as one single column, and the user goes off to fight with the import wizard —
+which means the table the whole thing was for did not open.
 
 Every other tool — LibreOffice, Google Sheets, `pandas`, the `csv` module of the standard library —
 takes the separator as a parameter, and for them this is one extra argument. So the compromise is
@@ -812,7 +820,7 @@ in development.
 | File | What for |
 | --- | --- |
 | [`src/model.js`](src/model.js) | the model of an entry (`appId`, title, link, cover, position in the wishlist, type), the six categories, the normalization of anything into that model. It knows about neither the DOM nor the storage |
-| [`src/i18n.js`](src/i18n.js) | the four dictionaries and the lookup around them: `t()`, the plural forms, the current language. No DOM either, so it is tested directly — including the test that the key sets of every language match exactly |
+| [`src/i18n.js`](src/i18n.js) | the six dictionaries and the lookup around them: `t()`, the plural forms, the current language. No DOM either, so it is tested directly — including the test that the key sets of every language match exactly |
 | [`src/import.js`](src/import.js) | bringing arbitrary JSON to the model: five shapes on the input, a report with reasons on the output. Merging by `appId`, so a repeated import breeds no duplicates and erases no work |
 | [`src/steam.js`](src/steam.js) | the import straight from an account: what the user typed to a SteamID64, the closed list of hosts every request is checked against, the reading of the Steam answers and the walk over the titles with its pauses and retries. It takes the `fetch` it should use, which is what lets the tests drive all of it without a single real request |
 | [`src/storage.js`](src/storage.js) | `localStorage` behind a wrapper: autosave, the export and import of the state as a file, the check of the signature and of the format version. It does not depend on the DOM — a test replaces it with an in-memory stub |
