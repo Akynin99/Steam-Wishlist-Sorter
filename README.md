@@ -9,10 +9,12 @@ through pairwise comparisons, with no backend and with your list staying on your
 🎮 [Live demo](https://akynin99.github.io/Steam-Wishlist-Sorter/)
 (the demo set is already inside, you do not have to load a wishlist of your own)
 
-![The import screen](docs/screenshots/import.png)
+![The wishlist screen](docs/screenshots/import.png)
 
 The interface is bilingual: **English by default, Russian as the second language**, switched in the
 header. Nothing is lost when the language changes — not one answer and not the place in the sorting.
+It also comes in two looks — the one above and one built out of the store's own blue-grey — switched
+in the same place; see [Two looks](#two-looks).
 
 ---
 
@@ -110,10 +112,10 @@ the same tests on every push and pull request.
 
 ## Language of the interface
 
-The switch sits in the header, next to the covers toggle. **English is the default, always** — the
-browser language is deliberately not consulted, so the demo opens the same way for every visitor.
-The choice is stored next to the other settings and survives a reload; a state file saved before the
-interface became bilingual reads as English.
+The switch sits in the header, next to the **⋯** button that opens the settings. **English is the
+default, always** — the browser language is deliberately not consulted, so the demo opens the same
+way for every visitor. The choice is stored next to the other settings and survives a reload; a
+state file saved before the interface became bilingual reads as English.
 
 Switching the language redraws the screens and touches nothing else: the answers, the categories,
 the manual moves and the exact place in the sorting stay where they were. The exports follow the
@@ -121,10 +123,31 @@ language too — see [What comes out](#what-comes-out).
 
 ---
 
+## Two looks
+
+The **⋯** menu in the header holds a second setting of the same kind: which of two themes the
+application wears. It is stored, it survives a reload, and it changes nothing but the look — not a
+single answer, not a single position.
+
+- **Modern** — the look the application has always had: a near-black page and a turquoise accent of
+  its own, so that it never passes itself off as a part of the store.
+- **Steam-like** — the blue-grey mood of the store, built out of our own values. No logo, no store
+  image, no external asset: it is a set of colours and shapes, not a copy.
+
+![The result screen in the Steam-like theme](docs/screenshots/steam-theme.png)
+
+The two differ in more than hue. Corners, borders, density, the case and the weight of the headings
+all move with the theme, because a theme that only repaints is the first theme in another colour.
+Everything a theme may want to change is a custom property in `:root`, and `[data-theme="steam"]`
+restates only what it disagrees with — which is also why no rule below that block is allowed to name
+a raw colour.
+
+---
+
 ## Getting the wishlist into the application
 
 Three ways in, from the simplest to the most stubborn: straight from your account, with the
-userscript, or from a JSON file you got out of Steam by hand. They all end on the same import
+userscript, or from a JSON file you got out of Steam by hand. They all end on the same wishlist
 screen, and they mix freely — a repeated import matches entries by App ID and keeps the work already
 done.
 
@@ -407,7 +430,8 @@ the network or a live Steam page.
 
 ## How to use it
 
-1. **Import.** A file, text, the demo set or a state file.
+1. **Wishlist.** The list comes in: straight from your Steam account, from a file or from text
+   under **“Other import methods”**, or as the demo set behind **“Try with 20 games”**.
 2. **Categories.** One game at a time on a scale of five levels of interest — from “Really want
    it” to “Barely interested”. The sixth value, “Remove from the wishlist”, stands apart from that
    scale: it says nothing about how much a game is wanted. Keys `1`–`6`, `←` for back, `→` or
@@ -420,18 +444,25 @@ the network or a live Steam page.
    answers are “this one”, “that one”, **“about the same”** (a tie) and **“cannot decide”** (the
    pair is postponed, it comes back later — and often it does not have to, because the order follows
    from other answers). The last answer can be undone. **“Finish for today”** ends the session and
-   opens the result; nothing is lost by pressing it.
-
-Both stages explain themselves once, the first time they are opened, and never again.
+   opens the result; nothing is lost by pressing it. Both this stage and the one before it explain
+   themselves once, the first time they are opened, and never again.
 4. **Result.** Four blocks, in the order the work ends in: what came of it, the transfer into
    Steam, the numbered list with its search, its filters and its draggable rows, and the files
    under **“Download or share”**. The technical account of the order is folded away under
    **“How was this order built?”**, and the two resets stay at the foot of the screen, next to the
-   list they change.
+   list they change. A row is moved with the mouse or, without one, by walking the list with
+   <kbd>↑</kbd> / <kbd>↓</kbd> and moving the row under the cursor with <kbd>Ctrl</kbd> +
+   <kbd>↑</kbd> / <kbd>Ctrl</kbd> + <kbd>↓</kbd>.
 5. **Back into Steam**, if you want the order there and not only in a file: the transfer card stands
    above the list, because that is what the whole thing is for — drag the link onto the bookmarks
    bar, or copy it, and press the bookmark on your wishlist page. See
    [Carrying the order back into Steam](#carrying-the-order-back-into-steam).
+
+The whole of it is reachable from the keyboard, from the header to the last row of the result, and
+the hotkeys stay quiet while you are typing in a field or while a menu or a dialog stands over the
+page. Nothing is said in colour alone: a row of the result carries its state in words as well as in
+the style of its border, the category a game is filed under carries a tick, and a stage that is done
+carries one instead of its number.
 
 ### The sorting can be abandoned halfway
 
@@ -747,7 +778,9 @@ in development.
 | [`src/export.js`](src/export.js) | the result as JSON, CSV and text. No DOM — which is why every format is checked by a test character by character, instead of by eye in a downloaded file |
 | [`src/bookmarklet.js`](src/bookmarklet.js) | the link that carries the order into Steam: the app ids in their final order, the interface texts of the moment, and the small program that sends the one write request. No DOM either, so a test can read the address apart character by character and make the generated code run against a fake page |
 | [`src/result-view.js`](src/result-view.js) | what the result screen decides before it draws anything: the state of a row, the share of the list the answers carry, whether the link taken a minute ago still writes the order on the screen, and whether the bookmarks bar is shown with <kbd>Ctrl</kbd> or with the command key. No DOM, so all four are covered by [`tests/result-view.test.js`](tests/result-view.test.js) |
-| [`src/ui-*.js`](src/) | the screens on top of the core: import, categories, comparisons, result, the card of the direct import, the shared frame of the application and the confirmation dialog |
+| [`src/theme.js`](src/theme.js) | the names of the two themes and the rule for reading one back: an unknown value and a state file from before the second theme both read as Modern. It touches neither the DOM nor the storage, so a test gets at it directly |
+| [`src/onboarding.js`](src/onboarding.js) | which stages have already explained themselves. It is not application state — it says something about the person, not about the wishlist — so it lives under a key of its own and “Start over” does not bring the explanations back |
+| [`src/ui-*.js`](src/) | the screens on top of the core: wishlist, categories, comparisons, result, the card of the direct import, the shared frame with its stage sequence and settings menu, and the dialogs |
 | [`server.js`](server.js) | a server on plain Node: it serves the files of the project, is guarded against escaping the root, and answers the three endpoints of the direct import — the health check the card asks about, the wishlist and the missing titles |
 | [`userscripts/`](userscripts/) | two Tampermonkey scripts: the wishlist export and the writing of the order back into Steam. The half of the second one that decides what gets sent and what an answer means is loaded by `node --test` and covered by [`tests/reorder-userscript.test.js`](tests/reorder-userscript.test.js) |
 
@@ -842,8 +875,8 @@ The manual edits are reset by a button of their own, without touching the compar
   “Start over” button or by clearing the site data.
 - **The only external request the page itself ever makes is loading game covers from the Steam CDN
   over a public URL** — the import above is done by `server.js` on your machine, not by the page.
-  Covers are switched off by the “Load covers” toggle in the header; with the toggle off and no
-  import running, nothing reaches outside at all.
+  Covers are switched off by the “Load covers” toggle in the **⋯** menu of the header; with the
+  toggle off and no import running, nothing reaches outside at all.
 - **The export userscript makes no network requests whatsoever**, and the one that carries the order
   back makes exactly one, to Steam itself: the `POST` that writes the order, to the same origin the
   wishlist page was loaded from, after you have confirmed it. Both have `@grant none` and not a
@@ -907,11 +940,11 @@ untrue, which is why it is not here.
 
 ```
 index.html                 the entry point of the application
-styles.css                 the styles, a dark theme
-server.js                  the local static server on plain Node
+styles.css                 the styles: two dark themes over one set of markup
+server.js                  the local server on plain Node: the files, and the /api/* endpoints
 start.bat                  the launcher for Windows (Node, with Python as a fallback)
 src/                       the source: model, i18n, import, steam, storage, ranking, export,
-                           bookmarklet, result-view, screens
+                           bookmarklet, result-view, theme, onboarding, screens
 tests/                     the tests on node:test; tests/fixtures — the demo set and test data
                            tests/helpers — a mock of the wishlist markup, in both Steam layouts
 userscripts/               two Tampermonkey scripts for the Steam page
