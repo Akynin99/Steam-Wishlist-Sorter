@@ -117,10 +117,17 @@
           </svg>
         </span>
         <span class="visually-hidden" data-i18n="settings.language">Interface language</span>
-        <!-- A language names itself: «Русский», not «Russian». -->
+        <!--
+          A language names itself: «Русский», not «Russian». The list grows
+          with every language added, the control does not: it sits in the
+          header, where the two-letter code is all there is room for, and the
+          native name is what the open list shows.
+        -->
         <select class="select select--tool" id="setting-language">
-          <option value="en">EN</option>
-          <option value="ru">RU</option>
+          <option value="en">English</option>
+          <option value="ru">Русский</option>
+          <option value="de">Deutsch</option>
+          <option value="fr">Français</option>
         </select>
       </label>
       <button type="button" class="iconbtn" id="settings-open" aria-haspopup="dialog"
