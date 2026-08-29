@@ -1,20 +1,37 @@
 /*
  * Steam Wishlist Sorter — styles.
  *
- * A dark theme, related to Steam in mood: a deep blue-grey background and
- * light text. The accent is its own, turquoise, so that the application never
- * passes itself off as a part of the store.
+ * Two themes over one set of markup. Modern is the look the application has
+ * always had: a near-black background and a turquoise accent of its own, so
+ * that it never passes itself off as a part of the store. Steam-like is the
+ * blue-grey mood of the store itself, built out of our own values.
  *
- * Order of the sections: variables, base, header, shared elements, screens.
+ * The themes differ in more than colour, and that is the point of the token
+ * set below. A theme that only repaints is the first theme in another hue;
+ * this one also changes shape — corners, borders, density, the case and the
+ * weight of the headings. Everything a theme may want to move lives in
+ * :root, and [data-theme="steam"] restates only what it disagrees with.
+ *
+ * Rules below this block use tokens and never raw colours: a raw colour is a
+ * place where the second theme would stay turquoise.
+ *
+ * Order of the sections: tokens, base, header, shared elements, screens.
  */
 
-/* -------------------------------------------------------- variables */
+/* ------------------------------------------------------------ tokens */
 
 :root {
+  /* Surfaces, from the page up to the controls that sit on it. */
   --bg: #0e141b;
+  --bg-glow: #16222f;
   --bg-elevated: #151e28;
   --bg-panel: #1a2531;
   --bg-panel-hover: #22303f;
+  --bg-inset: #0d151d;
+  --bg-well: #0c1219;
+  --bg-header: rgb(13 20 27 / 85%);
+  --backdrop: rgb(6 10 14 / 68%);
+
   --border: #2a3947;
   --border-strong: #3a4d5f;
 
@@ -22,18 +39,85 @@
   --text-muted: #93a4b3;
   --text-dim: #6c7f8f;
 
+  /* The accent, and the colour that stays readable on top of it. */
   --accent: #5fd4c4;
   --accent-strong: #7ce6d7;
-  --danger: #e0736b;
-  --warning: #e3b341;
+  --accent-deep: #3f9fb5;
+  --on-accent: #062a2a;
 
+  /*
+   * The colour of writing the order back into Steam. In Modern it is the
+   * accent itself; Steam-like gives it the green the store uses for the
+   * action that changes the library.
+   */
+  --positive: var(--accent);
+  --positive-strong: var(--accent-strong);
+
+  --danger: #e0736b;
+  --danger-text: #f3b3ad;
+  --warning: #e3b341;
+  --warning-text: #f0d79a;
   --focus: #7cc6ff;
 
+  /*
+   * Washes of the accent. They are written once, in terms of --accent, and a
+   * theme that moves the accent moves them with it: a custom property is
+   * substituted where it is used, not where it is declared.
+   */
+  --accent-tint-strong: color-mix(in srgb, var(--accent) 22%, transparent);
+  --accent-tint: color-mix(in srgb, var(--accent) 12%, transparent);
+  --accent-tint-weak: color-mix(in srgb, var(--accent) 8%, transparent);
+  --warning-tint: color-mix(in srgb, var(--warning) 10%, transparent);
+
+  /* Backgrounds that are a gradient in one theme and flat in the other. */
+  --wash-accent: linear-gradient(160deg, var(--accent-tint) 0%, var(--bg-elevated) 60%);
+  --wash-info: linear-gradient(160deg, color-mix(in srgb, var(--focus) 10%, transparent) 0%,
+      var(--bg-elevated) 60%);
+  --btn-primary-bg: linear-gradient(150deg, var(--accent) 0%, #45b6b0 100%);
+  --btn-primary-bg-hover: linear-gradient(150deg, var(--accent-strong) 0%, #52c8c1 100%);
+  --cover-empty-bg: repeating-linear-gradient(135deg, #101922 0 12px, #0d151d 12px 24px);
+
+  --shadow: 0 10px 30px rgb(0 0 0 / 35%);
+  --header-blur: blur(6px);
+
+  /* Shape. Steam-like cuts every corner down to nearly a square one. */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
   --radius: 10px;
   --radius-lg: 14px;
-  --gap: 16px;
-  --shadow: 0 10px 30px rgb(0 0 0 / 35%);
+  --radius-pill: 999px;
 
+  /* Density. The second theme packs the same blocks tighter. */
+  --gap: 16px;
+  --gap-screen: clamp(16px, 2.4vw, 26px);
+  --gap-list: 6px;
+  --pad-topbar-y: 12px;
+  --pad-panel: 18px;
+  --pad-block: 16px 18px;
+  --pad-btn: 10px 16px;
+  --pad-row: 8px 12px;
+  --pad-field: 8px 12px;
+
+  /* Typography. The store sets its navigation in capitals; Modern does not. */
+  --font-body: 16px/1.5 "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: 0.88rem/1.5 ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --weight-heading: 650;
+  --brand-transform: none;
+  --brand-spacing: 0.01em;
+  --nav-transform: none;
+  --nav-spacing: 0.01em;
+  --nav-weight: 400;
+  --nav-size: 0.94rem;
+
+  /*
+   * How the stage the user is on is marked. Modern fills the button in; the
+   * store underlines it with a thick bar and leaves the button flat.
+   */
+  --nav-active-bg: var(--bg-panel);
+  --nav-active-border: var(--border-strong);
+  --nav-active-bar: 0px;
+
+  /* The interest scale. One meaning, one colour, in both themes. */
   --cat-must: #e05c5c;
   --cat-want: #e29a3c;
   --cat-maybe: #d6c644;
@@ -42,6 +126,85 @@
   --cat-remove: #8b6a9c;
 
   color-scheme: dark;
+}
+
+/*
+ * Steam-like. Flat blue-grey surfaces, sharp corners, tighter padding and a
+ * navigation in capitals under a thick bar. Steam is not copied one to one:
+ * no logo, no store image, no external asset.
+ */
+[data-theme="steam"] {
+  --bg: #171a21;
+  --bg-glow: #1b2838;
+  --bg-elevated: #1b2838;
+  --bg-panel: #22384c;
+  --bg-panel-hover: #2a475e;
+  --bg-inset: #10161d;
+  --bg-well: #0d1218;
+  --bg-header: rgb(23 26 33 / 92%);
+  --backdrop: rgb(8 11 16 / 74%);
+
+  --border: #2c4256;
+  --border-strong: #3d6689;
+
+  --text: #c7d5e0;
+  --text-muted: #97a5b2;
+  --text-dim: #75858f;
+
+  --accent: #66c0f4;
+  --accent-strong: #a8dcfa;
+  --accent-deep: #1a6ba8;
+  --on-accent: #ffffff;
+
+  --positive: #a4d007;
+  --positive-strong: #c3ee2a;
+
+  --danger: #d94f43;
+  --danger-text: #f0a89f;
+  --warning: #d9a441;
+  --warning-text: #ebcb90;
+  /* White: the accent of this theme is a blue that a blue outline would be
+     mistaken for. */
+  --focus: #ffffff;
+
+  --wash-accent: var(--bg-elevated);
+  --wash-info: var(--bg-elevated);
+  /* Dark enough for white writing to stay readable on it: the store blue at
+     full brightness turns a label into a suggestion. */
+  --btn-primary-bg: linear-gradient(180deg, #1c6fbe 0%, #10457c 100%);
+  --btn-primary-bg-hover: linear-gradient(180deg, #2480d6 0%, #17559a 100%);
+  --cover-empty-bg: repeating-linear-gradient(135deg, #1c2b3a 0 12px, #16222e 12px 24px);
+
+  --shadow: 0 2px 10px rgb(0 0 0 / 55%);
+  --header-blur: none;
+
+  --radius-xs: 2px;
+  --radius-sm: 2px;
+  --radius: 3px;
+  --radius-lg: 4px;
+  --radius-pill: 3px;
+
+  --gap: 12px;
+  --gap-screen: clamp(12px, 1.7vw, 18px);
+  --gap-list: 3px;
+  --pad-topbar-y: 10px;
+  --pad-panel: 14px;
+  --pad-block: 12px 14px;
+  --pad-btn: 8px 14px;
+  --pad-row: 6px 10px;
+  --pad-field: 7px 10px;
+
+  --weight-heading: 700;
+  --brand-transform: uppercase;
+  --brand-spacing: 0.06em;
+  --nav-transform: uppercase;
+  --nav-spacing: 0.08em;
+  --nav-weight: 600;
+  --nav-size: 0.86rem;
+
+  --nav-active-bg: transparent;
+  --nav-active-border: transparent;
+  --nav-active-bar: 3px;
 }
 
 /* ------------------------------------------------------------- base */
@@ -70,10 +233,10 @@ body {
 body {
   min-height: 100vh;
   background:
-    radial-gradient(1200px 600px at 50% -200px, #16222f 0%, transparent 70%),
+    radial-gradient(1200px 600px at 50% -200px, var(--bg-glow) 0%, transparent 70%),
     var(--bg);
   color: var(--text);
-  font: 16px/1.5 "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font: var(--font-body);
   overflow-x: hidden;
 }
 
@@ -82,7 +245,7 @@ h2,
 h3 {
   margin: 0;
   line-height: 1.25;
-  font-weight: 650;
+  font-weight: var(--weight-heading);
 }
 
 h1 {
@@ -101,8 +264,8 @@ kbd {
   padding: 1px 6px;
   border: 1px solid var(--border-strong);
   border-bottom-width: 2px;
-  border-radius: 5px;
-  background: #0d151d;
+  border-radius: var(--radius-sm);
+  background: var(--bg-inset);
   color: var(--text-muted);
   font: inherit;
   font-size: 0.78em;
@@ -132,8 +295,10 @@ kbd {
   z-index: 20;
   padding: 10px 16px;
   border-radius: 0 0 var(--radius) var(--radius);
-  background: var(--accent);
-  color: #06242a;
+  /* The same accented surface as the primary button, so that the colour
+     written on it is readable in both themes. */
+  background: var(--btn-primary-bg);
+  color: var(--on-accent);
   font-weight: 600;
   text-decoration: none;
   transition: top 0.15s ease;
@@ -150,10 +315,10 @@ kbd {
   flex-wrap: wrap;
   align-items: center;
   gap: 12px 24px;
-  padding: 12px clamp(12px, 3vw, 32px);
+  padding: var(--pad-topbar-y) clamp(12px, 3vw, 32px);
   border-bottom: 1px solid var(--border);
-  background: rgb(13 20 27 / 85%);
-  backdrop-filter: blur(6px);
+  background: var(--bg-header);
+  backdrop-filter: var(--header-blur);
   position: sticky;
   top: 0;
   z-index: 10;
@@ -163,15 +328,16 @@ kbd {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-weight: 650;
-  letter-spacing: 0.01em;
+  font-weight: var(--weight-heading);
+  letter-spacing: var(--brand-spacing);
+  text-transform: var(--brand-transform);
 }
 
 .topbar__mark {
   width: 18px;
   height: 18px;
-  border-radius: 5px;
-  background: linear-gradient(140deg, var(--accent) 0%, #3f9fb5 100%);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(140deg, var(--accent) 0%, var(--accent-deep) 100%);
 }
 
 .topbar__nav {
@@ -184,11 +350,14 @@ kbd {
 .navbtn {
   padding: 7px 14px;
   border: 1px solid transparent;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--text-muted);
   font: inherit;
-  font-size: 0.94rem;
+  font-size: var(--nav-size);
+  font-weight: var(--nav-weight);
+  letter-spacing: var(--nav-spacing);
+  text-transform: var(--nav-transform);
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
@@ -199,9 +368,10 @@ kbd {
 }
 
 .navbtn[aria-current="page"] {
-  border-color: var(--border-strong);
-  background: var(--bg-panel);
+  border-color: var(--nav-active-border);
+  background: var(--nav-active-bg);
   color: var(--accent);
+  box-shadow: inset 0 calc(-1 * var(--nav-active-bar)) 0 0 var(--accent);
 }
 
 .navbtn:disabled {
@@ -239,8 +409,8 @@ kbd {
   width: 38px;
   height: 21px;
   border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  background: #0d151d;
+  border-radius: var(--radius-pill);
+  background: var(--bg-inset);
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 
@@ -257,7 +427,7 @@ kbd {
 
 .switch input:checked + .switch__track {
   border-color: var(--accent);
-  background: rgb(95 212 196 / 22%);
+  background: var(--accent-tint-strong);
 }
 
 .switch input:checked + .switch__track .switch__thumb {
@@ -274,21 +444,21 @@ kbd {
   outline-offset: 2px;
 }
 
-/* Language switch of the interface: it sits next to the covers toggle,
-   because it is the same kind of setting, not a stage of the work. */
+/* Language and theme switches: they sit next to the covers toggle, because
+   they are the same kind of setting, not a stage of the work. */
 
-.langswitch {
+.toolswitch {
   display: inline-flex;
   align-items: center;
 }
 
-.select--language {
+.select--tool {
   padding-block: 6px;
   color: var(--text-muted);
   font-size: 0.9rem;
 }
 
-.select--language:hover {
+.select--tool:hover {
   color: var(--text);
 }
 
@@ -312,7 +482,7 @@ kbd {
 .screen {
   display: flex;
   flex-direction: column;
-  gap: clamp(16px, 2.4vw, 26px);
+  gap: var(--gap-screen);
 }
 
 .stage-head {
@@ -348,7 +518,7 @@ kbd {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 10px 16px;
+  padding: var(--pad-btn);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
   background: var(--bg-panel);
@@ -376,19 +546,19 @@ kbd {
 
 .btn--primary {
   border-color: transparent;
-  background: linear-gradient(150deg, var(--accent) 0%, #45b6b0 100%);
-  color: #062a2a;
+  background: var(--btn-primary-bg);
+  color: var(--on-accent);
   font-weight: 620;
 }
 
 .btn--primary:hover:not(:disabled) {
-  background: linear-gradient(150deg, var(--accent-strong) 0%, #52c8c1 100%);
+  background: var(--btn-primary-bg-hover);
 }
 
 .btn--primary kbd {
-  border-color: rgb(6 42 42 / 35%);
-  background: rgb(6 42 42 / 12%);
-  color: #06322f;
+  border-color: color-mix(in srgb, var(--on-accent) 35%, transparent);
+  background: color-mix(in srgb, var(--on-accent) 12%, transparent);
+  color: var(--on-accent);
 }
 
 .btn--ghost {
@@ -410,7 +580,7 @@ kbd {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 18px;
+  padding: var(--pad-panel);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--bg-elevated);
@@ -428,7 +598,7 @@ kbd {
 .chip {
   padding: 4px 12px;
   border: 1px solid var(--border-strong);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--bg-panel);
   color: var(--accent);
   font-size: 0.88rem;
@@ -438,7 +608,7 @@ kbd {
 .badge {
   padding: 2px 9px;
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   color: var(--text-muted);
   font-size: 0.76rem;
   text-transform: uppercase;
@@ -452,7 +622,7 @@ kbd {
 
 .link {
   font-size: 0.9rem;
-  text-decoration-color: rgb(95 212 196 / 40%);
+  text-decoration-color: color-mix(in srgb, var(--accent) 40%, transparent);
 }
 
 .link:hover {
@@ -467,8 +637,8 @@ kbd {
 
 .progress__bar {
   height: 8px;
-  border-radius: 999px;
-  background: #0c1219;
+  border-radius: var(--radius-pill);
+  background: var(--bg-well);
   border: 1px solid var(--border);
   overflow: hidden;
 }
@@ -477,8 +647,8 @@ kbd {
   display: block;
   width: 0;
   height: 100%;
-  border-radius: 999px;
-  background: linear-gradient(90deg, #3f9fb5 0%, var(--accent) 100%);
+  border-radius: var(--radius-pill);
+  background: linear-gradient(90deg, var(--accent-deep) 0%, var(--accent) 100%);
   transition: width 0.25s ease;
 }
 
@@ -509,8 +679,8 @@ kbd {
   border: 1px solid var(--warning);
   border-left-width: 4px;
   border-radius: var(--radius);
-  background: rgb(227 179 65 / 10%);
-  color: #f0d79a;
+  background: var(--warning-tint);
+  color: var(--warning-text);
   font-size: 0.93rem;
 }
 
@@ -525,10 +695,10 @@ kbd {
   flex-wrap: wrap;
   align-items: center;
   gap: 14px;
-  padding: 16px 18px;
+  padding: var(--pad-block);
   border: 1px solid var(--accent);
   border-radius: var(--radius-lg);
-  background: rgb(95 212 196 / 8%);
+  background: var(--accent-tint-weak);
 }
 
 .toast {
@@ -548,7 +718,7 @@ kbd {
 
 .toast--error {
   border-color: var(--danger);
-  color: #f3b3ad;
+  color: var(--danger-text);
 }
 
 .toast--ok {
@@ -560,7 +730,7 @@ kbd {
 
 .input,
 .select {
-  padding: 8px 12px;
+  padding: var(--pad-field);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
   background: var(--bg-panel);
@@ -662,7 +832,7 @@ kbd {
 .legend__item::before {
   width: 26px;
   height: 12px;
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
   content: "";
 }
 
@@ -677,7 +847,7 @@ kbd {
 
 .legend__item--manual::before {
   border: 1px solid var(--accent);
-  background: rgb(95 212 196 / 12%);
+  background: var(--accent-tint);
 }
 
 /* Confirmation dialog of the irreversible actions. */
@@ -693,7 +863,7 @@ kbd {
 }
 
 .dialog::backdrop {
-  background: rgb(6 10 14 / 68%);
+  background: var(--backdrop);
 }
 
 .dialog__form {
@@ -734,7 +904,7 @@ kbd {
   aspect-ratio: 460 / 215;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: #0c1219;
+  background: var(--bg-well);
   overflow: hidden;
 }
 
@@ -746,8 +916,7 @@ kbd {
 }
 
 .cover--empty {
-  background:
-    repeating-linear-gradient(135deg, #101922 0 12px, #0d151d 12px 24px);
+  background: var(--cover-empty-bg);
 }
 
 .cover__monogram {
@@ -768,7 +937,7 @@ kbd {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  padding: 18px;
+  padding: var(--pad-panel);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--bg-elevated);
@@ -826,7 +995,7 @@ kbd {
 
 .panel--demo {
   border-color: var(--accent);
-  background: linear-gradient(160deg, rgb(95 212 196 / 10%) 0%, var(--bg-elevated) 60%);
+  background: var(--wash-accent);
 }
 
 /* The direct import comes first and is the easiest way in, so the card says so
@@ -836,7 +1005,7 @@ kbd {
 .panel--steam {
   grid-column: 1 / -1;
   border-color: var(--accent);
-  background: linear-gradient(160deg, rgb(124 198 255 / 10%) 0%, var(--bg-elevated) 60%);
+  background: var(--wash-info);
 }
 
 .panel--steam-off {
@@ -874,9 +1043,9 @@ kbd {
   padding: 10px 12px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
-  background: #0c1219;
+  background: var(--bg-well);
   color: var(--text);
-  font: 0.88rem/1.5 ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font: var(--font-mono);
   resize: vertical;
 }
 
@@ -932,7 +1101,7 @@ kbd {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 16px 18px;
+  padding: var(--pad-block);
   border: 1px solid var(--border);
   border-left: 4px solid var(--accent);
   border-radius: var(--radius);
@@ -972,7 +1141,7 @@ kbd {
   flex-wrap: wrap;
   align-items: center;
   gap: 14px;
-  padding: 16px 18px;
+  padding: var(--pad-block);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
   background: var(--bg-elevated);
@@ -1032,8 +1201,8 @@ kbd {
   min-width: 24px;
   height: 24px;
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
-  background: #0d151d;
+  border-radius: var(--radius-sm);
+  background: var(--bg-inset);
   color: var(--text-muted);
   font-size: 0.8rem;
 }
@@ -1107,7 +1276,7 @@ kbd {
  * caught and answered with a hint.
  */
 .bookmarklet {
-  padding: 18px;
+  padding: var(--pad-panel);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--bg-elevated);
@@ -1134,10 +1303,10 @@ kbd {
 
 .bookmarklet__link {
   padding: 10px 18px;
-  border: 1px dashed var(--accent);
+  border: 1px dashed var(--positive);
   border-radius: var(--radius);
   background: var(--bg-panel);
-  color: var(--accent-strong);
+  color: var(--positive-strong);
   font-weight: 600;
   text-decoration: none;
   cursor: grab;
@@ -1174,7 +1343,7 @@ kbd {
 .result-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--gap-list);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -1185,7 +1354,7 @@ kbd {
   grid-template-columns: 18px 46px 92px 1fr auto;
   gap: 14px;
   align-items: center;
-  padding: 8px 12px;
+  padding: var(--pad-row);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--bg-elevated);
@@ -1203,7 +1372,7 @@ kbd {
    is the decision of the user, and it looks just as confident. */
 .result-row--manual {
   border-color: var(--accent);
-  background: linear-gradient(90deg, rgb(95 212 196 / 12%) 0%, var(--bg-elevated) 220px);
+  background: linear-gradient(90deg, var(--accent-tint) 0%, var(--bg-elevated) 220px);
 }
 
 .result-row--tied {
@@ -1292,7 +1461,7 @@ kbd {
 .mark {
   padding: 1px 8px;
   border: 1px solid var(--border-strong);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--text-dim);
   font-size: 0.76rem;
 }
@@ -1307,7 +1476,7 @@ kbd {
 }
 
 .result-removed {
-  padding: 18px;
+  padding: var(--pad-panel);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--bg-elevated);
@@ -1316,7 +1485,7 @@ kbd {
 .result-removed__list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--gap-list);
   margin: 12px 0 0;
   padding: 0;
   list-style: none;
@@ -1328,7 +1497,7 @@ kbd {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 8px 12px;
+  padding: var(--pad-row);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--bg-panel);
