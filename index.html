@@ -18,6 +18,34 @@
   <meta name="description" data-i18n-attr="content:meta.description"
         content="A local tool that puts a Steam wishlist in order through pairwise comparisons.">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
+
+  <!--
+    The theme, before the first paint.
+
+    Everything else on this page waits for the modules, and that is fine: a
+    word appearing a moment late is not noticed. A whole page in the wrong
+    colours is, so the theme cannot wait — on a cold cache the modules are half
+    a second away, and half a second of the other theme is what the visitor
+    sees first.
+
+    Hence a blocking script, above the stylesheet so that no pending CSS holds
+    it up, and hence the separate key: this script must not know the shape of
+    the state. It reads one word. If that word is exactly `steam` the store
+    theme is set, and every other answer — no key, a cleared browser, storage
+    denied, a value from a version that does not exist yet — leaves the
+    attribute off, which is Modern. `src/theme.js` owns the key and writes it;
+    `tests/theme.test.js` runs the lines below to keep the two in step.
+  -->
+  <script>
+    try {
+      if (localStorage.getItem('steam-wishlist-sorter/theme') === 'steam') {
+        document.documentElement.dataset.theme = 'steam';
+      }
+    } catch {
+      // Storage denied: the page opens in Modern, and the modules fix it up.
+    }
+  </script>
+
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>

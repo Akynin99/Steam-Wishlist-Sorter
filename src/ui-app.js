@@ -21,7 +21,7 @@ import {
 } from './onboarding.js';
 import { deserializeSession, createSession } from './ranking.js';
 import { StateStorage, StorageError, createEmptyState } from './storage.js';
-import { normalizeTheme } from './theme.js';
+import { normalizeTheme, writeThemeMirror } from './theme.js';
 import { applyTranslations, downloadText, isHotkeyBlocked } from './ui-common.js';
 import { createImportScreen } from './ui-import.js';
 import { createCategorizeScreen } from './ui-categorize.js';
@@ -689,6 +689,7 @@ function applyTheme(name) {
   document.documentElement.dataset.theme = theme;
   const select = document.getElementById('setting-theme');
   if (select) select.value = theme;
+  rememberTheme(theme);
   return theme;
 }
 
@@ -768,6 +769,24 @@ function rememberScreen(name) {
     window.localStorage.setItem(SCREEN_KEY, name);
   } catch {
     // Storage may be denied; the screen simply is not remembered.
+  }
+}
+
+/**
+ * Mirrors the theme to the small key the script in the document head reads.
+ *
+ * Called from `applyTheme()` and therefore from every path a theme can arrive
+ * by — the switch, the start of a session, an imported file, starting over —
+ * so the mirror cannot drift from `settings.theme`, which stays the one place
+ * the theme is really kept.
+ *
+ * @param {string} theme
+ */
+function rememberTheme(theme) {
+  try {
+    writeThemeMirror(window.localStorage, theme);
+  } catch {
+    // Storage may be denied; the next cold start simply opens in Modern.
   }
 }
 
