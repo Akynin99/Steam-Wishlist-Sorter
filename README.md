@@ -423,9 +423,14 @@ the network or a live Steam page.
    opens the result; nothing is lost by pressing it.
 
 Both stages explain themselves once, the first time they are opened, and never again.
-4. **Result.** A numbered list with a filter by category, a search, draggable rows and the exports.
-5. **Back into Steam**, if you want the order there and not only in a file: drag the link from the
-   result screen onto the bookmarks bar and press it on your wishlist page — see
+4. **Result.** Four blocks, in the order the work ends in: what came of it, the transfer into
+   Steam, the numbered list with its search, its filters and its draggable rows, and the files
+   under **“Download or share”**. The technical account of the order is folded away under
+   **“How was this order built?”**, and the two resets stay at the foot of the screen, next to the
+   list they change.
+5. **Back into Steam**, if you want the order there and not only in a file: the transfer card stands
+   above the list, because that is what the whole thing is for — drag the link onto the bookmarks
+   bar, or copy it, and press the bookmark on your wishlist page. See
    [Carrying the order back into Steam](#carrying-the-order-back-into-steam).
 
 ### The sorting can be abandoned halfway
@@ -439,11 +444,14 @@ the fallback one, by the position in your wishlist. Every row is marked with whe
 from:
 
 - **confirmed by comparisons** — the order with both neighbours follows from your answers;
-- **fallback order** — the comparisons have not reached this row yet;
-- **by hand** — you dragged the row here yourself.
+- **still in the old order** — the comparisons have not reached this row yet;
+- **moved by hand** — you dragged the row here yourself;
+- **tied with the row above** — one of your answers said the two are wanted equally.
 
 The summary on top says honestly which part of the list is already ordered and which part simply
-stands by seniority.
+stands by seniority: a ring with the share the answers carry, the count beside it, and the numbers
+behind it — the answers made, the moves made by hand, the fallback order — under
+**“How was this order built?”**.
 
 ### Where the state lives and how to back it up
 
@@ -474,8 +482,8 @@ comparisons you have made.
 
 ## What comes out
 
-The buttons on the “Result” screen. Under them sits the block with the bookmarklet — the order goes
-into Steam through the link there, not through a file; see
+The **“Download or share”** block at the foot of the “Result” screen, folded away because the order
+usually goes into Steam through the link above it and not through a file; see
 [Carrying the order back into Steam](#carrying-the-order-back-into-steam).
 
 | Button | What it gives | What for |
@@ -527,13 +535,20 @@ the page, so it can do both; it also needs Tampermonkey and it depends on Steam'
 
 ### The short way: the bookmarklet
 
-On the **Result** screen, under the exports, there is a block with a link in it.
+On the **Result** screen, above the list, stands the card the whole screen is about: **“Transfer
+the order to Steam”**, in three steps.
 
 1. Show the bookmarks bar: <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>B</kbd>, or <kbd>⌘</kbd> +
-   <kbd>Shift</kbd> + <kbd>B</kbd> on a Mac.
+   <kbd>Shift</kbd> + <kbd>B</kbd> on a Mac — in Chrome, Edge and Firefox; in Safari it is the
+   “View” menu. The card names the one for your platform, and it does not guess the browser.
 2. Drag the link onto the bar. Do not click it on the application's own page — a click there is
-   caught and answered with a reminder to drag it instead.
+   caught and answered with a reminder to drag it instead. If dragging with a mouse is not an
+   option, **“Copy link”** puts the same address on the clipboard, to be pasted into a bookmark
+   made by hand.
 3. Open [your Steam wishlist](https://store.steampowered.com/wishlist/) and press the bookmark.
+
+On a phone or a tablet the card says outright that the transfer is easier in a desktop browser: a
+bookmarklet has to be dragged onto a bookmarks bar, and there is none.
 
 The order lives inside the address of the link. That is the whole idea: because the order is already
 in there, the bookmarklet has no reason to read the Steam page — no scrolling to the end of a
@@ -541,9 +556,11 @@ virtualized list, no row selectors, no checking that the reading was complete. E
 breaks when Steam changes its layout is simply not there. What is left is the write endpoint, which
 is the one thing that was measured on a live account.
 
-The link is rebuilt on every change of the order. If you move a row after dragging it onto the bar,
-drag the new link over the old bookmark — the one already on the bar holds the order of the moment
-it was dragged.
+The link is rebuilt on every change of the order, so the one on the screen is always the current
+one. If you move a row after taking the link, the card says so — **“the order has changed”** — and
+asks you to drag the new link over the old bookmark, because the one already on the bar holds the
+order of the moment it was taken. It can only say that about a link it saw you take: a bookmark on
+the bar is a copy the page cannot reach, so “the bookmark is installed” is never claimed.
 
 It speaks the language the interface was in when it was built, and it holds nothing but the code,
 the app ids and those texts: no titles, no links, no tokens, and no address of the local server.
@@ -729,6 +746,7 @@ in development.
 | [`src/ranking.js`](src/ranking.js) | the core: the preference graph, the pair scheduler, the layer of manual moves, the building of the result. All the ranking logic lives here, and the interface does not duplicate it |
 | [`src/export.js`](src/export.js) | the result as JSON, CSV and text. No DOM — which is why every format is checked by a test character by character, instead of by eye in a downloaded file |
 | [`src/bookmarklet.js`](src/bookmarklet.js) | the link that carries the order into Steam: the app ids in their final order, the interface texts of the moment, and the small program that sends the one write request. No DOM either, so a test can read the address apart character by character and make the generated code run against a fake page |
+| [`src/result-view.js`](src/result-view.js) | what the result screen decides before it draws anything: the state of a row, the share of the list the answers carry, whether the link taken a minute ago still writes the order on the screen, and whether the bookmarks bar is shown with <kbd>Ctrl</kbd> or with the command key. No DOM, so all four are covered by [`tests/result-view.test.js`](tests/result-view.test.js) |
 | [`src/ui-*.js`](src/) | the screens on top of the core: import, categories, comparisons, result, the card of the direct import, the shared frame of the application and the confirmation dialog |
 | [`server.js`](server.js) | a server on plain Node: it serves the files of the project, is guarded against escaping the root, and answers the three endpoints of the direct import — the health check the card asks about, the wishlist and the missing titles |
 | [`userscripts/`](userscripts/) | two Tampermonkey scripts: the wishlist export and the writing of the order back into Steam. The half of the second one that decides what gets sent and what an answer means is loaded by `node --test` and covered by [`tests/reorder-userscript.test.js`](tests/reorder-userscript.test.js) |
@@ -893,7 +911,7 @@ styles.css                 the styles, a dark theme
 server.js                  the local static server on plain Node
 start.bat                  the launcher for Windows (Node, with Python as a fallback)
 src/                       the source: model, i18n, import, steam, storage, ranking, export,
-                           bookmarklet, screens
+                           bookmarklet, result-view, screens
 tests/                     the tests on node:test; tests/fixtures — the demo set and test data
                            tests/helpers — a mock of the wishlist markup, in both Steam layouts
 userscripts/               two Tampermonkey scripts for the Steam page
