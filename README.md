@@ -345,8 +345,8 @@ This is the part that matters most, and it exists because of a real failure. Aft
 scripts scrolled the window — which does not scroll — and saw only the rows the page had rendered on
 its own: **14 of 166.** Nothing about that looks like an error. A list of fourteen games is a
 perfectly plausible list of fourteen games, and the second script offered to write it into Steam.
-Steam takes a reorder as a whole list, so writing those fourteen would have scattered the other
-hundred and fifty two through them.
+Writing those fourteen would have put them at the top and left the other hundred and fifty two to
+land wherever Steam decided — a place nobody chose and no report could have named.
 
 So the reading is now judged before its result is used anywhere:
 
@@ -494,9 +494,9 @@ right corner → pick the file.
    order of their coordinates, which under a virtualized list describe only the handful of rows
    rendered at that moment. Then it checks itself: the highest row number the page showed says how
    long the list is, and if fewer entries were read than that, **the script says so and offers no
-   write at all.** There is no checkbox for it. An order built on half a page is not half an order —
-   Steam takes the list as a whole and scatters everything left out of it. See
-   [Updating the selectors](#updating-the-selectors).
+   write at all.** There is no checkbox for it. An order built on half a page is not half an order:
+   the entries that were never read would be missing from the request, and where they end up would
+   then be Steam's business rather than yours. See [Updating the selectors](#updating-the-selectors).
 3. **A report is shown, and nothing has been written yet.** How many entries of the file were found
    on the page and how many were not (the missing ones are usually already bought), whether the page
    holds duplicates, which entries appeared after the export, how many are marked for removal, and
@@ -514,13 +514,18 @@ right corner → pick the file.
    ```
    POST https://store.steampowered.com/wishlist/action
    Content-Type: application/json; charset=utf-8
+   X-Valve-Request-Type: mutationAction
    { "m": "Reorder", "mp": [ [ { "appid": 1509510, "priority": 1 }, … ] ] }
    ```
 
    `mp` is an array of one element, and that element is the list of pairs; the double brackets are
-   not a typo. Steam answers `{ "data": { "result": 1 } }`, and the answer is read out into one case
-   with one message: accepted, refused with a result of its own, session expired, list too large,
-   too many requests, not JSON at all, or the network never let the request out.
+   not a typo. `X-Valve-Request-Type` is not decoration either: the same request without it comes
+   back `400` with an empty body, and with it `200`. It is what marks the request as coming from
+   Steam's own page — another site can make your browser send a POST with your cookie on it, but it
+   cannot add a header. Steam answers `{ "data": { "result": 1 } }`, and the answer is read out into
+   one case with one message: accepted, refused with a result of its own, refused at the door with a
+   `400`, session expired, list too large, too many requests, not JSON at all, or the network never
+   let the request out.
 7. **The check.** The wishlist page does not redraw itself after the write, so the script offers to
    reload it, reads the order again and compares it with what was sent, entry by entry. A difference
    is shown as it is — how many entries stand as asked, where the first difference is, what left the
@@ -533,8 +538,8 @@ right corner → pick the file.
   cannot be undone, and the price of a mistake by a script is too high here.
 - **It loses nothing.** An entry that is on the page but not in the file — added after the export,
   or left out of the ranking — keeps its place relative to the other such entries and is appended
-  after the ordered part. That is why the request always carries the whole wishlist: Steam takes the
-  order as a whole, and anything left out of it is scattered through the rest.
+  after the ordered part. That is why the request always carries the whole wishlist: every place is
+  then stated outright, and none is left for Steam to decide.
 - **It does not write what it did not read.** A wishlist the script read only in part gives no
   report, no plan and no write button — only the count it got, the count the page promised, and what
   to do about it.
@@ -557,8 +562,8 @@ entries you have arranged by hand. Entries you have never arranged sit at the en
 and no number at all. On the account this was read off, 166 entries were 76 with the priorities
 1…76 and 90 with a zero.
 
-This script sends the list **whole**, numbered `1…N`, because a partial list is not a partial
-reorder. So after the write **every** entry has a priority, including the ones that had none before.
+This script sends the list **whole**, numbered `1…N`. So after the write **every** entry has a
+priority, including the ones that had none before.
 The backup puts the order back; it cannot put back “never arranged”. The panel says so in the box
 above the write button and again at the confirmation, before anything is sent.
 
@@ -570,7 +575,10 @@ above the write button and again at the confirmation, before anything is sent.
   instead of pretending it worked. The address it used before this —
   `/wishlist/profiles/<steamid>/reorder/` with a `sessionid` field — belonged to the previous
   version of the page, and the rewritten one does not use it at all: it puts no `g_sessionID` on the
-  page, so that write never even started.
+  page, so that write never even started. What Steam demands of the request can change the same way:
+  the `X-Valve-Request-Type` header turned a `400` with an empty body into a `200`, and an answer
+  like that names nothing. So a `400` has a message of its own — refused at the door, nothing
+  written, compare the headers of a real drag in DevTools with the ones the script sends.
 - **The write goes to the account this browser is signed in as, not to the page on the screen.** The
   address names no account — the cookie decides. So opening somebody else's wishlist and running the
   script would rearrange *your* list with *their* App IDs, read off their page. The script still
@@ -585,10 +593,10 @@ above the write button and again at the confirmation, before anything is sent.
   naming one account while the page says you are signed in as another.
 - **A very large wishlist may not fit into one request.** 166 entries make a body of about seven
   kilobytes, so the ceiling is far off — but it is a ceiling. Steam answers `413`, and the script says
-  so in words. Splitting the list is not a way out — a partial list is not a partial reorder, Steam
-  spreads the entries it was given through the ones it was not — so for such a list the preview mode
-  is still there: “Show the order on the page” marks every row with the number it has to end up at,
-  and the dragging is yours.
+  so in words. Splitting the list is not a way out either: what Steam does with the entries a piece
+  leaves out has never been measured, and a wishlist is a poor place to measure it. For such a list
+  the preview mode is still there: “Show the order on the page” marks every row with the number it
+  has to end up at, and the dragging is yours.
 - **The check reads the page.** For it to mean anything the wishlist has to be sorted by **Your
   rank** with the filters cleared, which is also the sorting that shows the order you have just
   written. The panel says so next to every difference it reports.
