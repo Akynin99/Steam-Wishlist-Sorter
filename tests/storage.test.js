@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import { DEFAULT_LANGUAGE } from '../src/i18n.js';
 import { createSession } from '../src/ranking.js';
+import { DEFAULT_THEME } from '../src/theme.js';
 import {
   APP_SIGNATURE,
   STORAGE_KEY,
@@ -197,4 +198,41 @@ test('the language of the settings survives the round trip through the backend',
 
   storage.save(state);
   assert.equal(storage.load().settings.language, 'ru');
+});
+
+test('a state file saved before the second theme existed reads as Modern', () => {
+  // Exactly what the previous version of the application wrote: covers and a
+  // language, and no theme at all.
+  const state = validateState({
+    app: APP_SIGNATURE,
+    version: 1,
+    settings: { loadCovers: false, language: 'ru' },
+    session: createSession().serialize(),
+  });
+
+  assert.equal(state.settings.theme, DEFAULT_THEME);
+  assert.equal(state.settings.theme, 'modern');
+  assert.equal(state.settings.language, 'ru', 'the settings that were there are kept');
+  assert.equal(state.settings.loadCovers, false);
+  assert.equal(createEmptyState().settings.theme, 'modern', 'a new state starts in Modern too');
+});
+
+test('a theme the application does not have is read as Modern, a known one is kept', () => {
+  const base = { app: APP_SIGNATURE, version: 1, session: createSession().serialize() };
+
+  assert.equal(validateState({ ...base, settings: { theme: 'steam' } }).settings.theme, 'steam');
+  assert.equal(validateState({ ...base, settings: { theme: 'dark' } }).settings.theme, 'modern');
+  assert.equal(validateState({ ...base, settings: { theme: 42 } }).settings.theme, 'modern');
+  assert.equal(validateState({ ...base, settings: { theme: null } }).settings.theme, 'modern');
+});
+
+test('the theme of the settings survives the round trip through the backend', () => {
+  // `validateState()` is a whitelist of fields, so a setting that is not in it
+  // is not rejected — it is dropped, quietly, on the very first save.
+  const storage = new StateStorage({ backend: createStubBackend() });
+  const state = createEmptyState();
+  state.settings.theme = 'steam';
+
+  storage.save(state);
+  assert.equal(storage.load().settings.theme, 'steam');
 });
