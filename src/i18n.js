@@ -22,8 +22,18 @@
  * `export.js` is. Everything that touches elements lives in `ui-common.js`.
  */
 
-/** Languages the interface is available in. @type {ReadonlyArray<string>} */
-export const LANGUAGES = Object.freeze(['en', 'ru', 'de', 'fr']);
+/**
+ * Languages the interface is available in.
+ *
+ * A code is whatever CLDR calls the language, and `pt-BR` is one: Brazilian
+ * Portuguese differs from the European one in wording often enough that a bare
+ * `pt` would be a promise the dictionary does not keep. Nothing here parses a
+ * code — every table is keyed by the whole string — so the hyphen costs
+ * nothing and is never split off.
+ *
+ * @type {ReadonlyArray<string>}
+ */
+export const LANGUAGES = Object.freeze(['en', 'ru', 'de', 'fr', 'es', 'pt-BR']);
 
 /** The language a fresh visitor gets, always. */
 export const DEFAULT_LANGUAGE = 'en';
@@ -39,6 +49,8 @@ export const LANGUAGE_NAMES = Object.freeze({
   ru: 'Русский',
   de: 'Deutsch',
   fr: 'Français',
+  es: 'Español',
+  'pt-BR': 'Português (Brasil)',
 });
 
 /**
@@ -54,9 +66,10 @@ export const PLURAL_FORMS = Object.freeze(['one', 'few', 'many']);
 
 /**
  * Which plural form a count takes, per language. The rules follow CLDR, and
- * the differences between them are real: French counts zero as singular
- * («0 élément»), English and German do not («0 items», „0 Einträge“), and
- * Russian looks at the last two digits.
+ * the differences between them are real: French and Brazilian Portuguese count
+ * zero as singular («0 élément», “0 item”), English, German and Spanish do not
+ * («0 items», „0 Einträge“, «0 elementos»), and Russian looks at the last two
+ * digits.
  *
  * @type {Readonly<Record<string, (count: number) => string>>}
  */
@@ -72,6 +85,8 @@ const PLURAL_RULES = Object.freeze({
   },
   de: (count) => (Math.abs(count) === 1 ? 'one' : 'many'),
   fr: (count) => (Math.abs(count) < 2 ? 'one' : 'many'),
+  es: (count) => (Math.abs(count) === 1 ? 'one' : 'many'),
+  'pt-BR': (count) => (Math.abs(count) < 2 ? 'one' : 'many'),
 });
 
 /* ------------------------------------------------------------ english */
@@ -1277,16 +1292,14 @@ const RU = {
   'result.resetManual.none': 'Ручных перестановок нет.',
   'result.resetManual.title': 'Сбросить ручные перемещения?',
   'result.resetManual.text':
-    '{moves} будет забыто, и список вернётся к порядку, который дают сравнения. Ответы сравнений '
-    + 'останутся.',
+    'Будет забыто: {moves}. Ответы сравнений останутся на месте.',
   'result.resetManual.confirm': 'Сбросить перестановки',
   'result.resetManual.done': 'Ручные перестановки сброшены.',
   'result.resetAnswers': 'Сбросить ответы сравнений',
   'result.resetAnswers.none': 'Ответов пока нет.',
   'result.resetAnswers.title': 'Сбросить ответы сравнений?',
   'result.resetAnswers.text':
-    '{answers} будет удалено, и сравнения начнутся с нуля. Список позиций, категории и ручные '
-    + 'перестановки останутся. Отменить это будет нельзя.',
+    'Будет удалено: {answers}. Список, категории и ручные перестановки останутся.',
   'result.resetAnswers.confirm': 'Сбросить ответы',
   'result.resetAnswers.done': 'Ответы сравнений сброшены.',
 
@@ -2693,12 +2706,1324 @@ const FR = {
   'export.kind.unknown': 'Inconnu',
 };
 
+/* ------------------------------------------------------------ spanish */
+
+/** @type {Readonly<Record<string, string>>} */
+const ES = {
+  /* -- counted phrases -------------------------------------------- */
+  'count.items.one': '{count} elemento',
+  'count.items.few': '{count} elementos',
+  'count.items.many': '{count} elementos',
+  'count.records.one': '{count} registro leído',
+  'count.records.few': '{count} registros leídos',
+  'count.records.many': '{count} registros leídos',
+  'count.comparisonsMade.one': '{count} comparación realizada',
+  'count.comparisonsMade.few': '{count} comparaciones realizadas',
+  'count.comparisonsMade.many': '{count} comparaciones realizadas',
+  'count.comparisonsDone.one': '{count} comparación hecha',
+  'count.comparisonsDone.few': '{count} comparaciones hechas',
+  'count.comparisonsDone.many': '{count} comparaciones hechas',
+  'count.pairs.one': '{count} par',
+  'count.pairs.few': '{count} pares',
+  'count.pairs.many': '{count} pares',
+  'count.rows.one': '{count} fila',
+  'count.rows.few': '{count} filas',
+  'count.rows.many': '{count} filas',
+  'count.moves.one': '{count} movimiento',
+  'count.moves.few': '{count} movimientos',
+  'count.moves.many': '{count} movimientos',
+  'count.answers.one': '{count} respuesta',
+  'count.answers.few': '{count} respuestas',
+  'count.answers.many': '{count} respuestas',
+  'count.marked.one': '{count} elemento está marcado para quitarlo de la lista de deseados',
+  'count.marked.few': '{count} elementos están marcados para quitarlos de la lista de deseados',
+  'count.marked.many': '{count} elementos están marcados para quitarlos de la lista de deseados',
+
+  /* -- chrome ------------------------------------------------------ */
+  'meta.description':
+    'Una herramienta local que pone en orden una lista de deseados de Steam mediante '
+    + 'comparaciones de dos en dos.',
+  'a11y.skipToContent': 'Ir al contenido',
+  'a11y.progress.import': 'Carga de la lista de deseados',
+  'a11y.progress.categorize': 'Elementos con categoría',
+  'a11y.progress.compare': 'Comparaciones respondidas',
+  'nav.aria': 'Etapas',
+  'nav.import': 'Lista de deseados',
+  'nav.categorize': 'Categorías',
+  'nav.compare': 'Comparaciones',
+  'nav.result': 'Resultado',
+  'nav.state.done': 'etapa terminada',
+  'nav.state.current': 'etapa actual',
+  'nav.state.locked': 'etapa todavía no disponible',
+  'settings.title': 'Ajustes',
+  'settings.covers': 'Cargar las portadas',
+  'settings.language': 'Idioma de la interfaz',
+  'settings.theme': 'Tema',
+  'theme.modern': 'Moderno',
+  'theme.steam': 'Al estilo de Steam',
+  'actions.saveState': 'Guardar una copia',
+  'actions.loadState': 'Cargar una copia',
+  'actions.skipStage': 'Saltar las categorías',
+  'actions.reset': 'Empezar de nuevo',
+  'privacy.short': 'Funciona en local · tus datos no se envían a servidores de terceros',
+  'privacy.details': 'Detalles',
+  'privacy.note':
+    'Tus datos nunca salen del navegador. La única petición externa que la aplicación hace, en '
+    + 'cualquier momento, es la carga de las portadas de los juegos desde el CDN de Steam por una '
+    + 'dirección pública; se corta con el interruptor «Cargar las portadas». La importación '
+    + 'directa desde una cuenta la pide el servidor local que corre en tu propia máquina: va a '
+    + 'Steam, a nadie más, y solo cuando pulsas el botón.',
+  'dialog.title': 'Confirmar la acción',
+  'dialog.cancel': 'Cancelar',
+  'dialog.confirm': 'Continuar',
+
+  /* -- shared item bits -------------------------------------------- */
+  'common.openInSteam': 'Abrir en Steam ↗',
+  'common.openInSteamAria': 'Abrir «{title}» en Steam, en una pestaña nueva',
+  'category.must': 'Lo quiero de verdad',
+  'category.want': 'Lo quiero',
+  'category.maybe': 'Quizá',
+  'category.unlikely': 'Poco probable',
+  'category.meh': 'Casi no me interesa',
+  'category.remove': 'Quitar de la lista de deseados',
+  'category.none': 'Sin categoría',
+  'kind.game': 'Juego',
+  'kind.dlc': 'DLC',
+  'kind.unknown': 'Tipo desconocido',
+  'cover.none': 'Sin portada',
+  'cover.off': 'Las portadas están desactivadas',
+  'cover.failed': 'La portada no se cargó',
+
+  /* -- application ------------------------------------------------- */
+  'app.saveFailed':
+    'El estado no se pudo guardar en el navegador. Guárdalo en un archivo para no perder nada.',
+  'app.saveFailedReason': 'El estado no se pudo guardar: {message}',
+  'app.loadFailed':
+    'El estado guardado no se pudo leer ({message}). Se empieza con una lista vacía.',
+  'app.covers.on': 'Portadas activadas: la aplicación carga las imágenes desde el CDN de Steam.',
+  'app.covers.off': 'Portadas desactivadas: la aplicación no hace ninguna petición externa.',
+  'app.language.changed': 'Idioma de la interfaz: {language}.',
+  'app.theme.changed': 'Tema: {theme}.',
+  'app.reset.title': '¿Empezar de nuevo?',
+  'app.reset.text':
+    'Se borrará todo esto: {items}, las categorías, las respuestas de las comparaciones y los '
+    + 'movimientos hechos a mano. No se puede deshacer: si el trabajo todavía puede servir, '
+    + 'guárdalo antes en un archivo.',
+  'app.reset.confirm': 'Borrarlo todo y empezar de nuevo',
+  'app.reset.done': 'El estado está borrado.',
+  'app.state.buildFailed': 'El archivo de estado no se pudo construir: {message}',
+  'app.state.saved': 'El estado está guardado en un archivo.',
+  'app.saved': 'Progreso guardado en este navegador',
+
+  /* -- import screen ------------------------------------------------ */
+  'import.eyebrow': 'Un orden que has elegido de verdad',
+  'import.promise': 'Ordena los juegos según las ganas reales de jugarlos',
+  'import.lead':
+    'Agrupa rápido tu lista de deseados por interés y luego elige entre dos juegos. Para cuando '
+    + 'quieras: el progreso siempre se guarda.',
+  'import.step.load': 'Cargar la lista de deseados',
+  'import.step.group': 'Agrupar por interés',
+  'import.step.compare': 'Comparar juegos',
+  'import.step.send': 'Enviar el orden a Steam',
+  'import.sessions':
+    'Una ordenación completa puede llevar varias sesiones. Tu resultado actual siempre está '
+    + 'disponible.',
+  'import.other': 'Otras formas de importar',
+  'import.file.title': 'Archivo JSON',
+  'import.file.hint': 'Una exportación de Steam o un archivo reunido por el userscript.',
+  'import.file.button': 'Elegir un archivo…',
+  'import.file.none': 'Ningún archivo elegido',
+  'import.paste.title': 'Pegar JSON',
+  'import.paste.hint': 'El cuerpo de la respuesta de Steam se puede pegar tal cual.',
+  'import.paste.label': 'JSON de la lista de deseados',
+  'import.paste.placeholder': '[ { "appid": 620, "name": "Portal 2" }, … ]',
+  'import.paste.run': 'Importar desde el texto',
+  'import.userscript.title': 'Desde la página de Steam, con el userscript',
+  'import.userscript.hint': 'El archivo que descarga se carga aquí, con «Archivo JSON» de arriba.',
+  'import.state.title': 'Estado guardado',
+  'import.state.hint':
+    'Un archivo que guardaste antes con «Guardar una copia»: vuelven las categorías y todas las '
+    + 'respuestas.',
+  'import.state.button': 'Elegir un archivo de estado…',
+  'import.demo.button': 'Probar con 20 juegos',
+  'import.ready.eyebrow': 'Listo',
+  'import.ready.count.one': '{count} elemento cargado',
+  'import.ready.count.few': '{count} elementos cargados',
+  'import.ready.count.many': '{count} elementos cargados',
+  'import.ready.next':
+    'Ahora reparte los juegos en cinco niveles de interés. Eso es lo que hace bajar el número de '
+    + 'comparaciones.',
+  'import.ready.start': 'Empezar a agrupar',
+  'import.ready.again': 'Cargar otra lista de deseados',
+  'import.current':
+    'Ahora mismo la lista contiene {items}: {sorted} con categoría y {plain} sin ella. '
+    + 'Comparaciones realizadas: {comparisons}. Volver a importar actualiza las entradas y '
+    + 'conserva el trabajo ya hecho.',
+  'import.announce': 'Elementos importados: {count}. Ahora la lista contiene {total}.',
+  'import.source.file': 'Archivo {name}',
+  'import.source.pasted': 'Texto pegado',
+  'import.source.demo': 'Conjunto de demostración',
+  'import.report.title': '{source}: {records}',
+  'import.report.added': 'añadidos',
+  'import.report.updated': 'actualizados',
+  'import.report.duplicates': 'duplicados',
+  'import.report.skipped': 'omitidos',
+  'import.issue.line': '{where}: {what}',
+  'import.issue.entry': 'registro n.º {number}',
+  'import.issue.key': 'clave «{key}»',
+  'import.issue.more': '…y {count} más',
+  'import.skip.notAnObject': 'el registro no parece ni un elemento ni un App ID',
+  'import.skip.missingAppId': 'sin App ID',
+  'import.skip.invalidAppId': 'el App ID no es un número',
+  'import.skip.duplicateInInput': 'el elemento ya aparecía en este mismo archivo',
+  'import.error.title': 'La importación falló',
+  'import.error.emptyInput': 'No hay nada que importar: el archivo o el campo está vacío.',
+  'import.error.invalidJson':
+    'Esto no es JSON. Parece que el texto se copió solo en parte, o que se coló algo más.',
+  'import.error.unrecognizedFormat':
+    'El JSON se leyó bien, pero no parece una lista de deseados. Hace falta un arreglo de '
+    + 'elementos, un objeto con la forma { "440": { … } } o una respuesta de Steam con un campo '
+    + 'response.items.',
+  'import.error.emptyResultTitle': 'La importación pasó, pero la lista está vacía',
+  'import.error.emptyResultText':
+    'No se pudo leer ni un solo elemento. Comprueba que el archivo contiene de verdad una lista '
+    + 'de deseados.',
+  'import.error.fileRead': 'El archivo no se pudo leer',
+  'import.demo.failedTitle': 'El conjunto de demostración no se cargó',
+  'import.demo.failedText':
+    '{message}. El archivo {url} tiene que estar junto a index.html, y la página tiene que '
+    + 'abrirse por http(s), no como file://.',
+  'import.demo.httpError': 'el servidor respondió {status}',
+
+  /* -- import straight from a Steam account ------------------------- */
+  'steam.title': 'Cargar desde Steam',
+  'steam.subtitle': 'Lo más sencillo para una lista de deseados pública',
+  'steam.field': 'Tu perfil de Steam',
+  'steam.placeholder': 'steamcommunity.com/id/tunombre, un alias o un SteamID64',
+  'steam.run': 'Comprobar y cargar',
+  'steam.cancel': 'Parar',
+  'steam.checking': 'Buscando el servidor local…',
+  'steam.warning':
+    'La importación automática funciona cuando los «Detalles del juego» son públicos.',
+  'steam.privateAsk': '¿Y si son privados?',
+  'steam.privateHelp':
+    'Abre tu perfil de Steam, elige «Editar perfil» y luego «Configuración de privacidad», y pon '
+    + '«Detalles del juego» en Público. Si prefieres no abrirlo, el userscript que hay en «Otras '
+    + 'formas de importar» lee la página en la que has iniciado sesión y funciona con una lista '
+    + 'privada.',
+  'steam.settingsLink': 'Abrir los ajustes de Steam ↗',
+
+  'steam.blocked.title': 'Steam no dio acceso a la lista de deseados',
+  'steam.blocked.text':
+    'Eso suele significar que los «Detalles del juego» son privados: la lista de deseados sigue '
+    + 'ese único ajuste.',
+  'steam.blocked.unavailableTitle': 'La lista de deseados no se pudo obtener',
+  'steam.blocked.unavailableText':
+    'Steam respondió con un error, y con un error responde tanto a una lista que no quiere '
+    + 'entregar como en un mal minuto suyo. Así que: si los «Detalles del juego» están en '
+    + 'privado, los pasos de abajo los abren; si ya son públicos, espera unos minutos y pulsa '
+    + '«Comprobar de nuevo».',
+  'steam.blocked.step1': 'Abre tu perfil de Steam y elige «Editar perfil».',
+  'steam.blocked.step2': 'Abre la «Configuración de privacidad».',
+  'steam.blocked.step3': 'Pon «Detalles del juego» en Público.',
+  'steam.blocked.step4': 'Vuelve aquí y pulsa «Comprobar de nuevo».',
+  'steam.blocked.settings': 'Abrir los ajustes de Steam',
+  'steam.blocked.again': 'Comprobar de nuevo',
+  'steam.blocked.keepPrivate': 'No quiero hacerla pública',
+
+  'steam.userscript.lead':
+    'Reúne la lista desde la propia página de Steam. El userscript lee la página de la lista de '
+    + 'deseados en la que has iniciado sesión, así que el ajuste de privacidad no interviene, y '
+    + 'no hace ninguna petición de red por su cuenta.',
+  'steam.userscript.step1': 'Instala Tampermonkey: existe para Chrome, Edge, Firefox y Opera.',
+  'steam.userscript.step2':
+    'Instala el script «steam-wishlist-export.user.js» desde el repositorio.',
+  'steam.userscript.step3':
+    'Abre la página de tu lista de deseados y pulsa «Reunir la lista» y luego «Descargar el JSON».',
+  'steam.userscript.step4': 'Vuelve aquí y elige ese archivo en «Otras formas de importar».',
+  'steam.userscript.link': 'Abrir el script en GitHub ↗',
+
+  'steam.offline.title': 'Cargar mi lista de deseados',
+  'steam.offline.subtitle': 'Elige el camino más sencillo',
+  'steam.offline.text':
+    'Tu navegador no permite que esta página lea Steam directamente, y no hay detrás un servidor '
+    + 'local que se lo pida en su nombre. Aun así, tus datos siguen siendo tuyos.',
+  'steam.offline.instructions': 'Ver las instrucciones',
+  'steam.offline.userscript.badge': 'Funciona con listas privadas',
+  'steam.offline.userscript.title': 'Importar desde tu página de Steam',
+  'steam.offline.local.title': 'Ejecutar la versión local',
+  'steam.offline.local.text': 'Entonces basta con un enlace a un perfil público.',
+  'steam.offline.local.download': 'Descargar',
+  'steam.offline.local.step1': 'Instala Node.js 20 o más reciente.',
+  'steam.offline.local.step2': 'Descomprime el archivo donde quieras.',
+  'steam.offline.local.step3':
+    'Ejecuta «start.bat» en Windows, o «node server.js» en macOS y Linux.',
+  'steam.offline.local.step4': 'Abre http://localhost:8080/ en el navegador.',
+  'steam.step.account': 'Buscando la cuenta…',
+  'steam.step.wishlist': 'Pidiendo la lista de deseados a Steam…',
+  'steam.step.titles': 'Títulos: {done} de {total}',
+  'steam.step.waiting':
+    'Steam está limitando las peticiones. Esperando {seconds} s antes de volver a pedir…',
+  'steam.note':
+    'Un título, una petición: por eso una lista larga tarda minutos. Todo lo que ya ha llegado '
+    + 'queda guardado, así que parar no pierde nada.',
+  'steam.done.title': 'La lista de deseados llegó',
+  'steam.done.titlesTitle': 'Los títulos están obtenidos',
+  'steam.done.titlesText': '{items} en la lista; con título venido de Steam: {titles}.',
+  'steam.done.text':
+    'Cuenta de Steam {account}: {items} en la lista; con título venido de Steam: {titles}.',
+  'steam.done.missing.one':
+    'Steam no entregó {count} título: ese elemento se muestra por su App ID.',
+  'steam.done.missing.few':
+    'Steam no entregó {count} títulos: esos elementos se muestran por su App ID.',
+  'steam.done.missing.many':
+    'Steam no entregó {count} títulos: esos elementos se muestran por su App ID.',
+  'steam.done.throttled':
+    'Steam dejó de responder en el título {done} de {total}: está limitando las peticiones. Todo '
+    + 'lo obtenido ya está en la lista; prueba el botón otra vez dentro de unos minutos.',
+  'steam.missing.text.one':
+    '{count} elemento de la lista todavía se muestra por un App ID y no por un título.',
+  'steam.missing.text.few':
+    '{count} elementos de la lista todavía se muestran por un App ID y no por un título.',
+  'steam.missing.text.many':
+    '{count} elementos de la lista todavía se muestran por un App ID y no por un título.',
+  'steam.missing.run': 'Obtener los títulos que faltan',
+  'steam.cancelled': 'Parado. Todo lo que había llegado hasta entonces se quedó en la lista.',
+  'steam.error.title': 'La importación desde Steam falló',
+  'steam.error.emptyInput':
+    'El campo está vacío: escribe un SteamID64, un nombre de perfil o un enlace al perfil.',
+  'steam.error.invalidAccount':
+    'Esto no es ni un SteamID64 (17 cifras), ni un nombre de perfil de Steam, ni un enlace a un '
+    + 'perfil en steamcommunity.com.',
+  'steam.error.accountNotFound':
+    'Steam no conoce esa cuenta. Comprueba cómo está escrita, o abre tu perfil en el navegador y '
+    + 'copia la dirección de la página.',
+  'steam.error.wishlistEmpty':
+    'La lista de deseados de esta cuenta está vacía: todavía no hay nada que ordenar.',
+  'steam.error.rateLimited':
+    'Steam está limitando las peticiones: han llegado demasiadas desde esta dirección. Afloja al '
+    + 'cabo de unos minutos; prueba entonces otra vez.',
+  'steam.error.network':
+    'No se pudo llegar a Steam. Comprueba la conexión, y que el servidor local siga en marcha.',
+  'steam.error.steamError':
+    'Steam respondió algo inesperado. Eso suele ser el propio Steam pasando un mal rato; prueba '
+    + 'un poco más tarde.',
+  'steam.error.notLocal': 'El servidor local solo responde a peticiones que vienen de localhost.',
+  'steam.error.unknown': 'Fallo inesperado: {message}',
+
+  /* -- state file --------------------------------------------------- */
+  'state.error.invalidJson': 'El archivo de estado no se lee como JSON.',
+  'state.error.foreignState':
+    'Este es el JSON de otra aplicación: no lleva ninguna firma de Steam Wishlist Sorter.',
+  'state.error.unsupportedVersion':
+    'El archivo se guardó con otra versión del formato y no está admitido.',
+  'state.error.invalidState': 'El archivo parece un estado, pero no contiene ninguna sesión.',
+  'state.error.writeFailed': 'El estado se leyó, pero el navegador se negó a guardarlo.',
+  'state.confirm.title': '¿Cargar el estado encima del actual?',
+  'state.confirm.text':
+    'Ahora mismo la lista contiene {items} y {comparisons}. El archivo lo reemplaza todo entero: '
+    + 'la lista, las categorías, las respuestas y los movimientos hechos a mano. No se puede '
+    + 'deshacer.',
+  'state.confirm.confirm': 'Reemplazar el estado actual',
+  'state.confirm.cancelled': 'La importación del estado se canceló: no cambió nada.',
+  'state.restored.title': 'El estado está restaurado',
+  'state.restored.items': 'elementos',
+  'state.restored.comparisons': 'comparaciones realizadas',
+  'state.restored.moves': 'movimientos a mano',
+  'state.restored.toast': 'El estado está restaurado desde el archivo.',
+
+  /* -- categories screen -------------------------------------------- */
+  'categorize.eyebrow': 'Paso 2 de 4',
+  'categorize.heading': '¿Cuánto te interesa este juego?',
+  'categorize.hint': 'No lo pienses demasiado: la categoría se puede cambiar después.',
+  'categorize.buttonsAria': 'Niveles de interés',
+  'categorize.more': 'Más interés',
+  'categorize.less': 'Menos interés',
+  'categorize.or': 'o',
+  'categorize.counter': '{index} de {total}',
+  'categorize.back': '← Anterior',
+  'categorize.defer': 'Dejar para luego <kbd>Espacio</kbd>',
+  'categorize.done': 'Todos los elementos tienen categoría.',
+  'categorize.toCompare': 'Ir a las comparaciones',
+  'categorize.empty': 'La lista está vacía: importa antes una lista de deseados.',
+  'categorize.toImport': 'Ir a la importación',
+  'categorize.position': 'Puesto en tu lista de deseados: {position}',
+  'categorize.current': 'Ahora: {category}. Elige otra categoría para cambiarla.',
+  'categorize.legendLeft': '{items} por clasificar',
+  'categorize.firstItem': 'Este es el primer elemento de la lista.',
+  'categorize.noneLeft': 'Ya no queda ningún elemento sin clasificar.',
+  'categorize.postponed': '{title} queda para luego; volvemos a él al final de la vuelta.',
+  'categorize.announce': '{title}: {category}',
+  'categorize.skipTitle': '¿Saltar las categorías?',
+  'categorize.skipText':
+    'Todos los elementos se quedan sin categoría, y las comparaciones pasan entonces por toda la '
+    + 'lista como si fuera un solo grupo: muchas más preguntas de las que habrían hecho falta con '
+    + 'cinco grupos más pequeños. No se pierde nada: puedes volver a esta etapa cuando quieras.',
+  'categorize.skipConfirm': 'Saltarla e ir a las comparaciones',
+  'categorize.skipDone': 'La etapa está saltada: las comparaciones pasan por toda la lista.',
+
+  /* -- comparisons screen -------------------------------------------- */
+  'compare.eyebrow': 'Paso 3 de 4',
+  'compare.heading': '¿Qué juego quieres más?',
+  'compare.headingDone': 'Las comparaciones están terminadas',
+  'compare.hint': 'Elige rápido. Un par que no consigas decidir se puede dejar para luego.',
+  'compare.progress': 'Categoría «{category}» · {made} · aprox. {left} por delante',
+  'compare.deferred': 'en espera: {pairs}',
+  'compare.preferA': 'Lo quiero más <kbd>A</kbd>',
+  'compare.preferB': 'Lo quiero más <kbd>D</kbd>',
+  'compare.drop': 'Ya no me interesa',
+  'compare.or': 'o',
+  'compare.tie': 'Más o menos igual <kbd>S</kbd>',
+  'compare.defer': 'No me decido <kbd>Espacio</kbd>',
+  'compare.undo': 'Deshacer <kbd>Retroceso</kbd>',
+  'compare.finish': 'Terminar por hoy',
+  'compare.finishNote': 'El progreso está guardado: tu resultado actual ya se puede usar.',
+  'compare.done': 'No queda nada que comparar: el orden está fijado.',
+  'compare.empty': 'No hay nada que comparar: la lista está vacía.',
+  'compare.toResult': 'Ver el resultado',
+  'compare.toImport': 'Ir a la importación',
+  'compare.banner.allDeferred':
+    'Todas las demás preguntas están dejadas para luego ({count}), y no se avanza sin una '
+    + 'respuesta a esta. «Más o menos igual» también es una respuesta, y la ordenación sigue con '
+    + 'ella.',
+  'compare.banner.forced': 'Este par hace falta para avanzar.',
+  'compare.rejected': 'La respuesta no se aceptó: {message}',
+  'compare.dropped': '«{title}» está en la lista de juegos que quitar de la lista de deseados.',
+  'compare.nothingToUndo': 'No hay nada que deshacer.',
+  'compare.undone': 'La última respuesta está deshecha.',
+  'compare.chosen': 'Elegido: {title}.',
+  'compare.tied': '{a} y {b}: más o menos igual.',
+  'compare.postponed': 'El par queda para luego.',
+
+  /* -- the one-off explanations -------------------------------------- */
+  'onboarding.start': 'Entendido',
+  'onboarding.categorize.title': 'Primero, agrupa los juegos por interés a grandes rasgos',
+  'onboarding.categorize.lead':
+    'Verás un juego cada vez y lo pondrás en algún punto de una escala de cinco niveles, o '
+    + 'directamente en la lista de juegos que quitar de la lista de deseados.',
+  'onboarding.categorize.why':
+    'Esto es lo que mantiene corta la ordenación: los juegos solo se comparan dentro de su propio '
+    + 'grupo, así que un reparto aproximado ahora ahorra cientos de preguntas después.',
+  'onboarding.categorize.later':
+    'No lo pienses demasiado. Una categoría se puede cambiar en cualquier momento: vuelve al '
+    + 'juego con «Anterior», o cámbiala en la pantalla del resultado.',
+  'onboarding.compare.title': 'Ahora elige entre dos juegos',
+  'onboarding.compare.lead':
+    'Dos juegos cada vez, los dos del mismo grupo. Toma el que quieras más: las teclas A y D, o '
+    + 'las flechas.',
+  'onboarding.compare.tie':
+    'Si los quieres igual, di «Más o menos igual»: también es una respuesta, y la ordenación la '
+    + 'aprovecha.',
+  'onboarding.compare.defer':
+    'Un par difícil se puede dejar para luego con Espacio; vuelve cuando los fáciles estén '
+    + 'respondidos.',
+  'onboarding.compare.stop':
+    'Termina cuando quieras. Cada respuesta se guarda, y el resultado se puede mirar en cualquier '
+    + 'momento, esté acabado o no.',
+
+  /* -- result screen -------------------------------------------------- */
+  'result.eyebrow': 'Paso 4 de 4',
+  'result.head.usable': 'El resultado ya se puede usar',
+  'result.head.ready': 'Tu orden está listo',
+  'result.head.empty': 'Todavía no hay nada que ordenar',
+  'result.lead.usable': 'Pásalo a Steam ahora, o sigue mejorándolo con más respuestas.',
+  'result.lead.ready': 'Cada puesto está fijado por tus propias respuestas.',
+  'result.lead.empty': 'Importa una lista de deseados y el orden aparecerá aquí.',
+  'result.continue': 'Seguir con las comparaciones',
+  'result.complete': 'La ordenación está terminada',
+  'result.toImport': 'Ir a la importación',
+
+  /* -- result screen: the summary -------------------------------------- */
+  'result.summary.eyebrow': 'Listo para usar',
+  'result.summary.headline': 'Tus respuestas fijan el puesto de {items}',
+  'result.summary.headlineAll': 'Toda la lista sigue tus respuestas',
+  'result.summary.headlineNone': 'Todavía no hay ningún puesto fijado por una respuesta',
+  'result.summary.rest':
+    'El resto conserva el orden que tenía en tu lista de deseados; la lista de abajo dice cuáles.',
+  'result.summary.choice':
+    'Pasa este orden a Steam ahora, o sigue comparando: cada respuesta lo mejora.',
+  'result.summary.done': 'No queda nada que comparar. Pasa el orden a Steam.',
+  'result.summary.empty': 'La lista está vacía: todavía no hay nada que mostrar.',
+  'result.summary.allRemoved': '{marked}, así que no queda nada que ordenar.',
+  'result.stats.total': 'en la lista',
+  'result.stats.confirmed': 'confirmados',
+  'result.stats.removed': 'marcados para quitar',
+  'result.built.summary': '¿Cómo se ha construido este orden?',
+  'result.built.categories':
+    'Las categorías van primero, en orden de interés; dentro de una categoría el puesto lo '
+    + 'deciden las comparaciones.',
+  'result.built.resolved':
+    'Tus respuestas fijan el puesto de {resolved} de {total}. El resto, {fallback}, conserva el '
+    + 'puesto que tenía en la lista de deseados: el orden de reserva, señalado en la lista.',
+  'result.built.answers': 'Comparaciones respondidas hasta ahora: {count}.',
+  'result.built.manual':
+    'A mano has movido {items}. Un movimiento hecho a mano se vuelve a aplicar sobre lo que '
+    + 'producen las comparaciones, así que las respuestas nuevas siguen mejorando la lista a su '
+    + 'alrededor.',
+  'result.built.noManual': 'No se ha movido nada a mano.',
+  'result.built.complete':
+    'La ordenación está terminada: cada par que el orden necesitaba tiene respuesta.',
+  'result.built.incomplete':
+    'La ordenación no está terminada; se puede retomar en cualquier momento.',
+  'result.legend.sorted': 'confirmado por las comparaciones',
+  'result.legend.fallback': 'todavía en el orden antiguo, por el puesto en la lista de deseados',
+  'result.legend.manual': 'movido a mano',
+  'result.legend.tied': 'empatado con la fila de arriba',
+
+  /* -- result screen: carrying the order into Steam --------------------- */
+  'result.transfer.eyebrow': 'Acción principal',
+  'result.transfer.heading': 'Pasar el orden a Steam',
+  'result.transfer.sub': 'Sin extensiones ni programas añadidos',
+  'result.transfer.step1': 'Mostrar la barra de marcadores',
+  'result.transfer.shortcut':
+    '<kbd>Ctrl</kbd> + <kbd>Mayús</kbd> + <kbd>B</kbd>, en Chrome, Edge y Firefox.',
+  'result.transfer.shortcutMac':
+    '<kbd>⌘</kbd> + <kbd>Mayús</kbd> + <kbd>B</kbd>, en Chrome, Edge y Firefox.',
+  'result.transfer.shortcutSafari':
+    'En Safari: menú «Visualización» → «Mostrar barra de favoritos».',
+  'result.transfer.step2': 'Arrastrar este enlace a la barra',
+  'result.transfer.step3': 'Abrir tu lista de deseados y pulsar el marcador',
+  'result.transfer.openWishlist': 'Abrir mi lista de deseados ↗',
+  'result.transfer.link': 'Pasar mi orden a Steam',
+  'result.transfer.copy': 'Copiar el enlace',
+  'result.transfer.carries': 'El enlace lleva {items}.',
+  'result.transfer.fresh':
+    'El enlace se reconstruye con cada cambio, así que lo que te llevas de aquí es siempre el '
+    + 'orden actual.',
+  'result.transfer.taken':
+    'Este es el enlace que te llevaste, y sigue escribiendo exactamente el orden que se ve abajo.',
+  'result.transfer.stale':
+    'El orden ha cambiado: sustituye el marcador antiguo por el enlace actualizado.',
+  'result.transfer.copied':
+    'El enlace está copiado. Crea un marcador a mano y pégalo como dirección.',
+  'result.transfer.copyFailed':
+    'El navegador negó el acceso al portapapeles; arrastra el enlace a la barra de marcadores en '
+    + 'su lugar.',
+  'result.transfer.clickToast':
+    'Este enlace no es para pulsarlo aquí: arrástralo a la barra de marcadores y púlsalo en la '
+    + 'página de la lista de deseados de Steam.',
+  'result.transfer.empty':
+    'La lista está vacía: todavía no hay ningún orden que llevar a ninguna parte.',
+  'result.transfer.failed': 'El enlace no se pudo construir: {message}',
+  'result.transfer.mobile':
+    'En un teléfono o una tableta esto es incómodo: un bookmarklet hay que arrastrarlo a una '
+    + 'barra de marcadores. El traspaso es más fácil en un navegador de escritorio.',
+  'result.transfer.warnAccount':
+    'El orden se escribe en la cuenta con la que este navegador ha iniciado sesión.',
+  'result.transfer.warnNoDelete':
+    'No se borra nada: los elementos que marcaste para quitar van al final de la lista.',
+  'result.transfer.warnPriority':
+    'Después, todos los elementos tienen prioridad, incluidos los que no tenían ninguna.',
+  'result.transfer.warnNoBackup':
+    'El bookmarklet no hace ninguna copia de seguridad y no comprueba el resultado después.',
+  'result.transfer.warnReload':
+    'Cuando termine, recarga la página de Steam y cambia la ordenación a tu propio orden.',
+  'result.transfer.advanced': '¿Necesitas una copia de seguridad y una comprobación automática?',
+  'result.transfer.advancedText':
+    'El userscript lee él mismo la página de la lista de deseados: guarda en un archivo el orden '
+    + 'que hay ahora, escribe el nuevo y comprueba después que ha llegado. Necesita Tampermonkey, '
+    + 'y por eso es el camino largo y no el principal.',
+  'result.transfer.advancedStep2':
+    'Instala el script «steam-wishlist-import-order.user.js» desde el repositorio.',
+  'result.transfer.advancedStep3':
+    'Abre la página de tu lista de deseados y sigue el panel que el script pone en ella.',
+
+  /* -- result screen: the list ------------------------------------------ */
+  'result.list.heading': 'Tu orden',
+  'result.search': 'Buscar por título o App ID',
+  'result.filterAria': 'Qué se muestra',
+  'result.filter.all': 'Todo',
+  'result.filter.game': 'Juegos',
+  'result.filter.dlc': 'DLC',
+  'result.hint':
+    'Una fila se arrastra con el ratón, o se selecciona y se mueve con <kbd>Ctrl</kbd> + '
+    + '<kbd>↑</kbd> / <kbd>Ctrl</kbd> + <kbd>↓</kbd>. Los movimientos se guardan y sobreviven a '
+    + 'una recarga.',
+  'result.removed.hint': 'Estos elementos no entran en la numeración de la lista final.',
+  'result.mark.confirmed': 'Confirmado por las comparaciones',
+  'result.mark.fallback': 'Todavía en el orden antiguo',
+  'result.mark.manual': 'Movido a mano',
+  'result.mark.tied': 'Empatado con la fila de arriba',
+  'result.row.appId': 'App ID {appId}',
+  'result.row.where': '{category} · {position} en la categoría',
+  'result.row.aria': '{position}. {title}. {category}. {kind}. {note}',
+  'result.row.categoryAria': 'Categoría: {title}',
+  'result.shown.all': '{rows}',
+  'result.shown.filtered': '{shown} de {total} a la vista',
+  'result.empty.filter': 'Ni el filtro ni la búsqueda encontraron un solo elemento.',
+  'result.empty.noItems': 'Importa una lista de deseados y el resultado aparecerá aquí.',
+  'result.empty.allRemoved':
+    'Todos los elementos están marcados para quitar: no hay nada que ordenar.',
+  'result.move.failed': 'No se pudo mover: {message}',
+  'result.move.announce': '«{title}» {where}{category}.',
+  'result.move.place': 'al puesto {position}',
+  'result.move.newPlace': 'a un puesto nuevo',
+  'result.move.categorySuffix': ', categoría: {category}',
+  'result.move.categoryToast': '«{title}» movido a «{category}».',
+  'result.move.edge':
+    'Esta es la {edge} fila de la categoría «{category}». La categoría se cambia con el selector '
+    + 'de la propia fila.',
+  'result.move.edgeFirst': 'primera',
+  'result.move.edgeLast': 'última',
+  'result.category.failed': 'La categoría no se pudo cambiar: {message}',
+  'result.category.toast': '«{title}»: {category}.',
+
+  /* -- result screen: the files and the two resets ---------------------- */
+  'result.export.summary': 'Descargar o compartir',
+  'result.export.hint':
+    'Los archivos se construyen aquí, en el navegador, y los guardas tú: no se sube nada.',
+  'result.exportJson': 'Orden en JSON',
+  'result.exportCsv': 'Lista en CSV',
+  'result.copyText': 'Copiar como lista',
+  'result.saveState': 'Copia del estado',
+  'result.export.empty': 'No hay nada que exportar: la lista está vacía.',
+  'result.export.failed': 'El archivo no se pudo construir: {message}',
+  'result.export.jsonDone': 'El orden final está guardado en JSON.',
+  'result.export.csvDone': 'La lista final está guardada en CSV.',
+  'result.copy.empty': 'No hay nada que copiar: la lista está vacía.',
+  'result.copy.done': 'La lista numerada está copiada al portapapeles.',
+  'result.copy.failed':
+    'El navegador negó el acceso al portapapeles; la lista se guardó en un archivo en su lugar.',
+  'result.resetManual': 'Restablecer los movimientos a mano',
+  'result.resetManual.none': 'No hay ningún movimiento a mano.',
+  'result.resetManual.title': '¿Restablecer los movimientos a mano?',
+  'result.resetManual.text':
+    'Esto olvidará {moves} y devolverá la lista al orden que dan las comparaciones. Las '
+    + 'respuestas de las comparaciones se quedan.',
+  'result.resetManual.confirm': 'Restablecer los movimientos',
+  'result.resetManual.done': 'Los movimientos a mano están restablecidos.',
+  'result.resetAnswers': 'Restablecer las respuestas de las comparaciones',
+  'result.resetAnswers.none': 'Todavía no hay ninguna respuesta.',
+  'result.resetAnswers.title': '¿Restablecer las respuestas de las comparaciones?',
+  'result.resetAnswers.text':
+    'Esto borrará {answers} y hará que las comparaciones empiecen de cero. La lista de elementos, '
+    + 'las categorías y los movimientos a mano se quedan. No se puede deshacer.',
+  'result.resetAnswers.confirm': 'Restablecer las respuestas',
+  'result.resetAnswers.done': 'Las respuestas de las comparaciones están restablecidas.',
+
+  /* -- the bookmarklet: what it says on the Steam page ------------------ */
+  'bookmarklet.title': 'Steam Wishlist Sorter',
+  'bookmarklet.wrongPage':
+    'Esta no es la lista de deseados de Steam. Abre store.steampowered.com/wishlist, inicia '
+    + 'sesión y pulsa allí el marcador. No se envió nada.',
+  'bookmarklet.confirm':
+    'Se va a escribir el orden de {items} en la lista de deseados de la cuenta con la que este '
+    + 'navegador ha iniciado sesión. No se borra nada. No se puede deshacer: después de la '
+    + 'escritura todas las entradas tienen prioridad, incluidas las que no tenían ninguna, y '
+    + 'ninguna copia de seguridad devuelve eso.',
+  'bookmarklet.write': 'Escribir el orden',
+  'bookmarklet.cancel': 'Cancelar',
+  'bookmarklet.close': 'Cerrar',
+  'bookmarklet.sending': 'Enviando el orden a Steam…',
+  'bookmarklet.done':
+    'Steam aceptó el orden. Recarga la página de la lista de deseados y míralo: este bookmarklet '
+    + 'no lee la página, así que la comprobación te toca a ti.',
+  'bookmarklet.unclear':
+    'Steam respondió, pero la respuesta no confirma ni desmiente nada. Recarga la página de la '
+    + 'lista de deseados y mira el orden antes de repetir.',
+  'bookmarklet.refused':
+    'Steam rechazó el orden y no dijo nada útil sobre el porqué. Recarga la página de la lista de '
+    + 'deseados y mira el orden antes de repetir.',
+  'bookmarklet.badRequest':
+    'Steam apartó la petición en la puerta, con un 400 y un cuerpo vacío: nunca llegó a mirar el '
+    + 'orden, así que no se escribió nada. Eso es lo que responde cuando a la petición le falta '
+    + 'algo que él exige, y la respuesta no nombra nada. Parece que el punto de entrada ha '
+    + 'cambiado; la página del proyecto dice qué hacer en ese caso.',
+  'bookmarklet.signedOut':
+    'Steam no aceptó la sesión: lo más habitual es que simplemente haya caducado. Vuelve a '
+    + 'iniciar sesión en Steam, recarga la lista de deseados y pulsa el marcador una vez más. No '
+    + 'se escribió nada.',
+  'bookmarklet.rateLimited':
+    'Steam respondió «demasiadas peticiones». Espera un par de minutos y pulsa el marcador otra '
+    + 'vez: no se cambió nada.',
+  'bookmarklet.tooLarge':
+    'La petición es demasiado grande para Steam: todo el orden va en una sola petición, y esta no '
+    + 'cupo. No se escribió nada. Una lista así necesita el userscript, que puede marcar las '
+    + 'filas en la página en su lugar.',
+  'bookmarklet.serverError':
+    'El problema está del lado de Steam: respondió con un error de servidor. Prueba dentro de '
+    + 'unos minutos; no se escribió nada.',
+  'bookmarklet.offline':
+    'La petición nunca llegó a Steam. Puede que la red se haya caído, o que una extensión la haya '
+    + 'bloqueado. No se escribió nada: comprueba la conexión y pulsa el marcador otra vez.',
+
+  /* -- exported files -------------------------------------------------- */
+  'export.csv.number': 'N.º',
+  'export.csv.appId': 'App ID',
+  'export.csv.title': 'Título',
+  'export.csv.category': 'Categoría',
+  'export.csv.kind': 'Tipo',
+  'export.csv.positionInCategory': 'Puesto en la categoría',
+  'export.csv.origin': 'De dónde viene el orden',
+  'export.csv.wishlistPosition': 'Puesto en la lista de deseados',
+  'export.csv.url': 'Enlace',
+  'export.origin.manual': 'a mano',
+  'export.origin.comparisons': 'comparaciones',
+  'export.origin.fallback': 'orden de reserva',
+  'export.kind.game': 'Juego',
+  'export.kind.dlc': 'DLC',
+  'export.kind.unknown': 'Desconocido',
+};
+
+/* ------------------------------------------------ brazilian portuguese */
+
+/** @type {Readonly<Record<string, string>>} */
+const PT_BR = {
+  /* -- counted phrases -------------------------------------------- */
+  'count.items.one': '{count} item',
+  'count.items.few': '{count} itens',
+  'count.items.many': '{count} itens',
+  'count.records.one': '{count} registro lido',
+  'count.records.few': '{count} registros lidos',
+  'count.records.many': '{count} registros lidos',
+  'count.comparisonsMade.one': '{count} comparação realizada',
+  'count.comparisonsMade.few': '{count} comparações realizadas',
+  'count.comparisonsMade.many': '{count} comparações realizadas',
+  'count.comparisonsDone.one': '{count} comparação feita',
+  'count.comparisonsDone.few': '{count} comparações feitas',
+  'count.comparisonsDone.many': '{count} comparações feitas',
+  'count.pairs.one': '{count} par',
+  'count.pairs.few': '{count} pares',
+  'count.pairs.many': '{count} pares',
+  'count.rows.one': '{count} linha',
+  'count.rows.few': '{count} linhas',
+  'count.rows.many': '{count} linhas',
+  'count.moves.one': '{count} movimento',
+  'count.moves.few': '{count} movimentos',
+  'count.moves.many': '{count} movimentos',
+  'count.answers.one': '{count} resposta',
+  'count.answers.few': '{count} respostas',
+  'count.answers.many': '{count} respostas',
+  'count.marked.one': '{count} item está marcado para sair da lista de desejos',
+  'count.marked.few': '{count} itens estão marcados para sair da lista de desejos',
+  'count.marked.many': '{count} itens estão marcados para sair da lista de desejos',
+
+  /* -- chrome ------------------------------------------------------ */
+  'meta.description':
+    'Uma ferramenta local que coloca em ordem uma lista de desejos da Steam por comparações duas '
+    + 'a duas.',
+  'a11y.skipToContent': 'Ir para o conteúdo',
+  'a11y.progress.import': 'Carregamento da lista de desejos',
+  'a11y.progress.categorize': 'Itens com categoria',
+  'a11y.progress.compare': 'Comparações respondidas',
+  'nav.aria': 'Etapas',
+  'nav.import': 'Lista de desejos',
+  'nav.categorize': 'Categorias',
+  'nav.compare': 'Comparações',
+  'nav.result': 'Resultado',
+  'nav.state.done': 'etapa concluída',
+  'nav.state.current': 'etapa atual',
+  'nav.state.locked': 'etapa ainda indisponível',
+  'settings.title': 'Configurações',
+  'settings.covers': 'Carregar as capas',
+  'settings.language': 'Idioma da interface',
+  'settings.theme': 'Tema',
+  'theme.modern': 'Moderno',
+  'theme.steam': 'No estilo da Steam',
+  'actions.saveState': 'Salvar um backup',
+  'actions.loadState': 'Carregar um backup',
+  'actions.skipStage': 'Pular as categorias',
+  'actions.reset': 'Começar de novo',
+  'privacy.short': 'Roda localmente · seus dados não vão para servidores de terceiros',
+  'privacy.details': 'Detalhes',
+  'privacy.note':
+    'Seus dados nunca saem do navegador. A única requisição externa que o aplicativo faz, em '
+    + 'qualquer momento, é o carregamento das capas dos jogos a partir da CDN da Steam por um '
+    + 'endereço público; ela se desliga no botão “Carregar as capas”. A importação direto de uma '
+    + 'conta é feita pelo servidor local que roda na sua máquina: ela vai para a Steam, para mais '
+    + 'ninguém, e só quando você aperta o botão.',
+  'dialog.title': 'Confirmar a ação',
+  'dialog.cancel': 'Cancelar',
+  'dialog.confirm': 'Continuar',
+
+  /* -- shared item bits -------------------------------------------- */
+  'common.openInSteam': 'Abrir na Steam ↗',
+  'common.openInSteamAria': 'Abrir “{title}” na Steam, em uma nova aba',
+  'category.must': 'Quero muito',
+  'category.want': 'Quero',
+  'category.maybe': 'Talvez',
+  'category.unlikely': 'Pouco provável',
+  'category.meh': 'Quase sem interesse',
+  'category.remove': 'Tirar da lista de desejos',
+  'category.none': 'Sem categoria',
+  'kind.game': 'Jogo',
+  'kind.dlc': 'DLC',
+  'kind.unknown': 'Tipo desconhecido',
+  'cover.none': 'Sem capa',
+  'cover.off': 'As capas estão desligadas',
+  'cover.failed': 'A capa não carregou',
+
+  /* -- application ------------------------------------------------- */
+  'app.saveFailed':
+    'O estado não pôde ser salvo no navegador. Salve em um arquivo para não perder nada.',
+  'app.saveFailedReason': 'O estado não pôde ser salvo: {message}',
+  'app.loadFailed':
+    'O estado salvo não pôde ser lido ({message}). Começando de uma lista vazia.',
+  'app.covers.on': 'Capas ligadas: o aplicativo carrega as imagens da CDN da Steam.',
+  'app.covers.off': 'Capas desligadas: o aplicativo não faz nenhuma requisição externa.',
+  'app.language.changed': 'Idioma da interface: {language}.',
+  'app.theme.changed': 'Tema: {theme}.',
+  'app.reset.title': 'Começar de novo?',
+  'app.reset.text':
+    'Vai ser apagado tudo isto: {items}, as categorias, as respostas das comparações e os '
+    + 'movimentos feitos à mão. Não dá para desfazer — se o trabalho ainda puder servir, salve '
+    + 'antes em um arquivo.',
+  'app.reset.confirm': 'Apagar tudo e começar de novo',
+  'app.reset.done': 'O estado está limpo.',
+  'app.state.buildFailed': 'O arquivo de estado não pôde ser montado: {message}',
+  'app.state.saved': 'O estado está salvo em um arquivo.',
+  'app.saved': 'Progresso salvo neste navegador',
+
+  /* -- import screen ------------------------------------------------ */
+  'import.eyebrow': 'Uma ordem que você escolheu de verdade',
+  'import.promise': 'Classifique os jogos pela vontade real de jogar',
+  'import.lead':
+    'Agrupe rápido a sua lista de desejos por interesse e depois escolha entre dois jogos. Pare '
+    + 'quando quiser — o progresso está sempre salvo.',
+  'import.step.load': 'Carregar a lista de desejos',
+  'import.step.group': 'Agrupar por interesse',
+  'import.step.compare': 'Comparar os jogos',
+  'import.step.send': 'Enviar a ordem para a Steam',
+  'import.sessions':
+    'Uma ordenação completa pode levar várias sessões. Seu resultado atual está sempre disponível.',
+  'import.other': 'Outras formas de importar',
+  'import.file.title': 'Arquivo JSON',
+  'import.file.hint': 'Uma exportação da Steam ou um arquivo montado pelo userscript.',
+  'import.file.button': 'Escolher um arquivo…',
+  'import.file.none': 'Nenhum arquivo escolhido',
+  'import.paste.title': 'Colar JSON',
+  'import.paste.hint': 'O corpo da resposta da Steam pode ser colado como está.',
+  'import.paste.label': 'JSON da lista de desejos',
+  'import.paste.placeholder': '[ { "appid": 620, "name": "Portal 2" }, … ]',
+  'import.paste.run': 'Importar do texto',
+  'import.userscript.title': 'Da página da Steam, com o userscript',
+  'import.userscript.hint': 'O arquivo que ele baixa se carrega aqui, com “Arquivo JSON” acima.',
+  'import.state.title': 'Estado salvo',
+  'import.state.hint':
+    'Um arquivo que você salvou antes com “Salvar um backup”: voltam as categorias e todas as '
+    + 'respostas.',
+  'import.state.button': 'Escolher um arquivo de estado…',
+  'import.demo.button': 'Testar com 20 jogos',
+  'import.ready.eyebrow': 'Pronto',
+  'import.ready.count.one': '{count} item carregado',
+  'import.ready.count.few': '{count} itens carregados',
+  'import.ready.count.many': '{count} itens carregados',
+  'import.ready.next':
+    'Agora distribua os jogos em cinco níveis de interesse. É isso que derruba o número de '
+    + 'comparações.',
+  'import.ready.start': 'Começar a agrupar',
+  'import.ready.again': 'Carregar outra lista de desejos',
+  'import.current':
+    'A lista contém agora {items}: {sorted} com categoria e {plain} sem ela. Comparações '
+    + 'realizadas: '
+    + '{comparisons}. Importar de novo atualiza as entradas e mantém o trabalho já feito.',
+  'import.announce': 'Itens importados: {count}. A lista contém agora {total}.',
+  'import.source.file': 'Arquivo {name}',
+  'import.source.pasted': 'Texto colado',
+  'import.source.demo': 'Conjunto de demonstração',
+  'import.report.title': '{source}: {records}',
+  'import.report.added': 'adicionados',
+  'import.report.updated': 'atualizados',
+  'import.report.duplicates': 'duplicados',
+  'import.report.skipped': 'ignorados',
+  'import.issue.line': '{where}: {what}',
+  'import.issue.entry': 'registro n.º {number}',
+  'import.issue.key': 'chave “{key}”',
+  'import.issue.more': '…e mais {count}',
+  'import.skip.notAnObject': 'o registro não parece nem um item nem um App ID',
+  'import.skip.missingAppId': 'sem App ID',
+  'import.skip.invalidAppId': 'o App ID não é um número',
+  'import.skip.duplicateInInput': 'o item já aparecia neste mesmo arquivo',
+  'import.error.title': 'A importação falhou',
+  'import.error.emptyInput': 'Não há nada para importar: o arquivo ou o campo está vazio.',
+  'import.error.invalidJson':
+    'Isto não é JSON. Parece que o texto foi copiado só em parte, ou que entrou alguma coisa a '
+    + 'mais.',
+  'import.error.unrecognizedFormat':
+    'O JSON foi lido, mas não parece uma lista de desejos. É preciso um vetor de itens, um objeto '
+    + 'no formato { "440": { … } } ou uma resposta da Steam com um campo response.items.',
+  'import.error.emptyResultTitle': 'A importação passou, mas a lista está vazia',
+  'import.error.emptyResultText':
+    'Não foi possível ler um único item. Verifique se o arquivo contém mesmo uma lista de desejos.',
+  'import.error.fileRead': 'O arquivo não pôde ser lido',
+  'import.demo.failedTitle': 'O conjunto de demonstração não carregou',
+  'import.demo.failedText':
+    '{message}. O arquivo {url} precisa ficar ao lado de index.html — e a página precisa ser '
+    + 'aberta por http(s), não como file://.',
+  'import.demo.httpError': 'o servidor respondeu {status}',
+
+  /* -- import straight from a Steam account ------------------------- */
+  'steam.title': 'Carregar da Steam',
+  'steam.subtitle': 'O jeito mais simples para uma lista de desejos pública',
+  'steam.field': 'Seu perfil da Steam',
+  'steam.placeholder': 'steamcommunity.com/id/seunome, um apelido ou um SteamID64',
+  'steam.run': 'Verificar e carregar',
+  'steam.cancel': 'Parar',
+  'steam.checking': 'Procurando o servidor local…',
+  'steam.warning':
+    'A importação automática funciona quando os “Detalhes do jogo” estão públicos.',
+  'steam.privateAsk': 'E se estiverem privados?',
+  'steam.privateHelp':
+    'Abra seu perfil da Steam, escolha “Editar perfil” e depois “Configurações de privacidade”, e '
+    + 'coloque “Detalhes do jogo” em Público. Se preferir não abrir, o userscript que está em '
+    + '“Outras formas de importar” lê a página em que você já entrou e funciona com uma lista '
+    + 'privada.',
+  'steam.settingsLink': 'Abrir as configurações da Steam ↗',
+
+  'steam.blocked.title': 'A Steam não liberou a lista de desejos',
+  'steam.blocked.text':
+    'Isso costuma significar que os “Detalhes do jogo” estão privados: a lista de desejos segue '
+    + 'essa única configuração.',
+  'steam.blocked.unavailableTitle': 'A lista de desejos não pôde ser obtida',
+  'steam.blocked.unavailableText':
+    'A Steam respondeu com um erro, e é com um erro que ela responde tanto a uma lista que não '
+    + 'quer entregar quanto num minuto ruim dela mesma. Então: se os “Detalhes do jogo” estão '
+    + 'privados, os passos abaixo os abrem; se já estão públicos, espere alguns minutos e aperte '
+    + '“Verificar de novo”.',
+  'steam.blocked.step1': 'Abra seu perfil da Steam e escolha “Editar perfil”.',
+  'steam.blocked.step2': 'Abra as “Configurações de privacidade”.',
+  'steam.blocked.step3': 'Coloque “Detalhes do jogo” em Público.',
+  'steam.blocked.step4': 'Volte aqui e aperte “Verificar de novo”.',
+  'steam.blocked.settings': 'Abrir as configurações da Steam',
+  'steam.blocked.again': 'Verificar de novo',
+  'steam.blocked.keepPrivate': 'Não quero deixar pública',
+
+  'steam.userscript.lead':
+    'Colete a lista na própria página da Steam. O userscript lê a página da lista de desejos em '
+    + 'que você já entrou, então a configuração de privacidade não entra em jogo, e ele não faz '
+    + 'nenhuma requisição de rede por conta própria.',
+  'steam.userscript.step1':
+    'Instale o Tampermonkey — ele existe para Chrome, Edge, Firefox e Opera.',
+  'steam.userscript.step2': 'Instale o script “steam-wishlist-export.user.js” do repositório.',
+  'steam.userscript.step3':
+    'Abra a página da sua lista de desejos e aperte “Coletar a lista” e depois “Baixar o JSON”.',
+  'steam.userscript.step4':
+    'Volte aqui e escolha esse arquivo em “Outras formas de importar”.',
+  'steam.userscript.link': 'Abrir o script no GitHub ↗',
+
+  'steam.offline.title': 'Carregar minha lista de desejos',
+  'steam.offline.subtitle': 'Escolha o caminho mais simples',
+  'steam.offline.text':
+    'Seu navegador não deixa esta página ler a Steam diretamente, e não há um servidor local '
+    + 'atrás dela para pedir em nome dela. Mesmo assim, seus dados continuam sendo seus.',
+  'steam.offline.instructions': 'Ver as instruções',
+  'steam.offline.userscript.badge': 'Funciona com listas privadas',
+  'steam.offline.userscript.title': 'Importar da sua página da Steam',
+  'steam.offline.local.title': 'Rodar a versão local',
+  'steam.offline.local.text': 'Aí basta um link para um perfil público.',
+  'steam.offline.local.download': 'Baixar',
+  'steam.offline.local.step1': 'Instale o Node.js 20 ou mais novo.',
+  'steam.offline.local.step2': 'Descompacte o arquivo onde quiser.',
+  'steam.offline.local.step3':
+    'Rode “start.bat” no Windows, ou “node server.js” no macOS e no Linux.',
+  'steam.offline.local.step4': 'Abra http://localhost:8080/ no navegador.',
+  'steam.step.account': 'Procurando a conta…',
+  'steam.step.wishlist': 'Pedindo a lista de desejos à Steam…',
+  'steam.step.titles': 'Títulos: {done} de {total}',
+  'steam.step.waiting':
+    'A Steam está limitando as requisições. Esperando {seconds} s para pedir de novo…',
+  'steam.note':
+    'Um título, uma requisição: por isso uma lista longa leva minutos. Tudo o que já chegou fica '
+    + 'salvo — parar não perde nada.',
+  'steam.done.title': 'A lista de desejos chegou',
+  'steam.done.titlesTitle': 'Os títulos foram obtidos',
+  'steam.done.titlesText': '{items} na lista; com título vindo da Steam: {titles}.',
+  'steam.done.text':
+    'Conta da Steam {account}: {items} na lista; com título vindo da Steam: {titles}.',
+  'steam.done.missing.one':
+    'A Steam não entregou {count} título: esse item aparece pelo App ID dele.',
+  'steam.done.missing.few':
+    'A Steam não entregou {count} títulos: esses itens aparecem pelo App ID deles.',
+  'steam.done.missing.many':
+    'A Steam não entregou {count} títulos: esses itens aparecem pelo App ID deles.',
+  'steam.done.throttled':
+    'A Steam parou de responder no título {done} de {total}: ela está limitando as requisições. '
+    + 'Tudo o que foi obtido já está na lista — tente o botão de novo daqui a alguns minutos.',
+  'steam.missing.text.one':
+    '{count} item da lista ainda aparece por um App ID, e não por um título.',
+  'steam.missing.text.few':
+    '{count} itens da lista ainda aparecem por um App ID, e não por um título.',
+  'steam.missing.text.many':
+    '{count} itens da lista ainda aparecem por um App ID, e não por um título.',
+  'steam.missing.run': 'Obter os títulos que faltam',
+  'steam.cancelled': 'Parado. Tudo o que tinha chegado até ali ficou na lista.',
+  'steam.error.title': 'A importação da Steam falhou',
+  'steam.error.emptyInput':
+    'O campo está vazio: digite um SteamID64, um nome de perfil ou um link para o perfil.',
+  'steam.error.invalidAccount':
+    'Isto não é um SteamID64 (17 dígitos), nem um nome de perfil da Steam, nem um link para um '
+    + 'perfil em steamcommunity.com.',
+  'steam.error.accountNotFound':
+    'A Steam não conhece essa conta. Confira como está escrito — ou abra seu perfil no navegador '
+    + 'e copie o endereço da página.',
+  'steam.error.wishlistEmpty':
+    'A lista de desejos desta conta está vazia: ainda não há nada para ordenar.',
+  'steam.error.rateLimited':
+    'A Steam está limitando as requisições: vieram demais deste endereço. Ela solta depois de '
+    + 'alguns minutos — tente de novo aí.',
+  'steam.error.network':
+    'Não foi possível alcançar a Steam. Confira a conexão, e se o servidor local ainda está no ar.',
+  'steam.error.steamError':
+    'A Steam respondeu alguma coisa inesperada. Isso costuma ser a própria Steam passando por um '
+    + 'mau momento; tente um pouco mais tarde.',
+  'steam.error.notLocal': 'O servidor local só responde a requisições vindas de localhost.',
+  'steam.error.unknown': 'Falha inesperada: {message}',
+
+  /* -- state file --------------------------------------------------- */
+  'state.error.invalidJson': 'O arquivo de estado não se lê como JSON.',
+  'state.error.foreignState':
+    'Este é o JSON de outro aplicativo: ele não traz nenhuma assinatura do Steam Wishlist Sorter.',
+  'state.error.unsupportedVersion':
+    'O arquivo foi salvo por outra versão do formato e não é suportado.',
+  'state.error.invalidState': 'O arquivo parece um estado, mas não contém nenhuma sessão.',
+  'state.error.writeFailed': 'O estado foi lido, mas o navegador se recusou a salvá-lo.',
+  'state.confirm.title': 'Carregar o estado por cima do atual?',
+  'state.confirm.text':
+    'A lista contém agora {items} e {comparisons}. O arquivo substitui tudo isso de uma vez: a '
+    + 'lista, as categorias, as respostas e os movimentos feitos à mão. Não dá para desfazer.',
+  'state.confirm.confirm': 'Substituir o estado atual',
+  'state.confirm.cancelled': 'A importação do estado foi cancelada — nada mudou.',
+  'state.restored.title': 'O estado foi restaurado',
+  'state.restored.items': 'itens',
+  'state.restored.comparisons': 'comparações realizadas',
+  'state.restored.moves': 'movimentos à mão',
+  'state.restored.toast': 'O estado foi restaurado do arquivo.',
+
+  /* -- categories screen -------------------------------------------- */
+  'categorize.eyebrow': 'Passo 2 de 4',
+  'categorize.heading': 'Qual é o seu interesse neste jogo?',
+  'categorize.hint': 'Não pense demais — a categoria pode mudar depois.',
+  'categorize.buttonsAria': 'Níveis de interesse',
+  'categorize.more': 'Mais interesse',
+  'categorize.less': 'Menos interesse',
+  'categorize.or': 'ou',
+  'categorize.counter': '{index} de {total}',
+  'categorize.back': '← Anterior',
+  'categorize.defer': 'Deixar para depois <kbd>Espaço</kbd>',
+  'categorize.done': 'Todos os itens têm categoria.',
+  'categorize.toCompare': 'Ir para as comparações',
+  'categorize.empty': 'A lista está vazia: importe antes uma lista de desejos.',
+  'categorize.toImport': 'Ir para a importação',
+  'categorize.position': 'Lugar na sua lista de desejos: {position}',
+  'categorize.current': 'Agora: {category}. Escolha outra categoria para mudar.',
+  'categorize.legendLeft': '{items} por classificar',
+  'categorize.firstItem': 'Este é o primeiro item da lista.',
+  'categorize.noneLeft': 'Não sobrou nenhum item sem classificar.',
+  'categorize.postponed': '{title} ficou para depois; voltamos a ele no fim da volta.',
+  'categorize.announce': '{title}: {category}',
+  'categorize.skipTitle': 'Pular as categorias?',
+  'categorize.skipText':
+    'Todos os itens ficam sem categoria, e as comparações passam então pela lista inteira como um '
+    + 'grupo só — muito mais perguntas do que cinco grupos menores teriam pedido. Nada se perde: '
+    + 'você pode voltar a esta etapa quando quiser.',
+  'categorize.skipConfirm': 'Pular e ir para as comparações',
+  'categorize.skipDone': 'A etapa foi pulada: as comparações passam pela lista inteira.',
+
+  /* -- comparisons screen -------------------------------------------- */
+  'compare.eyebrow': 'Passo 3 de 4',
+  'compare.heading': 'Qual jogo você quer mais?',
+  'compare.headingDone': 'As comparações terminaram',
+  'compare.hint': 'Escolha rápido. Um par que você não conseguir decidir pode ficar para depois.',
+  'compare.progress': 'Categoria “{category}” · {made} · aprox. {left} pela frente',
+  'compare.deferred': 'em espera: {pairs}',
+  'compare.preferA': 'Quero mais <kbd>A</kbd>',
+  'compare.preferB': 'Quero mais <kbd>D</kbd>',
+  'compare.drop': 'Não interessa mais',
+  'compare.or': 'ou',
+  'compare.tie': 'Mais ou menos igual <kbd>S</kbd>',
+  'compare.defer': 'Não consigo decidir <kbd>Espaço</kbd>',
+  'compare.undo': 'Desfazer <kbd>Backspace</kbd>',
+  'compare.finish': 'Encerrar por hoje',
+  'compare.finishNote': 'O progresso está salvo — seu resultado atual já dá para usar.',
+  'compare.done': 'Não sobrou nada para comparar: a ordem está definida.',
+  'compare.empty': 'Não há nada para comparar: a lista está vazia.',
+  'compare.toResult': 'Ver o resultado',
+  'compare.toImport': 'Ir para a importação',
+  'compare.banner.allDeferred':
+    'Todas as outras perguntas ficaram para depois ({count}), e não dá para seguir sem uma '
+    + 'resposta para esta. “Mais ou menos igual” também é uma resposta, e a ordenação segue com '
+    + 'ela.',
+  'compare.banner.forced': 'Este par é necessário para seguir.',
+  'compare.rejected': 'A resposta não foi aceita: {message}',
+  'compare.dropped': '“{title}” está na lista dos jogos a tirar da lista de desejos.',
+  'compare.nothingToUndo': 'Não há nada para desfazer.',
+  'compare.undone': 'A última resposta foi desfeita.',
+  'compare.chosen': 'Escolhido: {title}.',
+  'compare.tied': '{a} e {b} — mais ou menos igual.',
+  'compare.postponed': 'O par ficou para depois.',
+
+  /* -- the one-off explanations -------------------------------------- */
+  'onboarding.start': 'Entendi',
+  'onboarding.categorize.title': 'Primeiro, agrupe os jogos por interesse, sem precisão',
+  'onboarding.categorize.lead':
+    'Você verá um jogo por vez e vai colocá-lo em algum ponto de uma escala de cinco níveis — ou '
+    + 'direto na lista de jogos a tirar da lista de desejos.',
+  'onboarding.categorize.why':
+    'É isso que deixa a ordenação curta: os jogos só são comparados dentro do próprio grupo, '
+    + 'então uma divisão grosseira agora poupa centenas de perguntas depois.',
+  'onboarding.categorize.later':
+    'Não pense demais. Uma categoria pode mudar a qualquer momento — volte ao jogo com '
+    + '“Anterior”, ou mude na tela do resultado.',
+  'onboarding.compare.title': 'Agora escolha entre dois jogos',
+  'onboarding.compare.lead':
+    'Dois jogos por vez, os dois do mesmo grupo. Pegue o que você quer mais — as teclas A e D, ou '
+    + 'as setas.',
+  'onboarding.compare.tie':
+    'Se quiser os dois igualmente, diga “Mais ou menos igual”: também é uma resposta, e a '
+    + 'ordenação usa ela.',
+  'onboarding.compare.defer':
+    'Um par difícil pode ficar para depois com Espaço; ele volta quando os fáceis estiverem '
+    + 'respondidos.',
+  'onboarding.compare.stop':
+    'Encerre quando quiser. Cada resposta é salva, e o resultado dá para olhar a qualquer momento '
+    + '— terminado ou não.',
+
+  /* -- result screen -------------------------------------------------- */
+  'result.eyebrow': 'Passo 4 de 4',
+  'result.head.usable': 'O resultado já dá para usar',
+  'result.head.ready': 'Sua ordem está pronta',
+  'result.head.empty': 'Ainda não há nada para ordenar',
+  'result.lead.usable': 'Passe para a Steam agora, ou continue melhorando com mais respostas.',
+  'result.lead.ready': 'Cada lugar nela está definido pelas suas próprias respostas.',
+  'result.lead.empty': 'Importe uma lista de desejos, e a ordem aparece aqui.',
+  'result.continue': 'Continuar as comparações',
+  'result.complete': 'A ordenação terminou',
+  'result.toImport': 'Ir para a importação',
+
+  /* -- result screen: the summary -------------------------------------- */
+  'result.summary.eyebrow': 'Pronto para usar',
+  'result.summary.headline': 'Suas respostas definem o lugar de {items}',
+  'result.summary.headlineAll': 'A lista inteira segue as suas respostas',
+  'result.summary.headlineNone': 'Nenhum lugar está definido por uma resposta ainda',
+  'result.summary.rest':
+    'O resto mantém a ordem que tinha na sua lista de desejos; a lista abaixo diz quais.',
+  'result.summary.choice':
+    'Passe esta ordem para a Steam agora, ou continue comparando — cada resposta melhora ela.',
+  'result.summary.done': 'Não sobrou nada para comparar. Passe a ordem para a Steam.',
+  'result.summary.empty': 'A lista está vazia: ainda não há nada para mostrar.',
+  'result.summary.allRemoved': '{marked}, então não sobrou nada para ordenar.',
+  'result.stats.total': 'na lista',
+  'result.stats.confirmed': 'confirmados',
+  'result.stats.removed': 'marcados para sair',
+  'result.built.summary': 'Como esta ordem foi montada?',
+  'result.built.categories':
+    'As categorias vêm primeiro, na ordem do interesse; dentro de uma categoria o lugar é '
+    + 'decidido pelas comparações.',
+  'result.built.resolved':
+    'Suas respostas definem o lugar de {resolved} de {total}. O resto, {fallback}, mantém o lugar '
+    + 'que tinha na lista de desejos — a ordem de reserva, marcada na lista.',
+  'result.built.answers': 'Comparações respondidas até agora: {count}.',
+  'result.built.manual':
+    'À mão, você moveu {items}. Um movimento feito à mão é reaplicado por cima do que as '
+    + 'comparações produzem, então as respostas novas continuam melhorando a lista em volta dele.',
+  'result.built.noManual': 'Nada foi movido à mão.',
+  'result.built.complete':
+    'A ordenação terminou: cada par de que a ordem precisava tem resposta.',
+  'result.built.incomplete': 'A ordenação não terminou — dá para retomar a qualquer momento.',
+  'result.legend.sorted': 'confirmado pelas comparações',
+  'result.legend.fallback': 'ainda na ordem antiga — pelo lugar na lista de desejos',
+  'result.legend.manual': 'movido à mão',
+  'result.legend.tied': 'empatado com a linha de cima',
+
+  /* -- result screen: carrying the order into Steam --------------------- */
+  'result.transfer.eyebrow': 'Ação principal',
+  'result.transfer.heading': 'Passar a ordem para a Steam',
+  'result.transfer.sub': 'Sem extensões nem programas adicionais',
+  'result.transfer.step1': 'Mostrar a barra de favoritos',
+  'result.transfer.shortcut':
+    '<kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>B</kbd> — no Chrome, no Edge e no Firefox.',
+  'result.transfer.shortcutMac':
+    '<kbd>⌘</kbd> + <kbd>Shift</kbd> + <kbd>B</kbd> — no Chrome, no Edge e no Firefox.',
+  'result.transfer.shortcutSafari':
+    'No Safari: menu “Visualizar” → “Mostrar barra de favoritos”.',
+  'result.transfer.step2': 'Arrastar este link para a barra',
+  'result.transfer.step3': 'Abrir sua lista de desejos e apertar o favorito',
+  'result.transfer.openWishlist': 'Abrir minha lista de desejos ↗',
+  'result.transfer.link': 'Passar minha ordem para a Steam',
+  'result.transfer.copy': 'Copiar o link',
+  'result.transfer.carries': 'O link leva {items}.',
+  'result.transfer.fresh':
+    'O link é remontado a cada mudança, então o que você leva daqui é sempre a ordem atual.',
+  'result.transfer.taken':
+    'Este é o link que você levou, e ele ainda escreve exatamente a ordem que aparece abaixo.',
+  'result.transfer.stale': 'A ordem mudou — troque o favorito antigo pelo link atualizado.',
+  'result.transfer.copied':
+    'O link foi copiado. Crie um favorito à mão e cole ele como endereço.',
+  'result.transfer.copyFailed':
+    'O navegador negou o acesso à área de transferência — arraste o link para a barra de '
+    + 'favoritos em vez disso.',
+  'result.transfer.clickToast':
+    'Este link não é para apertar aqui: arraste ele para a barra de favoritos e aperte na página '
+    + 'da lista de desejos da Steam.',
+  'result.transfer.empty':
+    'A lista está vazia — ainda não há ordem nenhuma para levar a lugar nenhum.',
+  'result.transfer.failed': 'O link não pôde ser montado: {message}',
+  'result.transfer.mobile':
+    'Em um celular ou tablet isso fica desconfortável: um bookmarklet precisa ser arrastado para '
+    + 'uma barra de favoritos. A passagem é mais fácil num navegador de computador.',
+  'result.transfer.warnAccount': 'A ordem é escrita na conta em que este navegador entrou.',
+  'result.transfer.warnNoDelete':
+    'Nada é apagado: os itens que você marcou para sair vão para o fim da lista.',
+  'result.transfer.warnPriority':
+    'Depois disso, todos os itens têm prioridade, inclusive os que não tinham nenhuma.',
+  'result.transfer.warnNoBackup':
+    'O bookmarklet não faz backup nenhum e não confere o resultado depois.',
+  'result.transfer.warnReload':
+    'Quando terminar, recarregue a página da Steam e troque a ordenação para a sua própria ordem.',
+  'result.transfer.advanced': 'Precisa de backup e de conferência automática?',
+  'result.transfer.advancedText':
+    'O userscript lê ele mesmo a página da lista de desejos: salva em um arquivo a ordem que está '
+    + 'lá agora, escreve a nova e confere depois que ela chegou. Ele precisa do Tampermonkey, e '
+    + 'por isso é o caminho mais longo e não o principal.',
+  'result.transfer.advancedStep2':
+    'Instale o script “steam-wishlist-import-order.user.js” do repositório.',
+  'result.transfer.advancedStep3':
+    'Abra a página da sua lista de desejos e siga o painel que o script coloca nela.',
+
+  /* -- result screen: the list ------------------------------------------ */
+  'result.list.heading': 'Sua ordem',
+  'result.search': 'Buscar por título ou App ID',
+  'result.filterAria': 'O que é mostrado',
+  'result.filter.all': 'Tudo',
+  'result.filter.game': 'Jogos',
+  'result.filter.dlc': 'DLC',
+  'result.hint':
+    'Uma linha se arrasta com o mouse, ou se seleciona e se move com <kbd>Ctrl</kbd> + '
+    + '<kbd>↑</kbd> / <kbd>Ctrl</kbd> + <kbd>↓</kbd>. Os movimentos são salvos e sobrevivem a um '
+    + 'recarregamento.',
+  'result.removed.hint': 'Estes itens não entram na numeração da lista final.',
+  'result.mark.confirmed': 'Confirmado pelas comparações',
+  'result.mark.fallback': 'Ainda na ordem antiga',
+  'result.mark.manual': 'Movido à mão',
+  'result.mark.tied': 'Empatado com a linha de cima',
+  'result.row.appId': 'App ID {appId}',
+  'result.row.where': '{category} · {position} na categoria',
+  'result.row.aria': '{position}. {title}. {category}. {kind}. {note}',
+  'result.row.categoryAria': 'Categoria: {title}',
+  'result.shown.all': '{rows}',
+  'result.shown.filtered': '{shown} de {total} à vista',
+  'result.empty.filter': 'Nem o filtro nem a busca encontraram um único item.',
+  'result.empty.noItems': 'Importe uma lista de desejos e o resultado aparece aqui.',
+  'result.empty.allRemoved':
+    'Todos os itens estão marcados para sair — não há nada para ordenar.',
+  'result.move.failed': 'Não foi possível mover: {message}',
+  'result.move.announce': '“{title}” {where}{category}.',
+  'result.move.place': 'para o lugar {position}',
+  'result.move.newPlace': 'para um lugar novo',
+  'result.move.categorySuffix': ', categoria: {category}',
+  'result.move.categoryToast': '“{title}” foi para “{category}”.',
+  'result.move.edge':
+    'Esta é a {edge} linha da categoria “{category}”. A categoria se muda pelo seletor da própria '
+    + 'linha.',
+  'result.move.edgeFirst': 'primeira',
+  'result.move.edgeLast': 'última',
+  'result.category.failed': 'A categoria não pôde ser mudada: {message}',
+  'result.category.toast': '“{title}” — {category}.',
+
+  /* -- result screen: the files and the two resets ---------------------- */
+  'result.export.summary': 'Baixar ou compartilhar',
+  'result.export.hint':
+    'Os arquivos são montados aqui, no navegador, e salvos por você — nada é enviado.',
+  'result.exportJson': 'Ordem em JSON',
+  'result.exportCsv': 'Lista em CSV',
+  'result.copyText': 'Copiar como lista',
+  'result.saveState': 'Backup do estado',
+  'result.export.empty': 'Não há nada para exportar: a lista está vazia.',
+  'result.export.failed': 'O arquivo não pôde ser montado: {message}',
+  'result.export.jsonDone': 'A ordem final está salva em JSON.',
+  'result.export.csvDone': 'A lista final está salva em CSV.',
+  'result.copy.empty': 'Não há nada para copiar: a lista está vazia.',
+  'result.copy.done': 'A lista numerada foi copiada para a área de transferência.',
+  'result.copy.failed':
+    'O navegador negou o acesso à área de transferência — a lista foi salva em um arquivo em vez '
+    + 'disso.',
+  'result.resetManual': 'Zerar os movimentos à mão',
+  'result.resetManual.none': 'Não há nenhum movimento à mão.',
+  'result.resetManual.title': 'Zerar os movimentos à mão?',
+  'result.resetManual.text':
+    'Isto esquece {moves} e devolve a lista à ordem que as comparações dão. As respostas das '
+    + 'comparações ficam.',
+  'result.resetManual.confirm': 'Zerar os movimentos',
+  'result.resetManual.done': 'Os movimentos à mão foram zerados.',
+  'result.resetAnswers': 'Zerar as respostas das comparações',
+  'result.resetAnswers.none': 'Ainda não há nenhuma resposta.',
+  'result.resetAnswers.title': 'Zerar as respostas das comparações?',
+  'result.resetAnswers.text':
+    'Isto apaga {answers} e faz as comparações começarem do zero. A lista de itens, as categorias '
+    + 'e os movimentos à mão ficam. Não dá para desfazer.',
+  'result.resetAnswers.confirm': 'Zerar as respostas',
+  'result.resetAnswers.done': 'As respostas das comparações foram zeradas.',
+
+  /* -- the bookmarklet: what it says on the Steam page ------------------ */
+  'bookmarklet.title': 'Steam Wishlist Sorter',
+  'bookmarklet.wrongPage':
+    'Esta não é a lista de desejos da Steam. Abra store.steampowered.com/wishlist, entre na conta '
+    + 'e aperte o favorito lá. Nada foi enviado.',
+  'bookmarklet.confirm':
+    'A ordem de {items} vai ser escrita na lista de desejos da conta em que este navegador '
+    + 'entrou. Nada é apagado. Não dá para desfazer: depois da escrita, cada entrada tem '
+    + 'prioridade, inclusive as que não tinham nenhuma, e nenhum backup traz isso de volta.',
+  'bookmarklet.write': 'Escrever a ordem',
+  'bookmarklet.cancel': 'Cancelar',
+  'bookmarklet.close': 'Fechar',
+  'bookmarklet.sending': 'Enviando a ordem para a Steam…',
+  'bookmarklet.done':
+    'A Steam aceitou a ordem. Recarregue a página da lista de desejos e olhe: este bookmarklet '
+    + 'não lê a página, então a conferência é sua.',
+  'bookmarklet.unclear':
+    'A Steam respondeu, mas a resposta não confirma nem nega nada. Recarregue a página da lista '
+    + 'de desejos e olhe a ordem antes de repetir.',
+  'bookmarklet.refused':
+    'A Steam recusou a ordem e não disse nada de útil sobre o porquê. Recarregue a página da '
+    + 'lista de desejos e olhe a ordem antes de repetir.',
+  'bookmarklet.badRequest':
+    'A Steam barrou a requisição na porta, com um 400 e um corpo vazio — ela nem chegou a olhar a '
+    + 'ordem, então nada foi escrito. É isso que ela responde quando falta na requisição alguma '
+    + 'coisa que ela exige, e a resposta não nomeia nada. Parece que o endpoint mudou; a página '
+    + 'do projeto diz o que fazer nesse caso.',
+  'bookmarklet.signedOut':
+    'A Steam não aceitou a sessão — na maioria das vezes ela simplesmente expirou. Entre na Steam '
+    + 'de novo, recarregue a lista de desejos e aperte o favorito mais uma vez. Nada foi escrito.',
+  'bookmarklet.rateLimited':
+    'A Steam respondeu “requisições demais”. Espere uns dois minutos e aperte o favorito de novo '
+    + '— nada foi mudado.',
+  'bookmarklet.tooLarge':
+    'A requisição é grande demais para a Steam: a ordem inteira vai em uma requisição só, e esta '
+    + 'não coube. Nada foi escrito. Uma lista assim pede o userscript, que consegue marcar as '
+    + 'linhas na página em vez disso.',
+  'bookmarklet.serverError':
+    'O problema está do lado da Steam — ela respondeu com um erro de servidor. Tente daqui a '
+    + 'alguns minutos; nada foi escrito.',
+  'bookmarklet.offline':
+    'A requisição nunca chegou à Steam. Pode ser que a rede tenha caído, ou que uma extensão '
+    + 'tenha bloqueado. Nada foi escrito — confira a conexão e aperte o favorito de novo.',
+
+  /* -- exported files -------------------------------------------------- */
+  'export.csv.number': 'N.º',
+  'export.csv.appId': 'App ID',
+  'export.csv.title': 'Título',
+  'export.csv.category': 'Categoria',
+  'export.csv.kind': 'Tipo',
+  'export.csv.positionInCategory': 'Lugar na categoria',
+  'export.csv.origin': 'De onde vem a ordem',
+  'export.csv.wishlistPosition': 'Lugar na lista de desejos',
+  'export.csv.url': 'Link',
+  'export.origin.manual': 'à mão',
+  'export.origin.comparisons': 'comparações',
+  'export.origin.fallback': 'ordem de reserva',
+  'export.kind.game': 'Jogo',
+  'export.kind.dlc': 'DLC',
+  'export.kind.unknown': 'Desconhecido',
+};
+
 /** Every dictionary, by language code. @type {Readonly<Record<string, object>>} */
 export const DICTIONARIES = Object.freeze({
   en: Object.freeze(EN),
   ru: Object.freeze(RU),
   de: Object.freeze(DE),
   fr: Object.freeze(FR),
+  es: Object.freeze(ES),
+  'pt-BR': Object.freeze(PT_BR),
 });
 
 /** The language in use. English until something says otherwise. */

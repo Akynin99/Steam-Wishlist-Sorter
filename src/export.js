@@ -41,10 +41,10 @@ export const CSV_BOM = '\uFEFF';
  * else. The rule is not about Russian, it is about the decimal mark: Excel
  * splits a `.csv` by the list separator of the system locale, and every locale
  * that writes the decimal mark as a comma sets that separator to a semicolon.
- * Russian, German and French all do, so a comma separated file opens there as
- * one long column, which defeats the purpose of exporting a table at all. That
- * is the question to answer for a language added later: comma for the decimal
- * mark means a semicolon here.
+ * Russian, German, French, Spanish and Brazilian Portuguese all do, so a comma
+ * separated file opens there as one long column, which defeats the purpose of
+ * exporting a table at all. That is the question to answer for a language added
+ * later: comma for the decimal mark means a semicolon here.
  *
  * Everything else — LibreOffice, Google Sheets, pandas, `csv` of the standard
  * library — takes the separator as a parameter, so following the language of
@@ -53,7 +53,14 @@ export const CSV_BOM = '\uFEFF';
  *
  * @type {Readonly<Record<string, string>>}
  */
-export const CSV_SEPARATORS = Object.freeze({ en: ',', ru: ';', de: ';', fr: ';' });
+export const CSV_SEPARATORS = Object.freeze({
+  en: ',',
+  ru: ';',
+  de: ';',
+  fr: ';',
+  es: ';',
+  'pt-BR': ';',
+});
 
 /**
  * Separator used by the CSV of a language.
