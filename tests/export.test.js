@@ -7,14 +7,14 @@
  * closed.
  *
  * The files follow the language of the interface, so the ones a human reads
- * are checked in both: a header, a category and a separator that stayed
- * English in a Russian export would only be noticed in a spreadsheet.
+ * are checked in more than one: a header, a category and a separator that
+ * stayed English in a Russian export would only be noticed in a spreadsheet.
  */
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { setLanguage } from '../src/i18n.js';
+import { LANGUAGES, setLanguage } from '../src/i18n.js';
 import { createItem } from '../src/model.js';
 import { createSession } from '../src/ranking.js';
 import {
@@ -188,12 +188,25 @@ test('the CSV is written in the language of the interface', () => {
   assert.equal(rows[6][3], 'Удалить из желаемого');
 });
 
-test('the CSV separator follows the language, comma for en and semicolon for ru', () => {
+test('the CSV separator follows the language, comma for en and semicolon for the rest', () => {
   const { session } = makeSession();
 
   assert.equal(csvSeparator('en'), ',');
   assert.equal(csvSeparator('ru'), ';');
+  assert.equal(csvSeparator('de'), ';');
+  assert.equal(csvSeparator('fr'), ';');
   assert.equal(csvSeparator('klingon'), CSV_SEPARATORS.en, 'an unknown language reads as English');
+
+  // The rule is the decimal mark, not the alphabet: every language here writes
+  // it as a comma, so Excel splits their files by a semicolon. A language
+  // added without a row falls back to the comma, which is the wrong file for
+  // such a locale — hence this list, checked against the one in i18n.js.
+  for (const language of LANGUAGES) {
+    assert.ok(
+      Object.hasOwn(CSV_SEPARATORS, language),
+      `${language} has no CSV separator of its own`,
+    );
+  }
 
   const english = headerLine(toCsv(session.getResult()));
   assert.ok(english.startsWith('#,App ID,Title,'), english);
@@ -204,6 +217,14 @@ test('the CSV separator follows the language, comma for en and semicolon for ru'
   // Excel on a Russian locale splits by the system list separator, which is a
   // semicolon: a comma there would open as one long column.
   assert.ok(russian.startsWith('№;App ID;Название;'), russian);
+
+  setLanguage('de');
+  const german = headerLine(toCsv(session.getResult()));
+  assert.ok(german.startsWith('Nr.;App ID;Titel;'), german);
+
+  setLanguage('fr');
+  const french = headerLine(toCsv(session.getResult()));
+  assert.ok(french.startsWith('N°;App ID;Titre;'), french);
 });
 
 test('a title with a comma survives the English CSV, one with a semicolon the Russian', () => {

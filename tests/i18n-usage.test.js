@@ -3,8 +3,8 @@
  *
  * `t()` on an unknown key returns the key itself: a typo travels all the way
  * to the screen instead of stopping at a red test, and a key nobody calls any
- * more sits in both dictionaries forever. This test closes both directions —
- * every key the code asks for exists in both dictionaries, and every key the
+ * more sits in every dictionary forever. This test closes both directions —
+ * every key the code asks for exists in every dictionary, and every key the
  * dictionaries hold is asked for by somebody.
  *
  * Keys reach the code in two ways. The markup names them in `data-i18n`,
@@ -187,7 +187,7 @@ test('the markup and the modules do name keys, and the scan finds them', () => {
   assert.ok(used.has('bookmarklet.confirm'), 'the bookmarklet texts come from their own table');
 });
 
-test('every key the code asks for exists in both dictionaries', () => {
+test('every key the code asks for exists in every dictionary', () => {
   const missing = [];
 
   for (const [key, where] of collectUsedKeys()) {

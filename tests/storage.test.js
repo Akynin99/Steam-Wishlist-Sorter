@@ -186,7 +186,12 @@ test('a language the application does not have is read as English, a known one i
   const base = { app: APP_SIGNATURE, version: 1, session: createSession().serialize() };
 
   assert.equal(validateState({ ...base, settings: { language: 'ru' } }).settings.language, 'ru');
-  assert.equal(validateState({ ...base, settings: { language: 'de' } }).settings.language, 'en');
+  assert.equal(validateState({ ...base, settings: { language: 'de' } }).settings.language, 'de');
+  assert.equal(validateState({ ...base, settings: { language: 'fr' } }).settings.language, 'fr');
+  // A language the application does not have yet — a state file written by a
+  // later version, or one edited by hand — reads as English rather than
+  // leaving the interface with no dictionary at all.
+  assert.equal(validateState({ ...base, settings: { language: 'es' } }).settings.language, 'en');
   assert.equal(validateState({ ...base, settings: { language: 42 } }).settings.language, 'en');
   assert.equal(validateState({ ...base, settings: { language: null } }).settings.language, 'en');
 });
