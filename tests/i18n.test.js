@@ -108,9 +108,9 @@ test('parameters are substituted, and a missing one stays visible', () => {
   assert.equal(format('{a}', { a: 0 }), '0', 'a falsy value is still a value');
   assert.equal(format('{a}', { a: '' }), '');
 
-  assert.equal(t('result.summary.comparisons', { count: 12 }), 'Comparisons made: 12.');
+  assert.equal(t('result.built.answers', { count: 12 }), 'Comparisons answered so far: 12.');
   setLanguage('ru');
-  assert.equal(t('result.summary.comparisons', { count: 12 }), 'Сравнений сделано: 12.');
+  assert.equal(t('result.built.answers', { count: 12 }), 'Ответов на сравнения: 12.');
 });
 
 test('an unknown key does not throw and is visible as the problem it is', () => {

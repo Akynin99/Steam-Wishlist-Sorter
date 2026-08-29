@@ -1244,6 +1244,12 @@ label.menu__row:hover {
   background: var(--accent-tint);
 }
 
+.legend__item--tied::before {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  background: var(--bg-elevated);
+}
+
 /* Confirmation dialog of the irreversible actions. */
 
 .dialog {
@@ -1637,6 +1643,7 @@ label.menu__row:hover {
 }
 
 .notice > .icon {
+  align-self: start;
   margin-top: 2px;
   color: var(--text-dim);
 }
@@ -2201,95 +2208,354 @@ label.menu__row:hover {
 
 /* --------------------------------------------------- screen: result */
 
-.result-tools {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 14px 16px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--bg-elevated);
+/*
+ * The two blocks that answer the two questions of this screen: what came of
+ * the work, and how to put it back into Steam. The transfer is the wider of
+ * the two and the one with the accent on it — it is the point of the whole
+ * application, and the list further down is the material, not the goal.
+ */
+.result-top {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: var(--gap-screen);
+  align-items: start;
 }
 
-.result-tools__row {
+.summary {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-}
-
-.result-tools__row--exports {
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
-}
-
-.result-tools__count {
-  color: var(--text-dim);
-  font-size: 0.86rem;
-  white-space: nowrap;
-}
-
-/*
- * The bookmarklet block. The link is the point of the whole section, so it is
- * drawn as something to grab: a wide pill with a grab cursor, and no
- * underline, because it is not going anywhere when clicked — a click here is
- * caught and answered with a hint.
- */
-.bookmarklet {
+  gap: 18px 22px;
   padding: var(--pad-panel);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--bg-elevated);
 }
 
-.bookmarklet__steps {
-  margin: 12px 0 0;
-  padding-left: 22px;
+/* The share of the list the comparisons already carry, drawn once and read at
+   a glance. The ring is `pathLength="100"`, so the dash pattern the script
+   sets is the percentage itself. */
+.summary__ring {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 132px;
+  height: 132px;
+  flex: 0 0 auto;
+}
+
+.summary__ring svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.summary__ringtrack,
+.summary__ringvalue {
+  fill: none;
+  stroke-width: 3.5;
+}
+
+.summary__ringtrack {
+  stroke: var(--border);
+}
+
+.summary__ringvalue {
+  stroke: var(--accent);
+  stroke-linecap: round;
+  stroke-dasharray: 0 100;
+  transition: stroke-dasharray 0.3s ease;
+}
+
+.summary__percent {
+  font-size: 1.7rem;
+  font-weight: var(--weight-heading);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.summary__ringlabel {
+  position: absolute;
+  bottom: 34px;
+  color: var(--text-dim);
+  font-size: 0.76rem;
+  letter-spacing: 0.06em;
+}
+
+.summary__body {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 260px;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.summary__eyebrow {
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 620;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+}
+
+.summary__title {
+  font-size: 1.22rem;
+}
+
+.summary__text {
   color: var(--text-muted);
   font-size: 0.92rem;
 }
 
-.bookmarklet__steps li + li {
-  margin-top: 4px;
-}
-
-.bookmarklet__link-row {
+.summary__stats {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-  margin: 14px 0 0;
+  gap: 6px 26px;
+  margin: 2px 0 0;
 }
 
-.bookmarklet__link {
-  padding: 10px 18px;
+.summary__stat {
+  display: flex;
+  flex-direction: column-reverse;
+}
+
+.summary__statvalue {
+  margin: 0;
+  font-size: 1.3rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.summary__statlabel {
+  color: var(--text-dim);
+  font-size: 0.8rem;
+}
+
+/* The technique behind the number, for whoever opens the disclosure. */
+.summary__facts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding-left: 20px;
+  font-size: 0.88rem;
+}
+
+.summary__facts li::marker {
+  color: var(--accent);
+}
+
+/*
+ * Carrying the order into Steam. The one block on the screen with the accent
+ * along its top edge and a tint behind it: three steps, one link to drag and
+ * the same link to copy for whoever does not drag things with a mouse.
+ */
+.transfer {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow: hidden;
+  padding: var(--pad-panel);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-lg);
+  background: var(--wash-accent);
+}
+
+.transfer::before {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: var(--accent);
+  content: "";
+}
+
+.transfer__head {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.transfer__icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--accent-tint);
+  color: var(--accent);
+}
+
+.transfer__icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.transfer__headtext {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.transfer__eyebrow {
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 620;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+}
+
+.transfer__title {
+  font-size: 1.35rem;
+}
+
+.transfer__sub {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+/* Three steps side by side on a wide screen, one under the other when there
+   is no room: the link in the middle needs the width, the other two do not. */
+.transfer__steps {
+  display: grid;
+  /* The middle step carries the link and needs the room; the other two are a
+     line of text and a button each. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.7fr) minmax(0, 1fr);
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.transfer__step {
+  display: flex;
+  min-width: 0;
+  gap: 10px;
+}
+
+.transfer__num {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.transfer__stepbody {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.transfer__stephead {
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.transfer__keys {
+  color: var(--text-muted);
+  font-size: 0.84rem;
+}
+
+.transfer__note {
+  color: var(--text-dim);
+  font-size: 0.82rem;
+}
+
+/*
+ * The link is the point of the whole block, so it is drawn as something to
+ * grab: a wide pill with a grab cursor and no underline, because it is not
+ * going anywhere when clicked — a click here is caught and answered with a
+ * hint.
+ */
+.transfer__link {
+  display: block;
+  padding: 12px 16px;
   border: 1px dashed var(--positive);
   border-radius: var(--radius);
   background: var(--bg-panel);
   color: var(--positive-strong);
-  font-weight: 600;
+  font-weight: 620;
+  text-align: center;
   text-decoration: none;
   cursor: grab;
+  overflow-wrap: anywhere;
 }
 
-.bookmarklet__link:hover {
+.transfer__link:hover {
   border-style: solid;
   background: var(--bg-panel-hover);
 }
 
-.bookmarklet__link:active {
+.transfer__link:active {
   cursor: grabbing;
 }
 
-.bookmarklet__carries {
+.transfer__linkmeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
   color: var(--text-dim);
-  font-size: 0.86rem;
+  font-size: 0.82rem;
 }
 
-.bookmarklet__note {
-  margin: 10px 0 0;
+.transfer__warnings {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.transfer__warnings li::marker {
+  color: var(--text-dim);
+}
+
+.transfer__mobile {
+  padding: var(--pad-block);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--bg-inset);
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+
+/* ------------------------------------------------------- the list */
+
+.result-list-block {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.result-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
+}
+
+.result-tools__count {
   color: var(--text-dim);
   font-size: 0.86rem;
+  white-space: nowrap;
 }
 
 .result-empty {
@@ -2311,8 +2577,8 @@ label.menu__row:hover {
 
 .result-row {
   display: grid;
-  grid-template-columns: 18px 46px 92px 1fr auto;
-  gap: 14px;
+  grid-template-columns: 18px 46px 92px minmax(0, 1fr) auto auto;
+  gap: 8px 14px;
   align-items: center;
   padding: var(--pad-row);
   border: 1px solid var(--border);
@@ -2328,8 +2594,8 @@ label.menu__row:hover {
   background: transparent;
 }
 
-/* A row moved by hand: not "sorted", but not "fallback order" either — it
-   is the decision of the user, and it looks just as confident. */
+/* A row moved by hand: not "confirmed", but not "old order" either — it is
+   the decision of the user, and it looks just as confident. */
 .result-row--manual {
   border-color: var(--accent);
   background: linear-gradient(90deg, var(--accent-tint) 0%, var(--bg-elevated) 220px);
@@ -2387,7 +2653,11 @@ label.menu__row:hover {
   gap: 4px;
 }
 
+/* The name of the game is what the row is about; everything else in it is
+   there to be looked up once and then stopped being seen. */
 .result-row__title {
+  font-size: 1.02rem;
+  font-weight: 600;
   overflow-wrap: anywhere;
 }
 
@@ -2397,7 +2667,7 @@ label.menu__row:hover {
   align-items: center;
   gap: 6px 12px;
   color: var(--text-dim);
-  font-size: 0.82rem;
+  font-size: 0.8rem;
 }
 
 .result-row__id {
@@ -2405,17 +2675,14 @@ label.menu__row:hover {
 }
 
 .result-row__where {
-  color: var(--text-muted);
+  color: var(--text-dim);
 }
 
 .result-row__marks {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-}
-
-.result-row__marks:empty {
-  display: none;
+  justify-content: flex-end;
+  gap: 6px;
 }
 
 .mark {
@@ -2424,6 +2691,12 @@ label.menu__row:hover {
   border-radius: var(--radius-pill);
   color: var(--text-dim);
   font-size: 0.76rem;
+  white-space: nowrap;
+}
+
+.mark--confirmed {
+  border-color: color-mix(in srgb, var(--positive) 50%, transparent);
+  color: var(--positive-strong);
 }
 
 .mark--manual {
@@ -2433,6 +2706,11 @@ label.menu__row:hover {
 
 .mark--fallback {
   border-style: dashed;
+}
+
+.mark--tied {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .result-removed {
@@ -2468,11 +2746,55 @@ label.menu__row:hover {
   color: var(--text-muted);
 }
 
+/* ------------------------------------------------ the files below */
+
+/* A disclosure that is a block of its own rather than a line inside one. */
+.disclosure--block {
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
+  font-size: 0.95rem;
+}
+
+.disclosure--block > summary {
+  color: var(--text);
+  font-weight: 600;
+  justify-content: space-between;
+}
+
+.result-exports {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .stage-actions--footer {
   justify-content: flex-end;
 }
 
 /* ------------------------------------------------------- responsive */
+
+/*
+ * The result screen. Below this width the summary and the transfer stop
+ * standing side by side: the three steps of the transfer need the room more
+ * than the two blocks need to be in one line. The order of the two is the
+ * order of the markup on every width — what came of the work, and then what
+ * to do with it.
+ */
+@media (max-width: 1080px) {
+  .result-top {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* The three steps of the transfer, one under the other: side by side they
+   would squeeze the link in the middle into two words a line. */
+@media (max-width: 760px) {
+  .transfer__steps {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 
 @media (max-width: 980px) {
   /*
@@ -2581,14 +2903,28 @@ label.menu__row:hover {
     justify-content: flex-start;
   }
 
-  /* On a narrow screen the number and the title stay in the first row,
-     while the cover and the category dropdown move below them. */
+  /* On a narrow screen the number, the cover and the title stay in the first
+     row, while the state of the line and the category dropdown move below
+     them and share the width. Everything on the left of the title is made
+     smaller as well: at 360 px the title is what is left of the row. */
   .result-row {
-    grid-template-columns: 18px 38px 68px 1fr;
+    grid-template-columns: 16px 30px 56px minmax(0, 1fr);
+    gap: 6px 10px;
   }
 
   .result-row .cover {
-    width: 68px;
+    width: 56px;
+  }
+
+  /* The place inside the category is the first thing to go: the number on the
+     left already says where the row stands. */
+  .result-row__where {
+    display: none;
+  }
+
+  .result-row__marks {
+    grid-column: 3 / -1;
+    justify-content: flex-start;
   }
 
   .result-row .select--category {

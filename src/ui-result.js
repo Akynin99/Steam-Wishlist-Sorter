@@ -6,18 +6,25 @@
  * the rest. The screen says out loud which part is which, so a half finished
  * sorting is still usable and is never passed off as a final ranking.
  *
- * Three lines can be edited here without going back to the comparisons: the
- * place of an item (drag or `Ctrl` with an arrow), its category (the select in
- * the row) and whether it belongs in the list at all. A hand made placement is
- * kept by `ranking.js` as "this item goes next to that one" and replayed over
- * whatever the comparisons produce, so returning to the sorting improves the
- * list around the placements instead of erasing them.
+ * Four blocks, in the order the work ends in. What came of it, as one number
+ * and one sentence, with the technique behind that number folded away under
+ * «How was this order built?». Then the transfer into Steam, which is the
+ * point of the whole application and therefore stands above the list rather
+ * than under it. Then the list, where three things can still be edited
+ * without going back to the comparisons: the place of an item (drag or `Ctrl`
+ * with an arrow), its category (the picker in the row) and whether it belongs
+ * in the list at all. Then the files, folded away as well.
+ *
+ * A hand made placement is kept by `ranking.js` as "this item goes next to
+ * that one" and replayed over whatever the comparisons produce, so returning
+ * to the sorting improves the list around the placements instead of erasing
+ * them.
  *
  * The four exports are built by `export.js`; this module only hands the text
  * to the browser.
  *
- * The fifth way out is the bookmarklet: `bookmarklet.js` builds a link with
- * the order inside its own address, and this module puts it on the screen and
+ * The way out is the bookmarklet: `bookmarklet.js` builds a link with the
+ * order inside its own address, and this module puts it on the screen and
  * rebuilds it on every render, because a link dragged to the bookmarks bar
  * carries the order of the moment it was dragged and nothing later.
  */
@@ -26,10 +33,24 @@ import { plural, t } from './i18n.js';
 import { CATEGORIES, categoryLabel, isSortableCategory, uncategorizedLabel } from './model.js';
 import { exportFileName, toCsv, toOrderJson, toPlainText } from './export.js';
 import { bookmarkletAppIds, bookmarkletUrl } from './bookmarklet.js';
+import {
+  confirmedPercent,
+  isApplePlatform,
+  linkFreshness,
+  orderSignature,
+  rowStatus,
+} from './result-view.js';
 import { clear, copyText, downloadText, element, kindLabel, renderCover } from './ui-common.js';
 
 /** What the kind filter can be set to. */
 const FILTERS = { all: 'all', game: 'game', dlc: 'dlc' };
+
+/** The caption of a row state, in the order `rowStatus()` decides them. */
+const STATUS_KEYS = {
+  manual: 'result.mark.manual',
+  confirmed: 'result.mark.confirmed',
+  fallback: 'result.mark.fallback',
+};
 
 /**
  * @param {object} app
@@ -37,7 +58,15 @@ const FILTERS = { all: 'all', game: 'game', dlc: 'dlc' };
  */
 export function createResultScreen(app) {
   const nodes = {
-    summary: document.getElementById('result-summary'),
+    heading: document.getElementById('result-heading'),
+    lead: document.getElementById('result-lead'),
+    ring: document.getElementById('result-ring'),
+    percent: document.getElementById('result-percent'),
+    summaryTitle: document.getElementById('result-summary-title'),
+    summaryText: document.getElementById('result-summary-text'),
+    summaryEyebrow: document.getElementById('result-summary-eyebrow'),
+    stats: document.getElementById('result-stats'),
+    built: document.getElementById('result-built'),
     legend: document.getElementById('result-legend'),
     search: document.getElementById('result-search'),
     filters: [...document.querySelectorAll('#screen-result [data-filter]')],
@@ -54,8 +83,14 @@ export function createResultScreen(app) {
     saveButton: document.getElementById('result-save'),
     resetManual: document.getElementById('result-reset-manual'),
     resetAnswers: document.getElementById('result-reset-answers'),
+    shortcut: document.getElementById('result-shortcut'),
+    shortcutSafari: document.getElementById('result-shortcut-safari'),
+    transferMobile: document.getElementById('result-transfer-mobile'),
+    transferStale: document.getElementById('result-transfer-stale'),
     bookmarkletLink: document.getElementById('result-bookmarklet-link'),
+    bookmarkletCopy: document.getElementById('result-bookmarklet-copy'),
     bookmarkletCarries: document.getElementById('result-bookmarklet-carries'),
+    bookmarkletState: document.getElementById('result-bookmarklet-state'),
     bookmarkletEmpty: document.getElementById('result-bookmarklet-empty'),
   };
 
@@ -75,6 +110,21 @@ export function createResultScreen(app) {
   let draggedId = null;
   /** @type {{ appId: number, side: 'before'|'after' }|null} */
   let dropTarget = null;
+
+  /**
+   * The order the user last took away from here, as `orderSignature()` writes
+   * it, or `null` while they have not taken the link at all.
+   *
+   * It is deliberately not stored: a bookmark lives in the browser and this
+   * page cannot see it, so a flag surviving a reload would be a claim the
+   * application has no way of checking. Within one visit the two moments that
+   * *are* observable — the copy button and the start of a drag — are enough to
+   * say honestly that the order has moved since.
+   */
+  let takenSignature = null;
+
+  /** The address of the link as it stands now, for the copy button. */
+  let currentUrl = null;
 
   /* ---------------------------------------------------------- rows */
 
@@ -108,6 +158,13 @@ export function createResultScreen(app) {
   /**
    * One line of the ranking.
    *
+   * The title is the loud part; the app id, the link to the store and the
+   * place inside the category are what somebody looks for once and then stops
+   * seeing. The state of the line — put here by hand, settled by comparisons,
+   * or still standing where the wishlist put it — is a chip on the right, and
+   * a tie with the row above is a second chip next to it, because being tied
+   * is something a line has as well as its state, not instead of it.
+   *
    * @param {import('./ranking.js').ResultEntry} entry
    * @param {boolean} loadCovers
    * @returns {HTMLElement}
@@ -116,14 +173,14 @@ export function createResultScreen(app) {
     const cover = element('div', { className: 'cover' });
     renderCover(cover, entry.item, loadCovers);
 
-    const marks = element('div', { className: 'result-row__marks' });
+    const status = rowStatus(entry);
+    const statusText = t(STATUS_KEYS[status]);
+
+    const marks = element('div', { className: 'result-row__marks' }, [
+      element('span', { className: `mark mark--${status}`, text: statusText }),
+    ]);
     if (entry.tiedWithPrevious) {
-      marks.append(element('span', { className: 'mark', text: t('result.mark.tied') }));
-    }
-    if (entry.manual) {
-      marks.append(element('span', { className: 'mark mark--manual', text: t('result.mark.manual') }));
-    } else if (!entry.resolved) {
-      marks.append(element('span', { className: 'mark mark--fallback', text: t('result.mark.fallback') }));
+      marks.append(element('span', { className: 'mark mark--tied', text: t('result.mark.tied') }));
     }
 
     const meta = element('div', { className: 'result-row__meta' }, [
@@ -156,9 +213,7 @@ export function createResultScreen(app) {
       'li',
       {
         className:
-          'result-row' +
-          (entry.manual ? ' result-row--manual' : entry.resolved ? '' : ' result-row--fallback') +
-          (entry.tiedWithPrevious ? ' result-row--tied' : ''),
+          `result-row result-row--${status}` + (entry.tiedWithPrevious ? ' result-row--tied' : ''),
         attrs: {
           draggable: 'true',
           tabindex: '-1',
@@ -167,11 +222,7 @@ export function createResultScreen(app) {
             title: entry.item.title,
             category: categoryLabel(entry.category),
             kind: kindLabel(entry.item.kind),
-            note: entry.manual
-              ? t('result.row.ariaManual')
-              : entry.resolved
-                ? ''
-                : t('result.row.ariaFallback'),
+            note: entry.tiedWithPrevious ? `${statusText}. ${t('result.mark.tied')}` : statusText,
           }),
         },
         dataset: { appId: String(entry.appId) },
@@ -183,8 +234,8 @@ export function createResultScreen(app) {
         element('div', { className: 'result-row__main' }, [
           element('div', { className: 'result-row__title', text: entry.item.title }),
           meta,
-          marks,
         ]),
+        marks,
         categorySelect(entry.appId, entry.category, entry.item.title),
       ],
     );
@@ -405,6 +456,12 @@ export function createResultScreen(app) {
    * Moves the single tab stop of the list to a row. Two hundred rows must not
    * become two hundred stops on the way to the next control.
    *
+   * The controls inside a row — the link to the store, the category picker —
+   * are focusable in their own right, and two hundred of each would be the
+   * same problem twice over. They follow the row that holds the stop: the
+   * keyboard reaches the list, walks it with the arrows, and tabs through the
+   * controls of the line it is standing on and then out of the list.
+   *
    * @param {number|null} appId
    */
   function setTabStop(appId) {
@@ -412,7 +469,11 @@ export function createResultScreen(app) {
     const visible = visibleAppIds();
     const target = appId !== null && rows.get(appId)?.hidden === false ? appId : visible[0];
     for (const [id, row] of rows) {
-      row.tabIndex = id === target ? 0 : -1;
+      const stop = id === target;
+      row.tabIndex = stop ? 0 : -1;
+      for (const control of row.querySelectorAll('a, select, button')) {
+        control.tabIndex = stop ? 0 : -1;
+      }
     }
   }
 
@@ -448,6 +509,9 @@ export function createResultScreen(app) {
    * Hides the rows that do not match the search and the kind filter. The
    * numbers stay as they are: they are places in the whole list, and a filter
    * is a way of looking at it, not a different ranking.
+   *
+   * The rows are hidden and not rebuilt: two hundred rows rebuilt on every
+   * keystroke of the search are felt.
    */
   function applyFilter() {
     const query = nodes.search.value.trim().toLowerCase();
@@ -556,7 +620,59 @@ export function createResultScreen(app) {
   // the other button instead would have broken the day it moved.
   nodes.saveButton.addEventListener('click', () => app.downloadState());
 
-  /* ---------------------------------------------------- bookmarklet */
+  /* ------------------------------------------------ transfer to Steam */
+
+  // Only the platform is decided, and only once: the shortcut that shows the
+  // bookmarks bar is the same in Chrome, Edge and Firefox, and guessing the
+  // browser from a user agent string is how a page ends up naming a shortcut
+  // that browser does not have. Safari gets its own line, as a menu path.
+  const apple = isApplePlatform(navigator);
+
+  // Dragging a link onto a bookmarks bar is a desktop gesture, and a phone has
+  // neither the bar nor a comfortable way of doing it. Said honestly, instead
+  // of pretending the three steps work there.
+  const coarsePointer = window.matchMedia?.('(pointer: coarse)')?.matches === true;
+
+  /**
+   * The two lines of the first step and the note about a phone. What the
+   * platform is does not change while the page is open, but the language does,
+   * so the words are put in by `render()` like every other line built in code.
+   */
+  function renderPlatformLines() {
+    nodes.shortcut.innerHTML = t(apple ? 'result.transfer.shortcutMac' : 'result.transfer.shortcut');
+    nodes.shortcutSafari.textContent = t('result.transfer.shortcutSafari');
+    nodes.shortcutSafari.hidden = !apple;
+    nodes.transferMobile.hidden = !coarsePointer;
+  }
+
+  /**
+   * Remembers the order the user is walking away with.
+   *
+   * Called from the two moments the browser really reports — the copy button
+   * and the start of a drag. Everything after them can be compared honestly;
+   * before them there is nothing to compare, and the page says the milder,
+   * true thing instead: the link on the screen is always the current one.
+   *
+   * @param {string} signature
+   */
+  function rememberTaken(signature) {
+    takenSignature = signature;
+    renderLinkState(signature);
+  }
+
+  /**
+   * The line under the link: whether it is still the order shown below.
+   *
+   * @param {string} signature
+   */
+  function renderLinkState(signature) {
+    const freshness = linkFreshness(signature, takenSignature);
+    nodes.transferStale.hidden = freshness !== 'stale';
+    nodes.bookmarkletState.textContent = t(
+      freshness === 'fresh' ? 'result.transfer.taken' : 'result.transfer.fresh',
+    );
+    nodes.bookmarkletState.hidden = freshness === 'stale';
+  }
 
   /**
    * Rebuilds the link that carries the order into Steam.
@@ -580,32 +696,58 @@ export function createResultScreen(app) {
         url = bookmarkletUrl(result);
       } catch (error) {
         url = undefined;
-        nodes.bookmarkletEmpty.textContent = t('result.bookmarklet.failed', { message: error.message });
+        nodes.bookmarkletEmpty.textContent = t('result.transfer.failed', { message: error.message });
       }
     }
 
+    currentUrl = url ?? null;
     nodes.bookmarkletLink.hidden = url === undefined;
+    nodes.bookmarkletCopy.hidden = url === undefined;
     nodes.bookmarkletCarries.hidden = url === undefined;
     nodes.bookmarkletEmpty.hidden = url !== undefined;
 
     if (url === undefined) {
       // An `href` of a link that is not offered must not keep the old order.
       nodes.bookmarkletLink.removeAttribute('href');
-      if (count === 0) nodes.bookmarkletEmpty.textContent = t('result.bookmarklet.empty');
+      nodes.bookmarkletState.hidden = true;
+      nodes.transferStale.hidden = true;
+      if (count === 0) nodes.bookmarkletEmpty.textContent = t('result.transfer.empty');
       return;
     }
 
     nodes.bookmarkletLink.href = url;
-    nodes.bookmarkletCarries.textContent = t('result.bookmarklet.carries', {
+    nodes.bookmarkletCarries.textContent = t('result.transfer.carries', {
       items: plural('count.items', count),
     });
+    renderLinkState(orderSignature(result));
   }
 
   // A click here would run the bookmarklet on our own page, where there is no
   // wishlist to write — so it is caught, and the hint says what to do instead.
   nodes.bookmarkletLink.addEventListener('click', (event) => {
     event.preventDefault();
-    app.toast(t('result.bookmarklet.clickToast'));
+    app.toast(t('result.transfer.clickToast'));
+  });
+
+  // A drag is the moment the link leaves this page, so it is the moment the
+  // page starts being able to say the order has moved since.
+  nodes.bookmarkletLink.addEventListener('dragstart', () => {
+    rememberTaken(orderSignature(app.session.getResult()));
+  });
+
+  // The keyboard way to the same thing: dragging with a mouse must not be the
+  // only way to get the link out of here.
+  nodes.bookmarkletCopy.addEventListener('click', async () => {
+    if (currentUrl === null) {
+      app.toast(t('result.transfer.empty'));
+      return;
+    }
+    if (await copyText(currentUrl)) {
+      rememberTaken(orderSignature(app.session.getResult()));
+      app.toast(t('result.transfer.copied'), 'ok');
+      return;
+    }
+    app.toast(t('result.transfer.copyFailed'), 'error');
   });
 
   /* ---------------------------------------------- dangerous actions */
@@ -657,31 +799,100 @@ export function createResultScreen(app) {
   /* --------------------------------------------------------- render */
 
   /**
-   * @param {object} summary
+   * The head and the summary: one number, one sentence, and everything
+   * technical folded away under it.
+   *
+   * @param {object} summary As `getResult()` returns it.
    */
   function renderSummary(summary) {
-    if (summary.total === 0) {
-      nodes.summary.textContent =
+    const empty = summary.total === 0;
+    const percent = confirmedPercent(summary);
+
+    nodes.heading.textContent = t(
+      empty ? 'result.head.empty' : summary.complete ? 'result.head.ready' : 'result.head.usable',
+    );
+    nodes.lead.textContent = t(
+      empty ? 'result.lead.empty' : summary.complete ? 'result.lead.ready' : 'result.lead.usable',
+    );
+
+    // The ring is drawn with `pathLength="100"`, so the dash pattern is the
+    // percentage itself and no radius arithmetic is needed here.
+    nodes.ring.style.strokeDasharray = `${percent} 100`;
+    nodes.percent.textContent = `${percent}%`;
+    nodes.summaryEyebrow.hidden = empty;
+
+    if (empty) {
+      nodes.summaryTitle.textContent =
         summary.removed === 0
           ? t('result.summary.empty')
           : t('result.summary.allRemoved', { marked: plural('count.marked', summary.removed) });
-      return;
+      nodes.summaryText.textContent = '';
+    } else {
+      nodes.summaryTitle.textContent =
+        summary.resolved === 0
+          ? t('result.summary.headlineNone')
+          : summary.resolved === summary.total
+            ? t('result.summary.headlineAll')
+            : t('result.summary.headline', { items: plural('count.items', summary.resolved) });
+
+      nodes.summaryText.textContent = summary.complete
+        ? t('result.summary.done')
+        : `${t('result.summary.rest')} ${t('result.summary.choice')}`;
     }
 
-    const parts = [
-      t('result.summary.total', { items: plural('count.items', summary.total) }),
-      t('result.summary.resolved', { resolved: summary.resolved, fallback: summary.fallback }),
+    clear(nodes.stats);
+    if (!empty) {
+      appendStat(summary.total, t('result.stats.total'));
+      appendStat(summary.resolved, t('result.stats.confirmed'));
+      if (summary.removed > 0) appendStat(summary.removed, t('result.stats.removed'));
+    }
+
+    clear(nodes.built);
+    for (const fact of builtFacts(summary)) {
+      nodes.built.append(element('li', { text: fact }));
+    }
+    nodes.legend.hidden = empty;
+  }
+
+  /**
+   * @param {number} value
+   * @param {string} label
+   */
+  function appendStat(value, label) {
+    nodes.stats.append(
+      element('div', { className: 'summary__stat' }, [
+        element('dt', { className: 'summary__statlabel', text: label }),
+        element('dd', { className: 'summary__statvalue', text: String(value) }),
+      ]),
+    );
+  }
+
+  /**
+   * The technical account of the order, for whoever opens the disclosure: what
+   * decides the sequence, how much of it the answers carry, what was moved by
+   * hand and how many answers there are. None of it is on the way of somebody
+   * who only wants the list.
+   *
+   * @param {object} summary
+   * @returns {string[]}
+   */
+  function builtFacts(summary) {
+    if (summary.total === 0) return [t('result.built.categories')];
+
+    const facts = [
+      t('result.built.categories'),
+      t('result.built.resolved', {
+        resolved: summary.resolved,
+        total: summary.total,
+        fallback: summary.fallback,
+      }),
+      summary.manual > 0
+        ? t('result.built.manual', { items: plural('count.items', summary.manual) })
+        : t('result.built.noManual'),
+      t('result.built.answers', { count: summary.comparisons }),
+      t(summary.complete ? 'result.built.complete' : 'result.built.incomplete'),
     ];
-    if (summary.manual > 0) {
-      parts.push(t('result.summary.manual', { items: plural('count.items', summary.manual) }));
-    }
-    if (summary.removed > 0) {
-      parts.push(t('result.summary.removed', { marked: plural('count.marked', summary.removed) }));
-    }
-    parts.push(t('result.summary.comparisons', { count: summary.comparisons }));
-    parts.push(t(summary.complete ? 'result.summary.complete' : 'result.summary.incomplete'));
-
-    nodes.summary.textContent = parts.join(' ');
+    return facts;
   }
 
   function render() {
@@ -702,9 +913,9 @@ export function createResultScreen(app) {
     }
 
     renderRemoved(removed);
+    renderPlatformLines();
     renderBookmarklet(result);
 
-    nodes.legend.hidden = entries.length === 0;
     nodes.hint.hidden = entries.length < 2;
     nodes.empty.hidden = entries.length > 0;
     if (entries.length === 0) {

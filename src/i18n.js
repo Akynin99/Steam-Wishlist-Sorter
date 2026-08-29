@@ -479,55 +479,128 @@ const EN = {
     + 'moment — finished or not.',
 
   /* -- result screen -------------------------------------------------- */
-  'result.heading': 'Result',
-  'result.continue': 'Continue the sorting',
+  'result.eyebrow': 'Step 4 of 4',
+  'result.head.usable': 'The result is already usable',
+  'result.head.ready': 'Your order is ready',
+  'result.head.empty': 'There is nothing to order yet',
+  'result.lead.usable': 'Transfer it to Steam now, or keep improving it with more answers.',
+  'result.lead.ready': 'Every place in it is settled by your own answers.',
+  'result.lead.empty': 'Import a wishlist, and the order appears here.',
+  'result.continue': 'Continue comparisons',
   'result.complete': 'The sorting is finished',
   'result.toImport': 'Go to the import',
-  'result.legend.sorted': 'the order is confirmed by comparisons',
-  'result.legend.fallback': 'fallback order — by the position in the wishlist',
+
+  /* -- result screen: the summary -------------------------------------- */
+  'result.summary.eyebrow': 'Ready to use',
+  'result.summary.headline': '{items} follow your answers',
+  'result.summary.headlineAll': 'The whole list follows your answers',
+  'result.summary.headlineNone': 'No place is settled by an answer yet',
+  'result.summary.rest':
+    'The rest keep the order they had in your wishlist; the list below says which ones.',
+  'result.summary.choice':
+    'Transfer this order to Steam now, or keep comparing — every answer improves it.',
+  'result.summary.done': 'There is nothing left to compare. Transfer the order to Steam.',
+  'result.summary.empty': 'The list is empty: there is nothing to show yet.',
+  'result.summary.allRemoved':
+    '{marked} for removal from the wishlist, so there is nothing left to order.',
+  'result.stats.total': 'in the list',
+  'result.stats.confirmed': 'confirmed',
+  'result.stats.removed': 'marked for removal',
+  'result.built.summary': 'How was this order built?',
+  'result.built.categories':
+    'The categories come first, in the order of interest; inside a category the place is decided '
+    + 'by the comparisons.',
+  'result.built.resolved':
+    'Your answers settle the place of {resolved} of {total}. The other {fallback} keep the '
+    + 'position they had in the wishlist — the fallback order, marked in the list.',
+  'result.built.answers': 'Comparisons answered so far: {count}.',
+  'result.built.manual':
+    '{items} moved by hand. A hand made move is replayed over whatever the comparisons produce, '
+    + 'so new answers go on improving the list around it.',
+  'result.built.noManual': 'Nothing has been moved by hand.',
+  'result.built.complete': 'The sorting is finished: every pair the order needed has an answer.',
+  'result.built.incomplete': 'The sorting is not finished — it can be continued at any time.',
+  'result.legend.sorted': 'confirmed by comparisons',
+  'result.legend.fallback': 'still in the old order — by the position in the wishlist',
   'result.legend.manual': 'moved by hand',
+  'result.legend.tied': 'tied with the row above',
+
+  /* -- result screen: carrying the order into Steam --------------------- */
+  'result.transfer.eyebrow': 'Main action',
+  'result.transfer.heading': 'Transfer the order to Steam',
+  'result.transfer.sub': 'No extensions or additional software required',
+  'result.transfer.step1': 'Show the bookmarks bar',
+  'result.transfer.shortcut':
+    '<kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>B</kbd> — in Chrome, Edge and Firefox.',
+  'result.transfer.shortcutMac':
+    '<kbd>⌘</kbd> + <kbd>Shift</kbd> + <kbd>B</kbd> — in Chrome, Edge and Firefox.',
+  'result.transfer.shortcutSafari': 'In Safari: the “View” menu → “Show Favourites Bar”.',
+  'result.transfer.step2': 'Drag this link onto the bar',
+  'result.transfer.step3': 'Open your wishlist and press the bookmark',
+  'result.transfer.openWishlist': 'Open my wishlist ↗',
+  'result.transfer.link': 'Transfer my order to Steam',
+  'result.transfer.copy': 'Copy link',
+  'result.transfer.carries': 'The link carries {items}.',
+  'result.transfer.fresh':
+    'The link is rebuilt on every change, so what you take from here is always the current order.',
+  'result.transfer.taken':
+    'This is the link you took, and it still writes exactly the order shown below.',
+  'result.transfer.stale': 'The order has changed — replace the old bookmark with the updated link.',
+  'result.transfer.copied':
+    'The link is copied. Create a bookmark by hand and paste it in as the address.',
+  'result.transfer.copyFailed':
+    'The browser refused access to the clipboard — drag the link onto the bookmarks bar instead.',
+  'result.transfer.clickToast':
+    'This link is not for pressing here: drag it onto the bookmarks bar and press it on the Steam '
+    + 'wishlist page.',
+  'result.transfer.empty': 'The list is empty — there is no order to carry anywhere yet.',
+  'result.transfer.failed': 'The link could not be built: {message}',
+  'result.transfer.mobile':
+    'On a phone or a tablet this is awkward: a bookmarklet has to be dragged onto a bookmarks bar. '
+    + 'The transfer is easier in a desktop browser.',
+  'result.transfer.warnAccount': 'The order is written into the account this browser is signed into.',
+  'result.transfer.warnNoDelete':
+    'Nothing is deleted: the items you marked for removal go to the end of the list.',
+  'result.transfer.warnPriority':
+    'Afterwards every item has a priority, including the ones that had none before.',
+  'result.transfer.warnNoBackup':
+    'The bookmarklet makes no backup and does not check the result afterwards.',
+  'result.transfer.warnReload':
+    'When it is done, reload the Steam page and switch the sorting to your own order.',
+  'result.transfer.advanced': 'Need a backup and automatic verification?',
+  'result.transfer.advancedText':
+    'The userscript reads the wishlist page itself: it saves the order that is there now to a '
+    + 'file, writes the new one, and checks afterwards that it arrived. It needs Tampermonkey, '
+    + 'which is why it is the longer way and not the main one.',
+  'result.transfer.advancedStep2':
+    'Install the script “steam-wishlist-import-order.user.js” from the repository.',
+  'result.transfer.advancedStep3':
+    'Open your wishlist page and follow the panel the script puts on it.',
+
+  /* -- result screen: the list ------------------------------------------ */
+  'result.list.heading': 'Your order',
   'result.search': 'Search by title or App ID',
   'result.filterAria': 'What to show',
   'result.filter.all': 'All',
   'result.filter.game': 'Games',
   'result.filter.dlc': 'DLC',
-  'result.exportJson': 'Order as JSON',
-  'result.exportCsv': 'List as CSV',
-  'result.copyText': 'Copy as a list',
-  'result.saveState': 'Backup of the state',
   'result.hint':
     'A row can be dragged with the mouse, or selected and moved with <kbd>Ctrl</kbd> + <kbd>↑</kbd> / '
     + '<kbd>Ctrl</kbd> + <kbd>↓</kbd>. The moves are saved and survive a reload.',
   'result.removed.hint': 'These items are not part of the numbering of the final list.',
-  'result.resetManual': 'Reset the manual edits',
-  'result.resetAnswers': 'Reset the comparison answers',
-  'result.mark.tied': '= same as the previous one',
-  'result.mark.manual': 'moved by hand',
-  'result.mark.fallback': 'fallback order',
+  'result.mark.confirmed': 'Confirmed by comparisons',
+  'result.mark.fallback': 'Still in the old order',
+  'result.mark.manual': 'Moved by hand',
+  'result.mark.tied': 'Tied with the row above',
   'result.row.appId': 'App ID {appId}',
   'result.row.where': '{category} · {position} in the category',
   'result.row.aria': '{position}. {title}. {category}. {kind}. {note}',
-  'result.row.ariaManual': 'Moved by hand.',
-  'result.row.ariaFallback': 'Fallback order.',
   'result.row.categoryAria': 'Category: {title}',
   'result.shown.all': '{rows}',
   'result.shown.filtered': '{shown} of {total} shown',
   'result.empty.filter': 'Neither the filter nor the search matched a single item.',
   'result.empty.noItems': 'Import a wishlist and the result appears here.',
   'result.empty.allRemoved': 'Every item is marked for removal — there is nothing to order.',
-  'result.summary.empty': 'The list is empty: there is nothing to show yet.',
-  'result.summary.allRemoved':
-    '{marked} for removal from the wishlist, so there is nothing left to order.',
-  'result.summary.total': '{items} in total.',
-  'result.summary.resolved':
-    'The order of {resolved} is confirmed by comparisons, the other {fallback} stand in the fallback '
-    + 'order — by their position in your wishlist.',
-  'result.summary.manual': '{items} moved by hand.',
-  'result.summary.removed':
-    'Another {marked} for removal from the wishlist — they go as a separate list.',
-  'result.summary.comparisons': 'Comparisons made: {count}.',
-  'result.summary.complete': 'The sorting is finished.',
-  'result.summary.incomplete': 'The sorting is not finished, it can be continued.',
   'result.move.failed': 'It could not be moved: {message}',
   'result.move.announce': '“{title}” {where}{category}.',
   'result.move.place': 'to place {position}',
@@ -541,6 +614,15 @@ const EN = {
   'result.move.edgeLast': 'last',
   'result.category.failed': 'The category could not be changed: {message}',
   'result.category.toast': '“{title}” — {category}.',
+
+  /* -- result screen: the files and the two resets ---------------------- */
+  'result.export.summary': 'Download or share',
+  'result.export.hint':
+    'The files are built here in the browser and saved by you — nothing is uploaded.',
+  'result.exportJson': 'Order as JSON',
+  'result.exportCsv': 'List as CSV',
+  'result.copyText': 'Copy as a list',
+  'result.saveState': 'Backup of the state',
   'result.export.empty': 'There is nothing to export: the list is empty.',
   'result.export.failed': 'The file could not be built: {message}',
   'result.export.jsonDone': 'The final order is saved as JSON.',
@@ -549,13 +631,15 @@ const EN = {
   'result.copy.done': 'The numbered list is copied to the clipboard.',
   'result.copy.failed':
     'The browser refused access to the clipboard — the list was saved as a file instead.',
+  'result.resetManual': 'Reset the manual moves',
   'result.resetManual.none': 'There are no manual moves.',
-  'result.resetManual.title': 'Reset the manual edits?',
+  'result.resetManual.title': 'Reset the manual moves?',
   'result.resetManual.text':
     '{moves} will be forgotten and the list goes back to the order the comparisons give. The '
     + 'comparison answers stay.',
   'result.resetManual.confirm': 'Reset the moves',
   'result.resetManual.done': 'The manual moves are reset.',
+  'result.resetAnswers': 'Reset the comparison answers',
   'result.resetAnswers.none': 'There are no answers yet.',
   'result.resetAnswers.title': 'Reset the comparison answers?',
   'result.resetAnswers.text':
@@ -563,34 +647,6 @@ const EN = {
     + 'and the manual moves stay. This cannot be undone.',
   'result.resetAnswers.confirm': 'Reset the answers',
   'result.resetAnswers.done': 'The comparison answers are reset.',
-
-  /* -- the bookmarklet: the block on the result screen ----------------- */
-  'result.bookmarklet.heading': 'Write the order into Steam',
-  'result.bookmarklet.lead':
-    'The link below already carries your order. Drag it onto the bookmarks bar, open your Steam '
-    + 'wishlist and press the bookmark there: it asks once and writes the whole order in one request. '
-    + 'Nothing is ever deleted.',
-  'result.bookmarklet.step1':
-    'Show the bookmarks bar: <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>B</kbd>, or <kbd>⌘</kbd> + '
-    + '<kbd>Shift</kbd> + <kbd>B</kbd> on a Mac.',
-  'result.bookmarklet.step2': 'Drag the link onto it — do not click it here.',
-  'result.bookmarklet.step3':
-    'Open store.steampowered.com/wishlist and press the bookmark. Then reload the page and look at '
-    + 'the order.',
-  'result.bookmarklet.link': 'Write the order into Steam',
-  'result.bookmarklet.carries': 'The link carries {items}, in the language of this interface.',
-  'result.bookmarklet.regenerate':
-    'The link is rebuilt every time the order changes. If you move anything afterwards, drag the new '
-    + 'link onto the bar again — the old bookmark still holds the old order.',
-  'result.bookmarklet.limits':
-    'It does not read the Steam page, so it makes no backup and checks nothing afterwards: for those '
-    + 'there is the userscript. The order applies to the items that were in the list when the link '
-    + 'was built; anything added to the wishlist later stays at the end without a priority.',
-  'result.bookmarklet.clickToast':
-    'This link is not for clicking here: drag it onto the bookmarks bar and press it on the Steam '
-    + 'wishlist page.',
-  'result.bookmarklet.empty': 'The list is empty — there is no order to carry anywhere yet.',
-  'result.bookmarklet.failed': 'The link could not be built: {message}',
 
   /* -- the bookmarklet: what it says on the Steam page ------------------ */
   'bookmarklet.title': 'Steam Wishlist Sorter',
@@ -1040,54 +1096,130 @@ const RU = {
     'Закончить можно когда угодно. Каждый ответ сохраняется, а результат готов к просмотру в любой '
     + 'момент — завершённый или нет.',
 
-  /* -- result screen -------------------------------------------------- */
-  'result.heading': 'Результат',
-  'result.continue': 'Продолжить сортировку',
+  /* -- экран результата -------------------------------------------------- */
+  'result.eyebrow': 'Шаг 4 из 4',
+  'result.head.usable': 'Результат уже можно использовать',
+  'result.head.ready': 'Ваш порядок готов',
+  'result.head.empty': 'Упорядочивать пока нечего',
+  'result.lead.usable': 'Перенесите его в Steam сейчас или продолжайте улучшать ответами.',
+  'result.lead.ready': 'Каждое место в нём определено вашими ответами.',
+  'result.lead.empty': 'Импортируйте список желаемого, и порядок появится здесь.',
+  'result.continue': 'Продолжить сравнения',
   'result.complete': 'Сортировка завершена',
   'result.toImport': 'Перейти к импорту',
-  'result.legend.sorted': 'порядок подтверждён сравнениями',
-  'result.legend.fallback': 'запасной порядок — по позиции в wishlist',
+
+  /* -- экран результата: сводка ------------------------------------------ */
+  'result.summary.eyebrow': 'Уже можно пользоваться',
+  'result.summary.headline': '{items} стоят по вашим ответам',
+  'result.summary.headlineAll': 'Весь список стоит по вашим ответам',
+  'result.summary.headlineNone': 'Ни одно место пока не определено ответами',
+  'result.summary.rest':
+    'Остальные сохраняют порядок, который был у них в списке желаемого; в списке ниже видно, какие '
+    + 'именно.',
+  'result.summary.choice':
+    'Этот порядок можно перенести в Steam прямо сейчас или продолжить сравнения — каждый ответ '
+    + 'улучшает его.',
+  'result.summary.done': 'Сравнивать больше нечего. Перенесите порядок в Steam.',
+  'result.summary.empty': 'Список пуст: пока нечего показывать.',
+  'result.summary.allRemoved': 'Все {marked} на удаление из желаемого, упорядочивать нечего.',
+  'result.stats.total': 'в списке',
+  'result.stats.confirmed': 'подтверждено',
+  'result.stats.removed': 'помечено на удаление',
+  'result.built.summary': 'Как построен этот порядок?',
+  'result.built.categories':
+    'Сначала идут категории, в порядке интереса; внутри категории место определяют сравнения.',
+  'result.built.resolved':
+    'Ваши ответы определяют место {resolved} из {total}. Остальные {fallback} стоят там же, где '
+    + 'стояли в списке желаемого, — это запасной порядок, и в списке он отмечен.',
+  'result.built.answers': 'Ответов на сравнения: {count}.',
+  'result.built.manual':
+    'Вручную переставлено {items}. Ручная перестановка накладывается поверх того, что дают '
+    + 'сравнения, поэтому новые ответы продолжают улучшать список вокруг неё.',
+  'result.built.noManual': 'Вручную ничего не переставляли.',
+  'result.built.complete': 'Сортировка завершена: на каждую нужную пару есть ответ.',
+  'result.built.incomplete': 'Сортировка не завершена — её можно продолжить в любой момент.',
+  'result.legend.sorted': 'подтверждено сравнениями',
+  'result.legend.fallback': 'пока в прежнем порядке — по позиции в списке желаемого',
   'result.legend.manual': 'переставлено вручную',
+  'result.legend.tied': 'на одном месте с предыдущей',
+
+  /* -- экран результата: перенос порядка в Steam -------------------------- */
+  'result.transfer.eyebrow': 'Главное действие',
+  'result.transfer.heading': 'Перенести порядок в Steam',
+  'result.transfer.sub': 'Без расширений и установки дополнительных программ',
+  'result.transfer.step1': 'Покажите панель закладок',
+  'result.transfer.shortcut':
+    '<kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>B</kbd> — в Chrome, Edge и Firefox.',
+  'result.transfer.shortcutMac':
+    '<kbd>⌘</kbd> + <kbd>Shift</kbd> + <kbd>B</kbd> — в Chrome, Edge и Firefox.',
+  'result.transfer.shortcutSafari': 'В Safari: меню «Вид» → «Показать панель избранного».',
+  'result.transfer.step2': 'Перетащите эту ссылку на панель',
+  'result.transfer.step3': 'Откройте свой список желаемого и нажмите закладку',
+  'result.transfer.openWishlist': 'Открыть мой список ↗',
+  'result.transfer.link': 'Перенести мой порядок в Steam',
+  'result.transfer.copy': 'Скопировать ссылку',
+  'result.transfer.carries': 'В ссылке {items}.',
+  'result.transfer.fresh':
+    'Ссылка пересобирается при каждом изменении, поэтому отсюда всегда уходит текущий порядок.',
+  'result.transfer.taken':
+    'Это та самая ссылка, которую вы взяли, и она по-прежнему записывает порядок из списка ниже.',
+  'result.transfer.stale': 'Порядок изменился — перетащите обновлённую ссылку вместо старой.',
+  'result.transfer.copied':
+    'Ссылка скопирована. Создайте закладку вручную и вставьте её как адрес.',
+  'result.transfer.copyFailed':
+    'Браузер не дал доступ к буферу обмена — перетащите ссылку на панель закладок.',
+  'result.transfer.clickToast':
+    'На эту ссылку здесь нажимать не надо: перетащите её на панель закладок и нажмите уже на '
+    + 'странице списка желаемого в Steam.',
+  'result.transfer.empty': 'Список пуст — переносить пока нечего.',
+  'result.transfer.failed': 'Не удалось собрать ссылку: {message}',
+  'result.transfer.mobile':
+    'На телефоне или планшете это неудобно: букмарклет нужно перетащить на панель закладок. '
+    + 'Перенос проще сделать в настольном браузере.',
+  'result.transfer.warnAccount':
+    'Порядок записывается в аккаунт, под которым вошёл этот браузер.',
+  'result.transfer.warnNoDelete':
+    'Ничего не удаляется: позиции, помеченные на удаление, уходят в конец списка.',
+  'result.transfer.warnPriority':
+    'После записи приоритет получают все позиции, включая те, у которых его не было.',
+  'result.transfer.warnNoBackup':
+    'Букмарклет не делает резервной копии и не проверяет результат.',
+  'result.transfer.warnReload':
+    'Когда всё пройдёт, перезагрузите страницу Steam и выберите сортировку по своему порядку.',
+  'result.transfer.advanced': 'Нужна резервная копия и автоматическая проверка?',
+  'result.transfer.advancedText':
+    'Userscript читает саму страницу списка: сохраняет в файл тот порядок, что есть сейчас, '
+    + 'записывает новый и потом сверяет, что он доехал. Ему нужен Tampermonkey — поэтому это путь '
+    + 'длиннее и не главный.',
+  'result.transfer.advancedStep2':
+    'Установите скрипт «steam-wishlist-import-order.user.js» из репозитория.',
+  'result.transfer.advancedStep3':
+    'Откройте страницу списка желаемого и следуйте панели, которую поставит скрипт.',
+
+  /* -- экран результата: список ------------------------------------------ */
+  'result.list.heading': 'Ваш порядок',
   'result.search': 'Поиск по названию или App ID',
   'result.filterAria': 'Что показывать',
   'result.filter.all': 'Все',
   'result.filter.game': 'Игры',
   'result.filter.dlc': 'DLC',
-  'result.exportJson': 'Итог в JSON',
-  'result.exportCsv': 'Итог в CSV',
-  'result.copyText': 'Скопировать списком',
-  'result.saveState': 'Резервная копия состояния',
   'result.hint':
-    'Строку можно перетащить мышью или выбрать её и нажать <kbd>Ctrl</kbd> + <kbd>↑</kbd> / '
+    'Строку можно перетащить мышью или выделить и переместить <kbd>Ctrl</kbd> + <kbd>↑</kbd> / '
     + '<kbd>Ctrl</kbd> + <kbd>↓</kbd>. Перестановки сохраняются и переживают перезагрузку.',
   'result.removed.hint': 'Эти позиции не входят в нумерацию итогового списка.',
-  'result.resetManual': 'Сбросить ручные правки',
-  'result.resetAnswers': 'Сбросить ответы сравнений',
-  'result.mark.tied': '= как предыдущая',
-  'result.mark.manual': 'переставлено вручную',
-  'result.mark.fallback': 'запасной порядок',
+  'result.mark.confirmed': 'Подтверждено сравнениями',
+  'result.mark.fallback': 'Пока в прежнем порядке',
+  'result.mark.manual': 'Перемещено вручную',
+  'result.mark.tied': 'На одном месте с предыдущей',
   'result.row.appId': 'App ID {appId}',
   'result.row.where': '{category} · {position} в категории',
   'result.row.aria': '{position}. {title}. {category}. {kind}. {note}',
-  'result.row.ariaManual': 'Переставлено вручную.',
-  'result.row.ariaFallback': 'Запасной порядок.',
   'result.row.categoryAria': 'Категория: {title}',
   'result.shown.all': '{rows}',
   'result.shown.filtered': 'показано {shown} из {total}',
   'result.empty.filter': 'Под фильтр и поиск не попала ни одна позиция.',
   'result.empty.noItems': 'Импортируйте список желаемого, и здесь появится результат.',
   'result.empty.allRemoved': 'Все позиции помечены на удаление — упорядочивать нечего.',
-  'result.summary.empty': 'Список пуст: пока нечего показывать.',
-  'result.summary.allRemoved': 'Все {marked} на удаление из желаемого, упорядочивать нечего.',
-  'result.summary.total': 'Всего {items}.',
-  'result.summary.resolved':
-    'Порядок подтверждён сравнениями у {resolved}, остальные {fallback} стоят в запасном порядке — '
-    + 'по позиции в вашем wishlist.',
-  'result.summary.manual': 'Вручную переставлено {items}.',
-  'result.summary.removed': 'Ещё {marked} на удаление из желаемого — они идут отдельным списком.',
-  'result.summary.comparisons': 'Сравнений сделано: {count}.',
-  'result.summary.complete': 'Сортировка завершена.',
-  'result.summary.incomplete': 'Сортировка не завершена, её можно продолжить.',
   'result.move.failed': 'Не удалось переставить: {message}',
   'result.move.announce': '«{title}» {where}{category}.',
   'result.move.place': 'на место {position}',
@@ -1095,11 +1227,20 @@ const RU = {
   'result.move.categorySuffix': ', категория: {category}',
   'result.move.categoryToast': '«{title}» переехала в «{category}».',
   'result.move.edge':
-    'Это {edge} строка категории «{category}». Категорию меняет список в самой строке.',
+    'Это {edge} строка категории «{category}». Категория меняется выбором в самой строке.',
   'result.move.edgeFirst': 'первая',
   'result.move.edgeLast': 'последняя',
   'result.category.failed': 'Не удалось сменить категорию: {message}',
   'result.category.toast': '«{title}» — {category}.',
+
+  /* -- экран результата: файлы и два сброса ------------------------------- */
+  'result.export.summary': 'Скачать или поделиться',
+  'result.export.hint':
+    'Файлы собираются здесь, в браузере, и сохраняете их вы — никуда ничего не отправляется.',
+  'result.exportJson': 'Итог в JSON',
+  'result.exportCsv': 'Итог в CSV',
+  'result.copyText': 'Скопировать списком',
+  'result.saveState': 'Резервная копия состояния',
   'result.export.empty': 'Экспортировать нечего: список пуст.',
   'result.export.failed': 'Не удалось собрать файл: {message}',
   'result.export.jsonDone': 'Итоговый порядок сохранён в JSON.',
@@ -1107,13 +1248,15 @@ const RU = {
   'result.copy.empty': 'Копировать нечего: список пуст.',
   'result.copy.done': 'Нумерованный список скопирован в буфер обмена.',
   'result.copy.failed': 'Браузер не дал доступ к буферу обмена — список сохранён файлом.',
+  'result.resetManual': 'Сбросить ручные перемещения',
   'result.resetManual.none': 'Ручных перестановок нет.',
-  'result.resetManual.title': 'Сбросить ручные правки?',
+  'result.resetManual.title': 'Сбросить ручные перемещения?',
   'result.resetManual.text':
-    '{moves} будет забыто, и список вернётся к тому порядку, который дают сравнения. Ответы на '
-    + 'сравнения останутся.',
+    '{moves} будет забыто, и список вернётся к порядку, который дают сравнения. Ответы сравнений '
+    + 'останутся.',
   'result.resetManual.confirm': 'Сбросить перестановки',
   'result.resetManual.done': 'Ручные перестановки сброшены.',
+  'result.resetAnswers': 'Сбросить ответы сравнений',
   'result.resetAnswers.none': 'Ответов пока нет.',
   'result.resetAnswers.title': 'Сбросить ответы сравнений?',
   'result.resetAnswers.text':
@@ -1121,34 +1264,6 @@ const RU = {
     + 'перестановки останутся. Отменить это будет нельзя.',
   'result.resetAnswers.confirm': 'Сбросить ответы',
   'result.resetAnswers.done': 'Ответы сравнений сброшены.',
-
-  /* -- букмарклет: блок на экране результата ---------------------------- */
-  'result.bookmarklet.heading': 'Записать порядок в Steam',
-  'result.bookmarklet.lead':
-    'В ссылке ниже уже лежит ваш порядок. Перетащите её на панель закладок, откройте свой список '
-    + 'желаемого в Steam и нажмите закладку там: она один раз переспросит и отправит весь порядок '
-    + 'одним запросом. Ничего никогда не удаляется.',
-  'result.bookmarklet.step1':
-    'Покажите панель закладок: <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>B</kbd>, на Mac — '
-    + '<kbd>⌘</kbd> + <kbd>Shift</kbd> + <kbd>B</kbd>.',
-  'result.bookmarklet.step2': 'Перетащите ссылку на неё — здесь на неё нажимать не надо.',
-  'result.bookmarklet.step3':
-    'Откройте store.steampowered.com/wishlist и нажмите закладку. Потом перезагрузите страницу и '
-    + 'посмотрите на порядок.',
-  'result.bookmarklet.link': 'Записать порядок в Steam',
-  'result.bookmarklet.carries': 'В ссылке {items}, на языке этого интерфейса.',
-  'result.bookmarklet.regenerate':
-    'Ссылка пересобирается при каждом изменении порядка. Если вы что-то переставите потом, '
-    + 'перетащите на панель новую ссылку: в старой закладке остался старый порядок.',
-  'result.bookmarklet.limits':
-    'Страницу Steam она не читает, поэтому не делает резервной копии и ничего потом не сверяет — '
-    + 'для этого есть userscript. Порядок применяется к тем позициям, что были в списке в момент '
-    + 'сборки ссылки; всё добавленное в желаемое позже останется в конце без приоритета.',
-  'result.bookmarklet.clickToast':
-    'На эту ссылку здесь нажимать не надо: перетащите её на панель закладок и нажмите уже на '
-    + 'странице списка желаемого в Steam.',
-  'result.bookmarklet.empty': 'Список пуст — переносить пока нечего.',
-  'result.bookmarklet.failed': 'Не удалось собрать ссылку: {message}',
 
   /* -- букмарклет: что он говорит на странице Steam ---------------------- */
   'bookmarklet.title': 'Steam Wishlist Sorter',
