@@ -552,9 +552,9 @@ export function createResultScreen(app) {
     app.toast(t('result.copy.failed'), 'error');
   });
 
-  nodes.saveButton.addEventListener('click', () => {
-    document.getElementById('action-save-state').click();
-  });
+  // The same download the settings menu offers, asked for by name. Clicking
+  // the other button instead would have broken the day it moved.
+  nodes.saveButton.addEventListener('click', () => app.downloadState());
 
   /* ---------------------------------------------------- bookmarklet */
 
