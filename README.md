@@ -136,6 +136,13 @@ single answer, not a single position.
 
 ![The result screen in the Steam-like theme](docs/screenshots/steam-theme.png)
 
+The chosen theme is on the page before the first paint, not after the modules load. Modules run
+late — on a cold cache half a second late — and half a second of the wrong colours is the first
+thing a visitor would see. So the theme is set by a small blocking script in the head, which reads
+one word from a key of its own and deliberately knows nothing about the shape of the saved state:
+exactly `steam` turns the store theme on, and everything else — no key, storage denied, a value
+this version has never heard of — leaves the page in Modern.
+
 The two differ in more than hue. Corners, borders, density, the case and the weight of the headings
 all move with the theme, because a theme that only repaints is the first theme in another colour.
 Everything a theme may want to change is a custom property in `:root`, and `[data-theme="steam"]`
@@ -778,7 +785,7 @@ in development.
 | [`src/export.js`](src/export.js) | the result as JSON, CSV and text. No DOM — which is why every format is checked by a test character by character, instead of by eye in a downloaded file |
 | [`src/bookmarklet.js`](src/bookmarklet.js) | the link that carries the order into Steam: the app ids in their final order, the interface texts of the moment, and the small program that sends the one write request. No DOM either, so a test can read the address apart character by character and make the generated code run against a fake page |
 | [`src/result-view.js`](src/result-view.js) | what the result screen decides before it draws anything: the state of a row, the share of the list the answers carry, whether the link taken a minute ago still writes the order on the screen, and whether the bookmarks bar is shown with <kbd>Ctrl</kbd> or with the command key. No DOM, so all four are covered by [`tests/result-view.test.js`](tests/result-view.test.js) |
-| [`src/theme.js`](src/theme.js) | the names of the two themes and the rule for reading one back: an unknown value and a state file from before the second theme both read as Modern. It touches neither the DOM nor the storage, so a test gets at it directly |
+| [`src/theme.js`](src/theme.js) | the names of the two themes, the rule for reading one back — an unknown value and a state file from before the second theme both read as Modern — and the key the chosen theme is mirrored under for the script in the head. It touches no DOM and holds no storage of its own, so a test gets at it directly |
 | [`src/onboarding.js`](src/onboarding.js) | which stages have already explained themselves. It is not application state — it says something about the person, not about the wishlist — so it lives under a key of its own and “Start over” does not bring the explanations back |
 | [`src/ui-*.js`](src/) | the screens on top of the core: wishlist, categories, comparisons, result, the card of the direct import, the shared frame with its stage sequence and settings menu, and the dialogs |
 | [`server.js`](server.js) | a server on plain Node: it serves the files of the project, is guarded against escaping the root, and answers the three endpoints of the direct import — the health check the card asks about, the wishlist and the missing titles |
