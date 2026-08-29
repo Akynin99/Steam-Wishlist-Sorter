@@ -196,10 +196,12 @@ test('a language the application does not have is read as English, a known one i
     'pt-BR',
   );
   assert.equal(validateState({ ...base, settings: { language: 'pt' } }).settings.language, 'en');
+  assert.equal(validateState({ ...base, settings: { language: 'pl' } }).settings.language, 'pl');
+  assert.equal(validateState({ ...base, settings: { language: 'tr' } }).settings.language, 'tr');
   // A language the application does not have yet — a state file written by a
   // later version, or one edited by hand — reads as English rather than
   // leaving the interface with no dictionary at all.
-  assert.equal(validateState({ ...base, settings: { language: 'pl' } }).settings.language, 'en');
+  assert.equal(validateState({ ...base, settings: { language: 'ja' } }).settings.language, 'en');
   assert.equal(validateState({ ...base, settings: { language: 42 } }).settings.language, 'en');
   assert.equal(validateState({ ...base, settings: { language: null } }).settings.language, 'en');
 });

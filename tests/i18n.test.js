@@ -127,7 +127,7 @@ test('the default language is English, and it is what a fresh module hands out',
   assert.equal(DEFAULT_LANGUAGE, 'en');
   assert.equal(getLanguage(), 'en', 'nothing has switched the language yet');
   assert.equal(t('nav.import'), 'Wishlist');
-  assert.deepEqual([...LANGUAGES], ['en', 'ru', 'de', 'fr', 'es', 'pt-BR']);
+  assert.deepEqual([...LANGUAGES], ['en', 'ru', 'de', 'fr', 'es', 'pt-BR', 'pl', 'tr']);
   assert.deepEqual(LANGUAGE_NAMES, {
     en: 'English',
     ru: 'Русский',
@@ -135,6 +135,8 @@ test('the default language is English, and it is what a fresh module hands out',
     fr: 'Français',
     es: 'Español',
     'pt-BR': 'Português (Brasil)',
+    pl: 'Polski',
+    tr: 'Türkçe',
   });
 });
 
@@ -144,9 +146,11 @@ test('the browser language is never consulted: only setLanguage decides', () => 
   assert.equal(normalizeLanguage('de'), 'de');
   assert.equal(normalizeLanguage('fr'), 'fr');
   assert.equal(normalizeLanguage('es'), 'es');
+  assert.equal(normalizeLanguage('pl'), 'pl');
+  assert.equal(normalizeLanguage('tr'), 'tr');
   assert.equal(normalizeLanguage('ru-RU'), 'en', 'a locale tag is not a language of this application');
   assert.equal(normalizeLanguage('de-AT'), 'en');
-  assert.equal(normalizeLanguage('pl'), 'en', 'a language with no dictionary yet is not offered');
+  assert.equal(normalizeLanguage('ja'), 'en', 'a language with no dictionary yet is not offered');
   assert.equal(normalizeLanguage(''), 'en');
   assert.equal(normalizeLanguage(undefined), 'en');
   assert.equal(normalizeLanguage(null), 'en');
@@ -260,15 +264,30 @@ test('the plural rules pick the form each language needs', () => {
   assert.equal(plural('count.items', 2), '2 itens');
   assert.equal(plural('count.items', 0), '0 item', 'Brazilian Portuguese counts zero as one');
   assert.equal(plural('count.items', 21), '21 itens');
+
+  setLanguage('pl');
+  assert.equal(plural('count.items', 1), '1 pozycja');
+  assert.equal(plural('count.items', 2), '2 pozycje');
+  assert.equal(plural('count.items', 4), '4 pozycje');
+  assert.equal(plural('count.items', 5), '5 pozycji');
+  assert.equal(plural('count.items', 12), '12 pozycji');
+  assert.equal(plural('count.items', 22), '22 pozycje');
+  assert.equal(plural('count.items', 0), '0 pozycji', 'Polish counts zero as many');
+
+  setLanguage('tr');
+  assert.equal(plural('count.items', 1), '1 öğe');
+  assert.equal(plural('count.items', 2), '2 öğe', 'a Turkish noun after a numeral stays singular');
+  assert.equal(plural('count.items', 0), '0 öğe');
+  assert.equal(plural('count.items', 21), '21 öğe');
 });
 
 /**
- * The rules themselves, on the numbers where the six languages disagree.
+ * The rules themselves, on the numbers where the eight languages disagree.
  * The table is the CLDR rule for each of them, written out; the test is that
  * the module picks the same form. It matters most where the difference is one
  * number wide — French and Brazilian Portuguese take `one` at zero and nobody
- * else does, Russian takes `few` at 21 and `one` at 101, everyone else takes
- * `many` at both.
+ * else does, Russian takes `one` at 21 and at 101, and Polish, the other
+ * three-form language, takes `many` at both.
  */
 test('the plural rules follow CLDR on the numbers that separate them', () => {
   const COUNTS = [0, 1, 2, 5, 11, 21, 101];
@@ -279,6 +298,8 @@ test('the plural rules follow CLDR on the numbers that separate them', () => {
     fr: ['one', 'one', 'many', 'many', 'many', 'many', 'many'],
     es: ['many', 'one', 'many', 'many', 'many', 'many', 'many'],
     'pt-BR': ['one', 'one', 'many', 'many', 'many', 'many', 'many'],
+    pl: ['many', 'one', 'few', 'many', 'many', 'many', 'many'],
+    tr: ['many', 'one', 'many', 'many', 'many', 'many', 'many'],
   };
 
   assert.deepEqual(
@@ -301,6 +322,40 @@ test('the plural rules follow CLDR on the numbers that separate them', () => {
   }
 });
 
+/**
+ * Polish and Russian both have three forms and both look at the last two
+ * digits, which is exactly why the Polish rule is written out on its own
+ * instead of reusing the Russian function: they part company at 21, 101 and
+ * every other number ending in a single 1. Russian calls those singular,
+ * Polish does not — outside an ending of 2–4 it knows only `many`. Reusing the
+ * Russian rule would look right on 1, 2 and 5 and be wrong on the rest of the
+ * number line, so the disagreement is nailed down here.
+ */
+test('Polish is not Russian: the two three-form rules disagree, and where', () => {
+  const forms = (language, counts) => counts.map((count) => {
+    setLanguage(language);
+    const rendered = plural('count.items', count);
+    return PLURAL_FORMS.find((form) => rendered === t(`count.items.${form}`, { count }));
+  });
+
+  const COUNTS = [1, 2, 5, 11, 21, 22, 101];
+  const russian = forms('ru', COUNTS);
+  const polish = forms('pl', COUNTS);
+
+  assert.deepEqual(russian, ['one', 'few', 'many', 'many', 'one', 'few', 'one']);
+  assert.deepEqual(polish, ['one', 'few', 'many', 'many', 'many', 'few', 'many']);
+  assert.notDeepEqual(polish, russian, 'the Polish rule is not the Russian one under a new name');
+
+  // Named one by one, so a rule quietly copied from the other side fails here
+  // and not only in the table above.
+  setLanguage('pl');
+  assert.equal(plural('count.items', 21), '21 pozycji', 'Polish has no singular at 21');
+  assert.equal(plural('count.items', 101), '101 pozycji');
+  setLanguage('ru');
+  assert.equal(plural('count.items', 21), '21 позиция', 'Russian does');
+  assert.equal(plural('count.items', 101), '101 позиция');
+});
+
 test('a counted phrase can carry parameters of its own next to the count', () => {
   const progress = () =>
     t('compare.progress', {
@@ -311,7 +366,7 @@ test('a counted phrase can carry parameters of its own next to the count', () =>
 
   assert.equal(progress(), 'Category “Want it” · 7 comparisons made · about 17 pairs left');
   setLanguage('ru');
-  assert.equal(progress(), 'Категория «Хочу» · 7 сравнений сделано · примерно 17 пар осталось');
+  assert.equal(progress(), 'Категория «Хочу» · 7 сравнений сделано · осталось примерно: 17 пар');
 });
 
 test('the category labels follow the language, and the ids never move', () => {
