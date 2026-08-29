@@ -7,10 +7,11 @@
 through pairwise comparisons, with no backend and with your list staying on your own machine.**
 
 🎮 **[Try the live demo](https://akynin99.github.io/Steam-Wishlist-Sorter/)** — the demo set is
-already inside, you do not have to load a wishlist of your own.
-💾 **[Download it to run locally](https://github.com/Akynin99/Steam-Wishlist-Sorter/archive/refs/heads/master.zip)** —
+already inside, no wishlist of your own needed.
+
+💾 **[Download the app](https://github.com/Akynin99/Steam-Wishlist-Sorter/archive/refs/heads/master.zip)** —
 a ZIP of the current `master`; unpack it and see [Running it](#running-it). Loading your own
-wishlist straight from a Steam account only works this way.
+wishlist straight from a Steam account only works when you run it yourself.
 
 ![The wishlist screen](docs/screenshots/import.png)
 
