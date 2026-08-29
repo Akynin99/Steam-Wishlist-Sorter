@@ -45,10 +45,19 @@
         <span class="switch__track" aria-hidden="true"><span class="switch__thumb"></span></span>
         <span class="switch__label" data-i18n="settings.covers">Load covers</span>
       </label>
-      <label class="langswitch" for="setting-language">
+      <!-- The theme sits next to the language because it is the same kind
+           of setting. Both move into the settings menu later. -->
+      <label class="toolswitch" for="setting-theme">
+        <span class="visually-hidden" data-i18n="settings.theme">Interface theme</span>
+        <select class="select select--tool" id="setting-theme">
+          <option value="modern" data-i18n="theme.modern">Modern</option>
+          <option value="steam" data-i18n="theme.steam">Steam-like</option>
+        </select>
+      </label>
+      <label class="toolswitch" for="setting-language">
         <span class="visually-hidden" data-i18n="settings.language">Interface language</span>
         <!-- A language names itself: «Русский», not «Russian». -->
-        <select class="select select--language" id="setting-language">
+        <select class="select select--tool" id="setting-language">
           <option value="en">English</option>
           <option value="ru">Русский</option>
         </select>
@@ -431,11 +440,11 @@
   -->
   <dialog class="dialog" id="confirm-dialog" aria-labelledby="confirm-title">
     <form method="dialog" class="dialog__form">
-      <h2 class="dialog__title" id="confirm-title">Confirm the action</h2>
+      <h2 class="dialog__title" id="confirm-title" data-i18n="dialog.title">Confirm the action</h2>
       <p class="dialog__text" id="confirm-text"></p>
       <div class="dialog__actions">
-        <button type="submit" class="btn" value="cancel" id="confirm-cancel">Cancel</button>
-        <button type="submit" class="btn btn--primary" value="confirm" id="confirm-ok">Continue</button>
+        <button type="submit" class="btn" value="cancel" id="confirm-cancel" data-i18n="dialog.cancel">Cancel</button>
+        <button type="submit" class="btn btn--primary" value="confirm" id="confirm-ok" data-i18n="dialog.confirm">Continue</button>
       </div>
     </form>
   </dialog>

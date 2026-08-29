@@ -14,6 +14,7 @@ import { exportFileName } from './export.js';
 import { LANGUAGE_NAMES, getLanguage, plural, setLanguage, t } from './i18n.js';
 import { deserializeSession, createSession } from './ranking.js';
 import { StateStorage, StorageError, createEmptyState } from './storage.js';
+import { normalizeTheme } from './theme.js';
 import { applyTranslations, downloadText, isTypingTarget } from './ui-common.js';
 import { createImportScreen } from './ui-import.js';
 import { createCategorizeScreen } from './ui-categorize.js';
@@ -45,6 +46,7 @@ function createApp() {
   const liveRegion = document.getElementById('live-region');
   const coversToggle = document.getElementById('setting-covers');
   const languageSelect = document.getElementById('setting-language');
+  const themeSelect = document.getElementById('setting-theme');
 
   let state;
   let loadError = null;
@@ -66,8 +68,10 @@ function createApp() {
   }
 
   // The language is decided before a single word is drawn, so no screen is
-  // ever rendered in one language and then repainted in another.
+  // ever rendered in one language and then repainted in another. The theme is
+  // decided in the same breath, so nothing is ever painted twice.
   applyLanguage(state.settings.language);
+  applyTheme(state.settings.theme);
 
   let toastTimer = 0;
   let current = null;
@@ -89,6 +93,11 @@ function createApp() {
     /** @returns {string} The language of the interface. */
     get language() {
       return getLanguage();
+    },
+
+    /** @returns {string} The theme of the interface. */
+    get theme() {
+      return normalizeTheme(document.documentElement.dataset.theme);
     },
 
     /** @returns {string} The screen currently shown. */
@@ -128,10 +137,11 @@ function createApp() {
       state = nextState;
       session = deserializeSession(state.session);
       coversToggle.checked = app.loadCovers;
-      // A state file carries the language of whoever saved it; following it
-      // silently would answer a question the user did not ask, so the language
-      // of the interface stays as it is and the file is brought to it.
+      // A state file carries the language and the theme of whoever saved it;
+      // following them silently would answer a question the user did not ask,
+      // so the interface stays as it is and the file is brought to it.
       state.settings.language = getLanguage();
+      state.settings.theme = app.theme;
       app.refreshNav();
     },
 
@@ -140,6 +150,7 @@ function createApp() {
       storage.clear();
       state = createEmptyState();
       state.settings.language = getLanguage();
+      state.settings.theme = app.theme;
       session = deserializeSession(state.session);
       coversToggle.checked = true;
       app.refreshNav();
@@ -237,7 +248,7 @@ function createApp() {
      * the application goes through here, so none of them can quietly grow a
      * different, softer wording than the others.
      *
-     * @param {{ title: string, text: string, confirmLabel?: string,
+     * @param {{ title?: string, text: string, confirmLabel?: string,
      *           cancelLabel?: string, danger?: boolean }} options
      * @returns {Promise<boolean>} Whether the user agreed. Escape means no.
      */
@@ -268,6 +279,14 @@ function createApp() {
     app.save();
     app.refreshAll();
     app.toast(t('app.language.changed', { language: LANGUAGE_NAMES[app.language] }));
+  });
+
+  // Switching the theme is a repaint and nothing more: the tokens change, the
+  // markup does not, so there is no screen to redraw and nothing to lose.
+  themeSelect.addEventListener('change', () => {
+    state.settings.theme = applyTheme(themeSelect.value);
+    app.save();
+    app.toast(t('app.theme.changed', { theme: t(`theme.${app.theme}`) }));
   });
 
   document.getElementById('action-save-state').addEventListener('click', () => {
@@ -328,6 +347,22 @@ function applyLanguage(code) {
 }
 
 /**
+ * Puts the whole page into a theme. One attribute on the root element decides
+ * which set of tokens `styles.css` hands out, so this is the entire mechanism:
+ * no class is added to anything, and no screen is rebuilt.
+ *
+ * @param {string} name
+ * @returns {string} The theme that is now in use.
+ */
+function applyTheme(name) {
+  const theme = normalizeTheme(name);
+  document.documentElement.dataset.theme = theme;
+  const select = document.getElementById('setting-theme');
+  if (select) select.value = theme;
+  return theme;
+}
+
+/**
  * Offers the current state as a file. The download never leaves the machine:
  * the blob is built in the page and handed to the browser.
  *
@@ -359,7 +394,7 @@ function downloadStateFile(app) {
  * it and having nothing happen at all is the one outcome worth engineering
  * around.
  *
- * @param {{ title: string, text: string, confirmLabel?: string,
+ * @param {{ title?: string, text: string, confirmLabel?: string,
  *           cancelLabel?: string, danger?: boolean }} options
  * @returns {Promise<boolean>}
  */
@@ -368,7 +403,7 @@ function askConfirmation(options) {
   const okButton = document.getElementById('confirm-ok');
   const cancelButton = document.getElementById('confirm-cancel');
 
-  document.getElementById('confirm-title').textContent = options.title;
+  document.getElementById('confirm-title').textContent = options.title ?? t('dialog.title');
   document.getElementById('confirm-text').textContent = options.text;
   okButton.textContent = options.confirmLabel ?? t('dialog.confirm');
   cancelButton.textContent = options.cancelLabel ?? t('dialog.cancel');
