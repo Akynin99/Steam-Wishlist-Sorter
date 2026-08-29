@@ -162,10 +162,18 @@ const EN = {
   'app.saved': 'Progress saved in this browser',
 
   /* -- import screen ------------------------------------------------ */
-  'import.heading': 'Import the wishlist',
-  'import.hint':
-    'Bring the wishlist over straight from your Steam account, load it from a JSON file — or take '
-    + 'the demo set if you just want to see how this works.',
+  'import.eyebrow': 'An order you actually chose',
+  'import.promise': 'Rank games by how much you actually want to play them',
+  'import.lead':
+    'Quickly group your wishlist by interest, then choose between two games. Stop at any time — '
+    + 'progress is always saved.',
+  'import.step.load': 'Load the wishlist',
+  'import.step.group': 'Group by interest',
+  'import.step.compare': 'Compare games',
+  'import.step.send': 'Send the order to Steam',
+  'import.sessions':
+    'A full sort may take several sessions. Your current result is always available.',
+  'import.other': 'Other import methods',
   'import.file.title': 'JSON file',
   'import.file.hint': 'An export from Steam or a file collected by the userscript.',
   'import.file.button': 'Choose a file…',
@@ -175,14 +183,22 @@ const EN = {
   'import.paste.label': 'Wishlist JSON',
   'import.paste.placeholder': '[ { "appid": 620, "name": "Portal 2" }, … ]',
   'import.paste.run': 'Import from the text',
+  'import.userscript.title': 'From the Steam page, with the userscript',
+  'import.userscript.hint': 'The file it downloads is loaded here with “JSON file” above.',
   'import.state.title': 'Saved state',
   'import.state.hint':
-    'A file you saved earlier with “Save to a file”: both the categories and every answer come back.',
+    'A file you saved earlier with “Save backup”: both the categories and every answer come back.',
   'import.state.button': 'Choose a state file…',
-  'import.demo.title': 'Demo set',
-  'import.demo.hint': '20 real games from Steam. Enough to walk both stages and see the result.',
-  'import.demo.button': 'Load the demo set',
-  'import.continue': 'Continue',
+  'import.demo.button': 'Try with 20 games',
+  'import.ready.eyebrow': 'Ready',
+  'import.ready.count.one': '{count} item loaded',
+  'import.ready.count.few': '{count} items loaded',
+  'import.ready.count.many': '{count} items loaded',
+  'import.ready.next':
+    'Next, group the games into five levels of interest. That is what cuts the number of '
+    + 'comparisons down.',
+  'import.ready.start': 'Start grouping',
+  'import.ready.again': 'Load another wishlist',
   'import.current':
     'The list holds {items} right now: {sorted} with a category, {plain} without. Comparisons made: '
     + '{comparisons}. Importing again refreshes the entries and keeps the work already done.',
@@ -221,21 +237,71 @@ const EN = {
   'import.demo.httpError': 'the server answered {status}',
 
   /* -- import straight from a Steam account ------------------------- */
-  'steam.title': 'Straight from a Steam account',
-  'steam.hint':
-    'Type your SteamID or the name of your profile — the wishlist comes over by itself. It works '
-    + 'while the wishlist is public.',
-  'steam.label': 'SteamID64, profile name or a link to the profile',
-  'steam.placeholder': '76561198000000000, nickname or a profile link',
-  'steam.run': 'Fetch the wishlist',
+  'steam.title': 'Load from Steam',
+  'steam.subtitle': 'The easiest way for a public wishlist',
+  'steam.field': 'Your Steam profile',
+  'steam.placeholder': 'steamcommunity.com/id/yourname, a nickname or a SteamID64',
+  'steam.run': 'Check and load',
   'steam.cancel': 'Stop',
   'steam.checking': 'Looking for the local server…',
-  'steam.unavailable.title': 'Only when you run it yourself',
-  'steam.unavailable.text':
-    'Steam does not let a page ask it for a wishlist, so the request is made by server.js — the '
-    + 'local server this application is started with. This page has no such server behind it: it is '
-    + 'the demo on GitHub Pages, or a start without Node. Take the userscript or a JSON file '
-    + 'instead.',
+  'steam.warning': 'Automatic import works when “Game details” are public.',
+  'steam.privateAsk': 'What if it is private?',
+  'steam.privateHelp':
+    'Open your Steam profile, choose “Edit profile”, then “Privacy Settings”, and set “Game '
+    + 'details” to Public. If you would rather not open it, the userscript under “Other import '
+    + 'methods” reads the page you are logged into and works with a private list.',
+  'steam.settingsLink': 'Open Steam settings ↗',
+
+  /* The two ways Steam can decline to hand a list over. They are kept apart
+     because Steam keeps them apart: 401 and 403 name the privacy setting, a
+     5xx names nothing at all. */
+  'steam.blocked.title': 'Steam did not make the wishlist available',
+  'steam.blocked.text':
+    'That usually means “Game details” are private: the wishlist follows that one setting.',
+  'steam.blocked.unavailableTitle': 'The wishlist could not be fetched',
+  'steam.blocked.unavailableText':
+    'Steam answered with an error, and an error is what it answers both to a list it will not hand '
+    + 'over and to a bad minute of its own. So: if “Game details” are private, the steps below open '
+    + 'them; if they are public already, wait a few minutes and press “Check again”.',
+  'steam.blocked.step1': 'Open your Steam profile and choose “Edit profile”.',
+  'steam.blocked.step2': 'Open “Privacy Settings”.',
+  'steam.blocked.step3': 'Set “Game details” to Public.',
+  'steam.blocked.step4': 'Come back here and press “Check again”.',
+  'steam.blocked.settings': 'Open Steam settings',
+  'steam.blocked.again': 'Check again',
+  'steam.blocked.keepPrivate': 'I don’t want to make it public',
+
+  /* The way in that needs neither an open list nor a local server. */
+  'steam.userscript.lead':
+    'Collect the list from the Steam page itself. The userscript reads the wishlist page you are '
+    + 'logged into, so the privacy setting does not matter, and it makes no network request of its '
+    + 'own.',
+  'steam.userscript.step1': 'Install Tampermonkey — it exists for Chrome, Edge, Firefox and Opera.',
+  'steam.userscript.step2':
+    'Install the script “steam-wishlist-export.user.js” from the repository.',
+  'steam.userscript.step3':
+    'Open your wishlist page and press “Collect the list”, then “Download JSON”.',
+  'steam.userscript.step4': 'Come back here and pick that file under “Other import methods”.',
+  'steam.userscript.link': 'Open the script on GitHub ↗',
+
+  /* No local server behind the page — the demo on GitHub Pages, or a start
+     without Node. The form that cannot work is not shown at all. */
+  'steam.offline.title': 'Load my wishlist',
+  'steam.offline.subtitle': 'Choose the easiest route',
+  'steam.offline.text':
+    'Your browser does not allow this page to read Steam directly, and there is no local server '
+    + 'behind it to ask on its behalf. Your data still stays yours.',
+  'steam.offline.instructions': 'Show instructions',
+  'steam.offline.userscript.badge': 'Works with private lists',
+  'steam.offline.userscript.title': 'Import from your Steam page',
+  'steam.offline.local.title': 'Run the local version',
+  'steam.offline.local.text': 'Then a public profile link is all it takes.',
+  'steam.offline.local.download': 'Download',
+  'steam.offline.local.step1': 'Install Node.js 20 or newer.',
+  'steam.offline.local.step2': 'Unpack the archive anywhere.',
+  'steam.offline.local.step3':
+    'Run “start.bat” on Windows, or “node server.js” on macOS and Linux.',
+  'steam.offline.local.step4': 'Open http://localhost:8080/ in the browser.',
   'steam.step.account': 'Looking the account up…',
   'steam.step.wishlist': 'Asking Steam for the wishlist…',
   'steam.step.titles': 'Titles: {done} of {total}',
@@ -270,11 +336,6 @@ const EN = {
   'steam.error.accountNotFound':
     'Steam has no such account. Check the spelling — or open your profile in the browser and copy '
     + 'the address of the page.',
-  'steam.error.wishlistPrivate':
-    'Steam did not hand the wishlist over, which almost always means the privacy settings. Open '
-    + 'Steam → your profile → Edit profile → Privacy settings and set “Game details” to Public: the '
-    + 'wishlist follows that setting. If it is already public, the list may simply be empty. The '
-    + 'userscript works either way — it reads the page you are logged into.',
   'steam.error.wishlistEmpty':
     'The wishlist of this account is empty: there is nothing to sort yet.',
   'steam.error.rateLimited':
@@ -639,10 +700,18 @@ const RU = {
   'app.saved': 'Прогресс сохранён в этом браузере',
 
   /* -- import screen ------------------------------------------------ */
-  'import.heading': 'Импорт списка желаемого',
-  'import.hint':
-    'Перенесите список желаемого прямо из аккаунта Steam, загрузите JSON — или возьмите '
-    + 'демо-набор, если хотите просто посмотреть, как это работает.',
+  'import.eyebrow': 'Порядок, который выбрали вы',
+  'import.promise': 'Расставьте игры по тому, насколько на самом деле хотите в них играть',
+  'import.lead':
+    'Быстро разложите список желаемого по интересу, а потом выбирайте из двух игр. Бросить можно '
+    + 'в любой момент — прогресс сохраняется сам.',
+  'import.step.load': 'Загрузить список желаемого',
+  'import.step.group': 'Разложить по интересу',
+  'import.step.compare': 'Сравнить игры',
+  'import.step.send': 'Отправить порядок в Steam',
+  'import.sessions':
+    'Полная сортировка может занять несколько сеансов. Текущий результат доступен всегда.',
+  'import.other': 'Другие способы импорта',
   'import.file.title': 'Файл JSON',
   'import.file.hint': 'Выгрузка из Steam или файл, собранный userscript-ом.',
   'import.file.button': 'Выбрать файл…',
@@ -652,14 +721,22 @@ const RU = {
   'import.paste.label': 'JSON списка желаемого',
   'import.paste.placeholder': '[ { "appid": 620, "name": "Portal 2" }, … ]',
   'import.paste.run': 'Импортировать из текста',
+  'import.userscript.title': 'Со страницы Steam, через userscript',
+  'import.userscript.hint': 'Скачанный им файл загружается здесь пунктом «Файл JSON» выше.',
   'import.state.title': 'Сохранённое состояние',
   'import.state.hint':
-    'Файл, который вы раньше сохранили кнопкой «Сохранить в файл»: вернутся и категории, и все ответы.',
+    'Файл, который вы раньше сохранили кнопкой «Сохранить копию»: вернутся и категории, и все '
+    + 'ответы.',
   'import.state.button': 'Выбрать файл состояния…',
-  'import.demo.title': 'Демо-набор',
-  'import.demo.hint': '20 реальных игр из Steam. Хватает, чтобы пройти оба этапа и увидеть результат.',
-  'import.demo.button': 'Загрузить демо-набор',
-  'import.continue': 'Продолжить',
+  'import.demo.button': 'Попробовать на 20 играх',
+  'import.ready.eyebrow': 'Готово',
+  'import.ready.count.one': 'Загружена {count} позиция',
+  'import.ready.count.few': 'Загружены {count} позиции',
+  'import.ready.count.many': 'Загружено {count} позиций',
+  'import.ready.next':
+    'Дальше разложим игры по пяти уровням интереса. Именно это и сокращает число сравнений.',
+  'import.ready.start': 'Начать раскладывать',
+  'import.ready.again': 'Загрузить другой список',
   'import.current':
     'Сейчас в списке {items}: {sorted} с категорией, {plain} без. Сравнений сделано: {comparisons}. '
     + 'Повторный импорт обновит позиции и сохранит уже проделанную работу.',
@@ -698,21 +775,64 @@ const RU = {
   'import.demo.httpError': 'сервер ответил {status}',
 
   /* -- import straight from a Steam account ------------------------- */
-  'steam.title': 'Прямо из аккаунта Steam',
-  'steam.hint':
-    'Введите свой SteamID или имя профиля — список приедет сам. Работает, пока список желаемого '
-    + 'открыт настройками приватности.',
-  'steam.label': 'SteamID64, имя профиля или ссылка на профиль',
-  'steam.placeholder': '76561198000000000, ник или ссылка на профиль',
-  'steam.run': 'Загрузить список',
+  'steam.title': 'Загрузить из Steam',
+  'steam.subtitle': 'Самый простой путь для открытого списка',
+  'steam.field': 'Ваш профиль Steam',
+  'steam.placeholder': 'steamcommunity.com/id/yourname, ник или SteamID64',
+  'steam.run': 'Проверить и загрузить',
   'steam.cancel': 'Остановить',
   'steam.checking': 'Ищем локальный сервер…',
-  'steam.unavailable.title': 'Только при локальном запуске',
-  'steam.unavailable.text':
-    'Steam не разрешает странице спрашивать у него список желаемого, поэтому запрос делает '
-    + 'server.js — локальный сервер, которым запускается приложение. За этой страницей такого '
-    + 'сервера нет: это либо демо на GitHub Pages, либо запуск без Node. Возьмите userscript или '
-    + 'файл JSON.',
+  'steam.warning': 'Автоматическая загрузка работает, когда «Игровые подробности» открыты.',
+  'steam.privateAsk': 'А если они закрыты?',
+  'steam.privateHelp':
+    'Откройте свой профиль Steam, выберите «Редактировать профиль», затем «Настройки приватности» '
+    + 'и поставьте «Игровые подробности» в «Открытый». Если открывать не хочется, userscript в '
+    + '«Других способах импорта» читает страницу, на которой вы уже вошли, и работает с закрытым '
+    + 'списком.',
+  'steam.settingsLink': 'Открыть настройки Steam ↗',
+  'steam.blocked.title': 'Steam не открыл список желаемого',
+  'steam.blocked.text':
+    'Обычно это значит, что «Игровые подробности» закрыты: список желаемого следует именно этой '
+    + 'настройке.',
+  'steam.blocked.unavailableTitle': 'Список желаемого получить не удалось',
+  'steam.blocked.unavailableText':
+    'Steam ответил ошибкой, а ошибкой он отвечает и на список, который не отдаёт, и на неполадки у '
+    + 'себя. Поэтому так: если «Игровые подробности» закрыты, шаги ниже их открывают; если они уже '
+    + 'открыты, подождите несколько минут и нажмите «Проверить снова».',
+  'steam.blocked.step1': 'Откройте свой профиль Steam и выберите «Редактировать профиль».',
+  'steam.blocked.step2': 'Откройте «Настройки приватности».',
+  'steam.blocked.step3': 'Поставьте «Игровые подробности» в «Открытый».',
+  'steam.blocked.step4': 'Вернитесь сюда и нажмите «Проверить снова».',
+  'steam.blocked.settings': 'Открыть настройки Steam',
+  'steam.blocked.again': 'Проверить снова',
+  'steam.blocked.keepPrivate': 'Не хочу открывать список',
+  'steam.userscript.lead':
+    'Соберите список прямо со страницы Steam. Userscript читает страницу списка желаемого, '
+    + 'на которой вы уже вошли, поэтому настройка приватности ему не мешает, и своих сетевых '
+    + 'запросов он не делает.',
+  'steam.userscript.step1': 'Установите Tampermonkey — он есть для Chrome, Edge, Firefox и Opera.',
+  'steam.userscript.step2': 'Установите скрипт «steam-wishlist-export.user.js» из репозитория.',
+  'steam.userscript.step3':
+    'Откройте страницу своего списка желаемого и нажмите «Collect the list», затем «Download JSON».',
+  'steam.userscript.step4':
+    'Вернитесь сюда и выберите этот файл в «Других способах импорта».',
+  'steam.userscript.link': 'Открыть скрипт на GitHub ↗',
+  'steam.offline.title': 'Загрузить список желаемого',
+  'steam.offline.subtitle': 'Выберите путь попроще',
+  'steam.offline.text':
+    'Браузер не разрешает этой странице читать Steam напрямую, а локального сервера, который '
+    + 'спросил бы за неё, за страницей нет. Ваши данные при этом остаются вашими.',
+  'steam.offline.instructions': 'Показать инструкцию',
+  'steam.offline.userscript.badge': 'Работает и с закрытыми списками',
+  'steam.offline.userscript.title': 'Импорт со страницы Steam',
+  'steam.offline.local.title': 'Запустить локальную версию',
+  'steam.offline.local.text': 'Дальше достаточно ссылки на открытый профиль.',
+  'steam.offline.local.download': 'Скачать',
+  'steam.offline.local.step1': 'Установите Node.js 20 или новее.',
+  'steam.offline.local.step2': 'Распакуйте архив в любую папку.',
+  'steam.offline.local.step3':
+    'Запустите «start.bat» в Windows или «node server.js» в macOS и Linux.',
+  'steam.offline.local.step4': 'Откройте в браузере http://localhost:8080/.',
   'steam.step.account': 'Ищем аккаунт…',
   'steam.step.wishlist': 'Запрашиваем список желаемого…',
   'steam.step.titles': 'Названия: {done} из {total}',
@@ -744,12 +864,6 @@ const RU = {
   'steam.error.accountNotFound':
     'Такого аккаунта в Steam нет. Проверьте написание — или откройте свой профиль в браузере и '
     + 'скопируйте адрес страницы.',
-  'steam.error.wishlistPrivate':
-    'Steam не отдал список желаемого, и почти всегда это настройки приватности. Откройте '
-    + 'Steam → свой профиль → «Редактировать профиль» → «Настройки приватности» и поставьте '
-    + '«Игровые подробности» в «Открытый»: список желаемого следует этой настройке. Если она уже '
-    + 'открыта, список может быть просто пуст. Userscript работает в любом случае — он читает '
-    + 'страницу, на которой вы уже вошли.',
   'steam.error.wishlistEmpty':
     'Список желаемого этого аккаунта пуст: сортировать пока нечего.',
   'steam.error.rateLimited':

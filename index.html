@@ -149,119 +149,421 @@
 
   <main id="main" class="main">
 
-    <!-- ===================================================== import -->
+    <!-- =====================================================================
+      Wishlist. The screen is two columns: on the left what the application
+      promises and the four stages it takes to get there, on the right the one
+      card that actually does something.
+
+      Every state that card can be in is written out here and shown by
+      `ui-steam.js` — the form, the progress, the refusal, the loaded list,
+      the two routes for a page with no local server behind it. None of them
+      is built inside `render()`: the ids are read once, when the screen is
+      created, and a button that appeared later would never get its listener.
+    -->
     <section class="screen" id="screen-import" hidden aria-labelledby="import-heading">
-      <div class="stage-head">
-        <h1 id="import-heading" data-i18n="import.heading">Import the wishlist</h1>
-        <p class="stage-head__hint" data-i18n="import.hint">
-          Bring the wishlist over straight from your Steam account, load it from a JSON file — or
-          take the demo set if you just want to see how this works.
-        </p>
-      </div>
+      <div class="landing">
 
-      <div class="import-grid">
-        <article class="panel panel--steam" id="steam-panel">
-          <h2 class="panel__title" data-i18n="steam.title">Straight from a Steam account</h2>
-          <p class="panel__hint" id="steam-hint" data-i18n="steam.hint">
-            Type your SteamID or the name of your profile — the wishlist comes over by itself. It
-            works while the wishlist is public.
+        <div class="pitch">
+          <p class="pitch__eyebrow">
+            <span class="icon icon--sm" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                   stroke-linecap="round" stroke-linejoin="round" focusable="false">
+                <path d="M12 3.5 13.6 8l4.4 1.6L13.6 11l-1.6 4.5L10.4 11 6 9.6 10.4 8z"/>
+                <path d="M18.5 15.5v4M16.5 17.5h4"/>
+              </svg>
+            </span>
+            <span data-i18n="import.eyebrow">An order you actually chose</span>
           </p>
 
-          <div class="steam-form" id="steam-form">
-            <label class="visually-hidden" for="steam-account"
-                   data-i18n="steam.label">SteamID64, profile name or a link to the profile</label>
-            <input type="text" id="steam-account" class="input" autocomplete="off" spellcheck="false"
-                   data-i18n-attr="placeholder:steam.placeholder"
-                   placeholder="76561198000000000, nickname or a profile link">
-            <button type="button" class="btn btn--primary" id="steam-run"
-                    data-i18n="steam.run">Fetch the wishlist</button>
-          </div>
+          <h1 id="import-heading" class="pitch__title" data-i18n="import.promise">
+            Rank games by how much you actually want to play them
+          </h1>
 
-          <div class="steam-progress" id="steam-progress" hidden>
-            <div class="progress">
-              <p class="progress__legend" id="steam-progress-text"></p>
-              <div class="progress__bar"><span class="progress__fill" id="steam-progress-fill"></span></div>
+          <p class="pitch__lead" data-i18n="import.lead">
+            Quickly group your wishlist by interest, then choose between two games. Stop at any
+            time — progress is always saved.
+          </p>
+
+          <ol class="pitch__steps">
+            <li class="pitch__step">
+              <span class="pitch__num" aria-hidden="true">1</span>
+              <span data-i18n="import.step.load">Load the wishlist</span>
+            </li>
+            <li class="pitch__step">
+              <span class="pitch__num" aria-hidden="true">2</span>
+              <span data-i18n="import.step.group">Group by interest</span>
+            </li>
+            <li class="pitch__step">
+              <span class="pitch__num" aria-hidden="true">3</span>
+              <span data-i18n="import.step.compare">Compare games</span>
+            </li>
+            <li class="pitch__step">
+              <span class="pitch__num" aria-hidden="true">4</span>
+              <span data-i18n="import.step.send">Send the order to Steam</span>
+            </li>
+          </ol>
+
+          <p class="pitch__note">
+            <span class="icon icon--sm" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                   stroke-linecap="round" stroke-linejoin="round" focusable="false">
+                <path d="M12 3.5 19 6v6c0 4-3 7-7 8.5C8 19 5 16 5 12V6z"/><path d="m9 12 2 2 4-4.5"/>
+              </svg>
+            </span>
+            <span data-i18n="import.sessions">
+              A full sort may take several sessions. Your current result is always available.
+            </span>
+          </p>
+        </div>
+
+        <div class="landing__side">
+          <article class="loadcard" id="load-card">
+
+            <header class="loadcard__head" id="load-head">
+              <span class="loadcard__icon" id="load-icon-cloud" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                     stroke-linecap="round" stroke-linejoin="round" focusable="false">
+                  <path d="M7 16.5a3.5 3.5 0 0 1 .4-7 5 5 0 0 1 9.6 1.2 3.2 3.2 0 0 1-.5 6.3"/>
+                  <path d="M12 11v7.5m0 0L9.5 16m2.5 2.5L14.5 16"/>
+                </svg>
+              </span>
+              <span class="loadcard__icon loadcard__icon--warn" id="load-icon-lock" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                     stroke-linecap="round" stroke-linejoin="round" focusable="false">
+                  <rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/>
+                </svg>
+              </span>
+              <span class="loadcard__icon" id="load-icon-route" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                     stroke-linecap="round" stroke-linejoin="round" focusable="false">
+                  <circle cx="12" cy="12" r="8.5"/><path d="m15.5 8.5-2 5-5 2 2-5z"/>
+                </svg>
+              </span>
+              <div class="loadcard__headtext">
+                <h2 class="loadcard__title" id="load-title">Load from Steam</h2>
+                <p class="loadcard__sub" id="load-sub">The easiest way for a public wishlist</p>
+              </div>
+            </header>
+
+            <!-- The main path: a link to the profile and one button. -->
+            <div class="loadform" id="load-form">
+              <label class="loadform__label" for="steam-account"
+                     data-i18n="steam.field">Your Steam profile</label>
+              <div class="loadform__row">
+                <input type="text" id="steam-account" class="input" autocomplete="off" spellcheck="false"
+                       data-i18n-attr="placeholder:steam.placeholder"
+                       placeholder="steamcommunity.com/id/yourname, a nickname or a SteamID64">
+                <button type="button" class="btn btn--primary" id="steam-run"
+                        data-i18n="steam.run">Check and load</button>
+              </div>
+
+              <div class="notice">
+                <span class="icon icon--sm" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                       stroke-linecap="round" stroke-linejoin="round" focusable="false">
+                    <rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/>
+                  </svg>
+                </span>
+                <div class="notice__body">
+                  <p data-i18n="steam.warning">
+                    Automatic import works when “Game details” are public.
+                  </p>
+                  <details class="disclosure">
+                    <summary data-i18n="steam.privateAsk">What if it is private?</summary>
+                    <div class="disclosure__body">
+                      <p data-i18n="steam.privateHelp">
+                        Open your Steam profile, choose “Edit profile”, then “Privacy Settings”, and
+                        set “Game details” to Public. If you would rather not open it, the userscript
+                        under “Other import methods” reads the page you are logged into and works
+                        with a private list.
+                      </p>
+                      <a class="link" href="https://steamcommunity.com/my/edit/settings"
+                         target="_blank" rel="noopener noreferrer"
+                         data-i18n="steam.settingsLink">Open Steam settings ↗</a>
+                    </div>
+                  </details>
+                </div>
+              </div>
             </div>
-            <p class="panel__hint" data-i18n="steam.note">
-              One title, one request, so a long list takes minutes. Everything that has already
-              arrived is saved — stopping loses nothing.
-            </p>
-            <button type="button" class="btn" id="steam-cancel" data-i18n="steam.cancel">Stop</button>
-          </div>
 
-          <div class="steam-missing" id="steam-missing" hidden>
-            <p class="panel__hint" id="steam-missing-text"></p>
-            <button type="button" class="btn" id="steam-missing-run"
-                    data-i18n="steam.missing.run">Fetch the remaining titles</button>
-          </div>
+            <!-- The run in flight. -->
+            <div class="steam-progress" id="steam-progress" hidden>
+              <div class="progress">
+                <p class="progress__legend" id="steam-progress-text"></p>
+                <div class="progress__bar"><span class="progress__fill" id="steam-progress-fill"></span></div>
+              </div>
+              <p class="panel__hint" data-i18n="steam.note">
+                One title, one request, so a long list takes minutes. Everything that has already
+                arrived is saved — stopping loses nothing.
+              </p>
+              <button type="button" class="btn" id="steam-cancel" data-i18n="steam.cancel">Stop</button>
+            </div>
 
-          <div class="steam-unavailable" id="steam-unavailable" hidden>
-            <p class="steam-unavailable__title" data-i18n="steam.unavailable.title">
-              Only when you run it yourself
-            </p>
-            <p class="panel__hint" data-i18n="steam.unavailable.text">
-              Steam does not let a page ask it for a wishlist, so the request is made by server.js —
-              the local server this application is started with. This page has no such server behind
-              it: it is the demo on GitHub Pages, or a start without Node. Take the userscript or a
-              JSON file instead.
-            </p>
-          </div>
-        </article>
+            <!--
+              Steam did not hand the list over. Which of the two reasons it was
+              is decided by `ui-steam.js` from the code of the failure; the way
+              out is the same for both, so the block is one.
+            -->
+            <div class="loadblocked" id="load-blocked" hidden>
+              <ol class="steplist">
+                <li data-i18n="steam.blocked.step1">Open your Steam profile and choose “Edit profile”.</li>
+                <li data-i18n="steam.blocked.step2">Open “Privacy Settings”.</li>
+                <li data-i18n="steam.blocked.step3">Set “Game details” to Public.</li>
+                <li data-i18n="steam.blocked.step4">Come back here and press “Check again”.</li>
+              </ol>
 
-        <article class="panel">
-          <h2 class="panel__title" data-i18n="import.file.title">JSON file</h2>
-          <p class="panel__hint" data-i18n="import.file.hint">
-            An export from Steam or a file collected by the userscript.
-          </p>
-          <label class="filefield">
-            <input type="file" id="import-file" accept=".json,application/json">
-            <span class="filefield__button" data-i18n="import.file.button">Choose a file…</span>
-            <span class="filefield__name" id="import-file-name" data-i18n="import.file.none">No file chosen</span>
-          </label>
-        </article>
+              <div class="loadblocked__actions">
+                <a class="btn btn--primary" href="https://steamcommunity.com/my/edit/settings"
+                   target="_blank" rel="noopener noreferrer">
+                  <span class="icon icon--sm" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                         stroke-linecap="round" stroke-linejoin="round" focusable="false">
+                      <path d="M13 5h6v6"/><path d="M19 5 11 13"/>
+                      <path d="M18 14.5V18a1.5 1.5 0 0 1-1.5 1.5h-10A1.5 1.5 0 0 1 5 18V8a1.5 1.5 0 0 1 1.5-1.5H10"/>
+                    </svg>
+                  </span>
+                  <span data-i18n="steam.blocked.settings">Open Steam settings</span>
+                </a>
+                <button type="button" class="btn" id="steam-recheck">
+                  <span class="icon icon--sm" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                         stroke-linecap="round" stroke-linejoin="round" focusable="false">
+                      <path d="M19 12a7 7 0 1 1-2.1-5"/><path d="M19.5 5v4h-4"/>
+                    </svg>
+                  </span>
+                  <span data-i18n="steam.blocked.again">Check again</span>
+                </button>
+              </div>
 
-        <article class="panel">
-          <h2 class="panel__title" data-i18n="import.paste.title">Paste JSON</h2>
-          <p class="panel__hint" data-i18n="import.paste.hint">
-            The body of the Steam response can be pasted as is.
-          </p>
-          <label class="visually-hidden" for="import-text" data-i18n="import.paste.label">Wishlist JSON</label>
-          <textarea id="import-text" class="textarea" rows="6" spellcheck="false"
-                    data-i18n-attr="placeholder:import.paste.placeholder"
-                    placeholder="[ { &quot;appid&quot;: 620, &quot;name&quot;: &quot;Portal 2&quot; }, … ]"></textarea>
-          <button type="button" class="btn btn--primary" id="import-text-run"
-                  data-i18n="import.paste.run">Import from the text</button>
-        </article>
+              <details class="disclosure">
+                <summary data-i18n="steam.blocked.keepPrivate">I don’t want to make it public</summary>
+                <div class="disclosure__body">
+                  <p data-i18n="steam.userscript.lead">
+                    Collect the list from the Steam page itself. The userscript reads the wishlist
+                    page you are logged into, so the privacy setting does not matter, and it makes
+                    no network request of its own.
+                  </p>
+                  <ol class="steplist">
+                    <li data-i18n="steam.userscript.step1">
+                      Install Tampermonkey — it exists for Chrome, Edge, Firefox and Opera.
+                    </li>
+                    <li data-i18n="steam.userscript.step2">
+                      Install the script “steam-wishlist-export.user.js” from the repository.
+                    </li>
+                    <li data-i18n="steam.userscript.step3">
+                      Open your wishlist page and press “Collect the list”, then “Download JSON”.
+                    </li>
+                    <li data-i18n="steam.userscript.step4">
+                      Come back here and pick that file under “Other import methods”.
+                    </li>
+                  </ol>
+                  <a class="link"
+                     href="https://github.com/Akynin99/Steam-Wishlist-Sorter/raw/master/userscripts/steam-wishlist-export.user.js"
+                     target="_blank" rel="noopener noreferrer"
+                     data-i18n="steam.userscript.link">Open the script on GitHub ↗</a>
+                </div>
+              </details>
+            </div>
 
-        <article class="panel">
-          <h2 class="panel__title" data-i18n="import.state.title">Saved state</h2>
-          <p class="panel__hint" data-i18n="import.state.hint">
-            A file you saved earlier with “Save to a file”: both the categories and every answer
-            come back.
-          </p>
-          <label class="filefield">
-            <input type="file" id="import-state" accept=".json,application/json">
-            <span class="filefield__button" data-i18n="import.state.button">Choose a state file…</span>
-            <span class="filefield__name" id="import-state-name" data-i18n="import.file.none">No file chosen</span>
-          </label>
-        </article>
+            <!-- The list is here. What matters now is the next stage. -->
+            <div class="ready" id="load-ready" hidden>
+              <span class="ready__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                     stroke-linecap="round" stroke-linejoin="round" focusable="false">
+                  <circle cx="12" cy="12" r="9"/><path d="m8 12.3 2.6 2.7L16 9.5"/>
+                </svg>
+              </span>
+              <p class="ready__eyebrow" data-i18n="import.ready.eyebrow">Ready</p>
+              <p class="ready__count" id="ready-count"></p>
+              <p class="ready__next" id="ready-next"></p>
+              <button type="button" class="btn btn--primary btn--wide" id="import-continue">
+                <span data-i18n="import.ready.start">Start grouping</span>
+              </button>
 
-        <article class="panel panel--demo">
-          <h2 class="panel__title" data-i18n="import.demo.title">Demo set</h2>
-          <p class="panel__hint" data-i18n="import.demo.hint">
-            20 real games from Steam. Enough to walk both stages and see the result.
-          </p>
-          <button type="button" class="btn btn--primary" id="import-demo"
-                  data-i18n="import.demo.button">Load the demo set</button>
-        </article>
-      </div>
+              <div class="steam-missing" id="steam-missing" hidden>
+                <p class="panel__hint" id="steam-missing-text"></p>
+                <button type="button" class="btn" id="steam-missing-run"
+                        data-i18n="steam.missing.run">Fetch the remaining titles</button>
+              </div>
 
-      <div class="import-feedback" id="import-feedback" role="status" aria-live="polite"></div>
+              <button type="button" class="linkbtn" id="load-again"
+                      data-i18n="import.ready.again">Load another wishlist</button>
+            </div>
 
-      <div class="import-current" id="import-current" hidden>
-        <p class="import-current__text" id="import-current-text"></p>
-        <button type="button" class="btn btn--primary" id="import-continue"
-                data-i18n="import.continue">Continue</button>
+            <!--
+              No local server behind the page: the form that needs one is not
+              shown at all, and the two routes that do work take its place.
+            -->
+            <div class="routes" id="load-offline" hidden>
+              <p class="loadcard__note" data-i18n="steam.offline.text">
+                Your browser does not allow this page to read Steam directly, and there is no local
+                server behind it to ask on its behalf. Your data still stays yours.
+              </p>
+
+              <section class="route route--accent">
+                <div class="route__top">
+                  <span class="route__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                         stroke-linecap="round" stroke-linejoin="round" focusable="false">
+                      <path d="M12 16.5V5m0 0L8.5 8.5M12 5l3.5 3.5"/>
+                      <path d="M5 15v3.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V15"/>
+                    </svg>
+                  </span>
+                  <span class="route__badge" data-i18n="steam.offline.userscript.badge">
+                    Works with private lists
+                  </span>
+                </div>
+                <h3 class="route__title" data-i18n="steam.offline.userscript.title">
+                  Import from your Steam page
+                </h3>
+                <p class="route__text" data-i18n="steam.userscript.lead">
+                  Collect the list from the Steam page itself. The userscript reads the wishlist
+                  page you are logged into, so the privacy setting does not matter, and it makes no
+                  network request of its own.
+                </p>
+                <details class="disclosure">
+                  <summary data-i18n="steam.offline.instructions">Show instructions</summary>
+                  <div class="disclosure__body">
+                    <ol class="steplist">
+                      <li data-i18n="steam.userscript.step1">
+                        Install Tampermonkey — it exists for Chrome, Edge, Firefox and Opera.
+                      </li>
+                      <li data-i18n="steam.userscript.step2">
+                        Install the script “steam-wishlist-export.user.js” from the repository.
+                      </li>
+                      <li data-i18n="steam.userscript.step3">
+                        Open your wishlist page and press “Collect the list”, then “Download JSON”.
+                      </li>
+                      <li data-i18n="steam.userscript.step4">
+                        Come back here and pick that file under “Other import methods”.
+                      </li>
+                    </ol>
+                    <a class="link"
+                       href="https://github.com/Akynin99/Steam-Wishlist-Sorter/raw/master/userscripts/steam-wishlist-export.user.js"
+                       target="_blank" rel="noopener noreferrer"
+                       data-i18n="steam.userscript.link">Open the script on GitHub ↗</a>
+                  </div>
+                </details>
+              </section>
+
+              <section class="route">
+                <div class="route__row">
+                  <span class="route__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                         stroke-linecap="round" stroke-linejoin="round" focusable="false">
+                      <path d="M12 4.5V16m0 0-3.5-3.5M12 16l3.5-3.5"/>
+                      <path d="M5 15v3.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V15"/>
+                    </svg>
+                  </span>
+                  <div class="route__body">
+                    <h3 class="route__title" data-i18n="steam.offline.local.title">Run the local version</h3>
+                    <p class="route__text" data-i18n="steam.offline.local.text">
+                      Then a public profile link is all it takes.
+                    </p>
+                  </div>
+                  <a class="btn btn--primary"
+                     href="https://github.com/Akynin99/Steam-Wishlist-Sorter/archive/refs/heads/master.zip"
+                     data-i18n="steam.offline.local.download">Download</a>
+                </div>
+                <details class="disclosure">
+                  <summary data-i18n="steam.offline.instructions">Show instructions</summary>
+                  <div class="disclosure__body">
+                    <ol class="steplist">
+                      <li data-i18n="steam.offline.local.step1">Install Node.js 20 or newer.</li>
+                      <li data-i18n="steam.offline.local.step2">Unpack the archive anywhere.</li>
+                      <li data-i18n="steam.offline.local.step3">
+                        Run “start.bat” on Windows, or “node server.js” on macOS and Linux.
+                      </li>
+                      <li data-i18n="steam.offline.local.step4">
+                        Open http://localhost:8080/ in the browser.
+                      </li>
+                    </ol>
+                  </div>
+                </details>
+              </section>
+            </div>
+
+            <!--
+              The foot of the card belongs to no state: the demo and the ways
+              in that need no server are offered whatever the card is showing.
+            -->
+            <div class="loadcard__foot">
+              <p class="loadcard__demo">
+                <button type="button" class="linkbtn" id="import-demo"
+                        data-i18n="import.demo.button">Try with 20 games</button>
+              </p>
+
+              <details class="disclosure disclosure--methods">
+                <summary data-i18n="import.other">Other import methods</summary>
+                <div class="disclosure__body methods">
+
+                  <div class="method">
+                    <h3 class="method__title" data-i18n="import.file.title">JSON file</h3>
+                    <p class="method__hint" data-i18n="import.file.hint">
+                      An export from Steam or a file collected by the userscript.
+                    </p>
+                    <label class="filefield">
+                      <input type="file" id="import-file" accept=".json,application/json">
+                      <span class="filefield__button" data-i18n="import.file.button">Choose a file…</span>
+                      <span class="filefield__name" id="import-file-name"
+                            data-i18n="import.file.none">No file chosen</span>
+                    </label>
+                  </div>
+
+                  <div class="method">
+                    <h3 class="method__title" data-i18n="import.paste.title">Paste JSON</h3>
+                    <p class="method__hint" data-i18n="import.paste.hint">
+                      The body of the Steam response can be pasted as is.
+                    </p>
+                    <label class="visually-hidden" for="import-text"
+                           data-i18n="import.paste.label">Wishlist JSON</label>
+                    <textarea id="import-text" class="textarea" rows="5" spellcheck="false"
+                              data-i18n-attr="placeholder:import.paste.placeholder"
+                              placeholder="[ { &quot;appid&quot;: 620, &quot;name&quot;: &quot;Portal 2&quot; }, … ]"></textarea>
+                    <button type="button" class="btn btn--primary" id="import-text-run"
+                            data-i18n="import.paste.run">Import from the text</button>
+                  </div>
+
+                  <div class="method">
+                    <h3 class="method__title" data-i18n="import.userscript.title">
+                      From the Steam page, with the userscript
+                    </h3>
+                    <p class="method__hint" data-i18n="steam.userscript.lead">
+                      Collect the list from the Steam page itself. The userscript reads the
+                      wishlist page you are logged into, so the privacy setting does not matter,
+                      and it makes no network request of its own.
+                    </p>
+                    <p class="method__hint" data-i18n="import.userscript.hint">
+                      The file it downloads is loaded here with “JSON file” above.
+                    </p>
+                    <a class="link"
+                       href="https://github.com/Akynin99/Steam-Wishlist-Sorter/raw/master/userscripts/steam-wishlist-export.user.js"
+                       target="_blank" rel="noopener noreferrer"
+                       data-i18n="steam.userscript.link">Open the script on GitHub ↗</a>
+                  </div>
+
+                  <div class="method">
+                    <h3 class="method__title" data-i18n="import.state.title">Saved state</h3>
+                    <p class="method__hint" data-i18n="import.state.hint">
+                      A file you saved earlier with “Save backup”: both the categories and every
+                      answer come back.
+                    </p>
+                    <label class="filefield">
+                      <input type="file" id="import-state" accept=".json,application/json">
+                      <span class="filefield__button"
+                            data-i18n="import.state.button">Choose a state file…</span>
+                      <span class="filefield__name" id="import-state-name"
+                            data-i18n="import.file.none">No file chosen</span>
+                    </label>
+                  </div>
+
+                </div>
+              </details>
+            </div>
+          </article>
+
+          <div class="import-feedback" id="import-feedback" role="status" aria-live="polite"></div>
+        </div>
       </div>
     </section>
 

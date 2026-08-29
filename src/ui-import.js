@@ -64,8 +64,6 @@ export function createImportScreen(app) {
     stateName: document.getElementById('import-state-name'),
     demo: document.getElementById('import-demo'),
     feedback: document.getElementById('import-feedback'),
-    current: document.getElementById('import-current'),
-    currentText: document.getElementById('import-current-text'),
     continue: document.getElementById('import-continue'),
   };
 
@@ -112,6 +110,9 @@ export function createImportScreen(app) {
     app.session.setItems(result.items);
     app.save();
     app.refreshNav();
+    // A list arrived, whatever way in it came by: the card must stop standing
+    // on the refusal of a Steam that has nothing left to refuse.
+    steam.clearFailure();
     feedback = { kind: 'report', report: result.report, sourceKey, sourceParams };
     render();
     app.announce(
@@ -159,6 +160,7 @@ export function createImportScreen(app) {
       return;
     }
 
+    steam.clearFailure();
     feedback = {
       kind: 'state',
       items: app.session.itemCount,
@@ -176,6 +178,16 @@ export function createImportScreen(app) {
    */
   const steam = createSteamCard({
     app,
+
+    /**
+     * A run has started: the report of the previous one says nothing about
+     * this one, and leaving it standing under a fresh failure reads as if the
+     * two belonged together.
+     */
+    begin() {
+      feedback = null;
+      render();
+    },
 
     /**
      * Merges records that arrived from Steam into the session, without
@@ -446,22 +458,9 @@ export function createImportScreen(app) {
 
   function render() {
     renderFeedback();
+    // The card draws every state of the way in, the loaded list among them:
+    // this screen only owns the report and the ways in that need no server.
     steam.render();
-
-    const count = app.session.itemCount;
-    nodes.current.hidden = count === 0;
-    if (count === 0) return;
-
-    const items = app.session.getItems();
-    const sorted = items.filter((item) => app.session.getCategory(item.appId) !== null).length;
-    const comparisons = app.session.getProgress().comparisons;
-
-    nodes.currentText.textContent = t('import.current', {
-      items: plural('count.items', count),
-      sorted,
-      plain: count - sorted,
-      comparisons,
-    });
   }
 
   return { render };

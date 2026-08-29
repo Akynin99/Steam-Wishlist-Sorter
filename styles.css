@@ -1300,44 +1300,508 @@ label.menu__row:hover {
   flex: 1 1 auto;
 }
 
-/* --------------------------------------------------- screen: import */
+/* -------------------------------------------- screen: the wishlist */
 
-.import-grid {
+/*
+ * Two columns: what the application promises, and the one card that does
+ * something. Below the fold of a narrow screen they become one, and the card
+ * goes first — a visitor who already knows what this is should not scroll
+ * past the sales pitch to reach the field.
+ */
+
+.landing {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: var(--gap);
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: clamp(24px, 4vw, 56px);
   align-items: start;
+  padding-top: clamp(8px, 3vw, 40px);
 }
 
-.panel--demo {
-  border-color: var(--accent);
-  background: var(--wash-accent);
+.pitch {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-width: 34em;
 }
 
-/* The direct import comes first and is the easiest way in, so the card says so
-   with the accent — until the server behind it turns out not to be there, and
-   the card explains itself in a quieter colour. */
-
-.panel--steam {
-  grid-column: 1 / -1;
-  border-color: var(--accent);
-  background: var(--wash-info);
+.pitch__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
 }
 
-.panel--steam-off {
-  border-color: var(--border);
+/* The one line of the application that is allowed to be loud. */
+.pitch__title {
+  font-size: clamp(2rem, 1.1rem + 3.4vw, 3.3rem);
+  line-height: 1.06;
+  letter-spacing: -0.02em;
+}
+
+.pitch__lead {
+  max-width: 30em;
+  color: var(--text-muted);
+  font-size: 1.02rem;
+}
+
+.pitch__steps {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--border);
+}
+
+.pitch__step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 2px;
+  border-bottom: 1px solid var(--border);
+}
+
+.pitch__num {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.pitch__note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--text-dim);
+  font-size: 0.88rem;
+}
+
+.pitch__note .icon {
+  margin-top: 2px;
+}
+
+.landing__side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  min-width: 0;
+}
+
+/* ------------------------------------------------------- the card */
+
+.loadcard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: clamp(16px, 2vw, 24px);
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
   background: var(--bg-elevated);
+  box-shadow: var(--shadow);
 }
 
-.steam-form {
+/* A short accent line along the top edge: the card is the thing to look at,
+   and this says so without a colour over the whole of it. */
+.loadcard::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 96px;
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent) 0%, transparent 100%);
+}
+
+/* Top aligned rather than centred: the title of a refusal runs to two lines
+   on a narrow screen, and a glyph that drifts down beside it stops reading as
+   the mark of the block it belongs to. */
+.loadcard__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.loadcard__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-panel);
+  color: var(--accent);
+}
+
+.loadcard__icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.loadcard__icon--warn {
+  border-color: color-mix(in srgb, var(--warning) 45%, transparent);
+  background: var(--warning-tint);
+  color: var(--warning);
+}
+
+.loadcard__headtext {
+  display: block;
+  min-width: 0;
+}
+
+.loadcard__title {
+  font-size: 1.14rem;
+}
+
+.loadcard__sub {
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+
+.loadcard__note {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.loadcard__foot {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.loadcard__demo {
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+/* --------------------------------------------------- the main path */
+
+.loadform {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.loadform__label {
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.loadform__row {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
 }
 
+.loadform__row .input {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+/* What is worth knowing before the button is pressed, not after. */
+.notice {
+  display: flex;
+  gap: 10px;
+  padding: var(--pad-block);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-inset);
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+
+.notice > .icon {
+  margin-top: 2px;
+  color: var(--text-dim);
+}
+
+.notice__body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* ------------------------------------------------- folded away text */
+
+.disclosure {
+  font-size: 0.88rem;
+}
+
+.disclosure > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+  color: var(--accent);
+  list-style: none;
+  cursor: pointer;
+}
+
+.disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.disclosure > summary::after {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-right: 1.6px solid currentcolor;
+  border-bottom: 1.6px solid currentcolor;
+  transform: translateY(-2px) rotate(45deg);
+}
+
+.disclosure[open] > summary::after {
+  transform: translateY(1px) rotate(-135deg);
+}
+
+.disclosure > summary:hover {
+  color: var(--accent-strong);
+}
+
+.disclosure__body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding-top: 10px;
+  color: var(--text-muted);
+}
+
+/* The ways in that need no server sit under the card, not beside it. */
+.disclosure--methods {
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  font-size: 0.95rem;
+}
+
+.disclosure--methods > summary {
+  justify-content: space-between;
+  color: var(--text);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.steplist {
+  margin: 0;
+  padding-left: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.steplist li::marker {
+  color: var(--accent);
+}
+
+/* ------------------------------------------------- Steam said no */
+
+.loadblocked {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.loadblocked__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.loadblocked__actions .btn {
+  text-decoration: none;
+}
+
+/* ------------------------------------------------ the list is here */
+
+.ready {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0 2px;
+  text-align: center;
+}
+
+.ready__icon {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  border: 1px solid var(--accent);
+  border-radius: 50%;
+  background: var(--accent-tint-weak);
+  color: var(--accent);
+}
+
+.ready__icon svg {
+  width: 28px;
+  height: 28px;
+}
+
+.ready__eyebrow {
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
+.ready__count {
+  font-size: clamp(1.3rem, 1.1rem + 1vw, 1.7rem);
+  font-weight: var(--weight-heading);
+}
+
+.ready__next {
+  max-width: 40em;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.btn--wide {
+  width: 100%;
+  margin-top: 6px;
+  padding: 13px 18px;
+  font-size: 1.02rem;
+}
+
+.ready .steam-missing {
+  width: 100%;
+  margin-top: 4px;
+  padding: var(--pad-block);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-inset);
+  text-align: left;
+}
+
+/* -------------------------------------------- no server behind us */
+
+.routes {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.route {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: var(--pad-block);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-inset);
+}
+
+.route--accent {
+  border-color: var(--accent);
+  background: var(--wash-accent);
+}
+
+.route__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.route__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+  color: var(--accent);
+}
+
+.route__icon svg {
+  width: 19px;
+  height: 19px;
+}
+
+.route__badge {
+  color: var(--accent);
+  font-size: 0.68rem;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  text-align: right;
+}
+
+.route__title {
+  font-size: 1.02rem;
+}
+
+.route__text {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+
+.route__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.route__body {
+  display: block;
+  flex: 1 1 180px;
+  min-width: 0;
+}
+
+.route__row .btn {
+  flex: none;
+  text-decoration: none;
+}
+
+/* ------------------------------------------ the other ways in */
+
+.methods {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+}
+
+.method {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.method__title {
+  font-size: 0.98rem;
+}
+
+.method__hint {
+  color: var(--text-muted);
+  font-size: 0.86rem;
+}
+
+/* ------------------------------------------------ progress and gaps */
+
 .steam-progress,
-.steam-missing,
-.steam-unavailable {
+.steam-missing {
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -1346,12 +1810,6 @@ label.menu__row:hover {
 .steam-progress .btn,
 .steam-missing .btn {
   align-self: flex-start;
-}
-
-.steam-unavailable__title {
-  color: var(--text-muted);
-  font-size: 0.95rem;
-  font-weight: 600;
 }
 
 .textarea {
@@ -1450,21 +1908,6 @@ label.menu__row:hover {
   padding-left: 20px;
   color: var(--text-dim);
   font-size: 0.87rem;
-}
-
-.import-current {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 14px;
-  padding: var(--pad-block);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-lg);
-  background: var(--bg-elevated);
-}
-
-.import-current__text {
-  color: var(--text-muted);
 }
 
 /* ----------------------------------------------- screen: categories */
@@ -1829,6 +2272,25 @@ label.menu__row:hover {
 }
 
 /* ------------------------------------------------------- responsive */
+
+@media (max-width: 980px) {
+  /*
+   * The pitch is for whoever needs it; the card is for everybody. On one
+   * column the card goes first, so the field is on screen at once and the
+   * promise is read by scrolling, not before.
+   */
+  .landing {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .landing__side {
+    order: -1;
+  }
+
+  .pitch {
+    max-width: none;
+  }
+}
 
 @media (max-width: 900px) {
   .versus {
