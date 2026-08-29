@@ -37,7 +37,10 @@
 
   --text: #dfe7ee;
   --text-muted: #93a4b3;
-  --text-dim: #6c7f8f;
+  /* The quietest of the three, and still readable: 4.6 : 1 on the lightest
+     surface it is ever written on. The two levels above it are far enough
+     away that the hierarchy survives the lift. */
+  --text-dim: #7d8e9c;
 
   /* The accent, and the colour that stays readable on top of it. */
   --accent: #5fd4c4;
@@ -157,7 +160,7 @@
 
   --text: #c7d5e0;
   --text-muted: #97a5b2;
-  --text-dim: #75858f;
+  --text-dim: #86949c;
 
   --accent: #66c0f4;
   --accent-strong: #a8dcfa;
@@ -180,7 +183,9 @@
   /* Dark enough for white writing to stay readable on it: the store blue at
      full brightness turns a label into a suggestion. */
   --btn-primary-bg: linear-gradient(180deg, #1c6fbe 0%, #10457c 100%);
-  --btn-primary-bg-hover: linear-gradient(180deg, #2480d6 0%, #17559a 100%);
+  /* Lit, but not past the point where the white label on it drops under
+     4.5 : 1 — a hover state is still a state the words are read in. */
+  --btn-primary-bg-hover: linear-gradient(180deg, #2278c8 0%, #17559a 100%);
   --cover-empty-bg: repeating-linear-gradient(135deg, #1c2b3a 0 12px, #16222e 12px 24px);
 
   --shadow: 0 2px 10px rgb(0 0 0 / 55%);
@@ -1032,13 +1037,15 @@ label.menu__row:hover {
   display: flex;
   flex-wrap: wrap;
   gap: 2px 12px;
-  color: var(--text-dim);
+  color: var(--text-muted);
   font-size: 0.85rem;
 }
 
+/* The postponed pairs are an aside inside that sentence, so they step back a
+   level — by taking the quietest of the three text colours, not by fading,
+   which would have put them under the readable minimum. */
 .progress__aside {
   color: var(--text-dim);
-  opacity: 0.8;
 }
 
 .banner {
@@ -1192,9 +1199,17 @@ label.menu__row:hover {
   color: var(--text);
 }
 
+/*
+ * The chosen filter is underlined and set bold, not merely tinted: the hover
+ * above lightens the same surface, so colour alone left «pressed» and «the
+ * pointer is over it» looking the same. The bar is the one the header draws
+ * under the current stage — one idiom for «this is the one you are on».
+ */
 .segmented__btn[aria-pressed="true"] {
   background: var(--bg-panel-hover);
+  box-shadow: inset 0 -3px 0 0 var(--accent);
   color: var(--accent);
+  font-weight: 700;
 }
 
 .hint {
@@ -2138,6 +2153,24 @@ label.menu__row:hover {
 }
 
 /*
+ * The level the game is already filed under carries a tick as well as a
+ * warmer background. A state said in colour alone is a state that a part of
+ * the readers never sees, and the six rows differ in colour by design.
+ */
+.catbtn[aria-pressed="true"]::after {
+  content: "✓";
+  margin-inline-start: auto;
+  font-size: 0.95em;
+  line-height: 1;
+}
+
+/* The sixth value runs the other way round, so the tick lands at the far end
+   of that row by simply not being pushed anywhere. */
+.catbtn--apart[aria-pressed="true"]::after {
+  margin-inline-start: 0;
+}
+
+/*
  * The sixth value: quiet, and clearly not the bottom of the scale. A red
  * button in the same row as «Barely interested» would be pressed by a hand
  * that was aiming one row up, and it throws a game off the wishlist.
@@ -2917,8 +2950,10 @@ label.menu__row:hover {
   }
 
   /* The place inside the category is the first thing to go: the number on the
-     left already says where the row stands. */
-  .result-row__where {
+     left already says where the row stands. The App ID goes with it — it is
+     looked up once in a lifetime, and here it costs a whole line of a row. */
+  .result-row__where,
+  .result-row__id {
     display: none;
   }
 
@@ -2930,6 +2965,36 @@ label.menu__row:hover {
   .result-row .select--category {
     grid-column: 3 / -1;
     width: 100%;
+  }
+}
+
+/*
+ * Narrower than the 360 px the layout is measured against — a small phone in
+ * a large font, or a window dragged down to a strip. The rules between the
+ * stages go, the buttons give up their side padding, and the one stage that
+ * still says its name lets the name be cut instead of pushing the row out of
+ * the window: four numbers that fit say more than a header that scrolls
+ * sideways.
+ */
+@media (max-width: 400px) {
+  .stages__item + .stages__item::before {
+    display: none;
+  }
+
+  .stages__item,
+  .navbtn {
+    min-width: 0;
+  }
+
+  .navbtn {
+    gap: 6px;
+    padding: 6px 7px;
+  }
+
+  .navbtn__label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 
