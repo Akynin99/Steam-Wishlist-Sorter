@@ -505,9 +505,21 @@ right corner → pick the file.
    very format. The write button stays out of reach until you take the backup or tick the checkbox
    saying you do not want one.
 5. **The confirmation.** The write button opens a second, separate confirmation that names the
-   number of entries. Only that one sends anything.
-6. **The request.** The whole list goes to Steam in a single request. Steam then answers, and the
-   answer is read out into one case with one message: accepted, session expired, list too large,
+   number of entries, the fact that the write goes to the account this browser is signed in as, and
+   the one consequence a backup cannot undo — see
+   [What the write cannot undo](#what-the-write-cannot-undo). Only that one sends anything.
+6. **The request.** The whole list goes to Steam in a single request — the very one the page sends
+   when a row is dragged:
+
+   ```
+   POST https://store.steampowered.com/wishlist/action
+   Content-Type: application/json; charset=utf-8
+   { "m": "Reorder", "mp": [ [ { "appid": 1509510, "priority": 1 }, … ] ] }
+   ```
+
+   `mp` is an array of one element, and that element is the list of pairs; the double brackets are
+   not a typo. Steam answers `{ "data": { "result": 1 } }`, and the answer is read out into one case
+   with one message: accepted, refused with a result of its own, session expired, list too large,
    too many requests, not JSON at all, or the network never let the request out.
 7. **The check.** The wishlist page does not redraw itself after the write, so the script offers to
    reload it, reads the order again and compares it with what was sent, entry by entry. A difference
@@ -526,11 +538,11 @@ right corner → pick the file.
 - **It does not write what it did not read.** A wishlist the script read only in part gives no
   report, no plan and no write button — only the count it got, the count the page promised, and what
   to do about it.
-- **It does not touch `sessionid`.** The value comes from `g_sessionID`, the variable the wishlist
-  page defines for its own requests, in the page the script already runs in. It goes into the body
-  of that one request, to the same address the page came from, and nowhere else — not into a file,
-  not into the storage of the browser, not into the panel, not into the console, and not to the
-  local server of the application.
+- **It touches no secret of yours, because it needs none.** There is no `sessionid` and no
+  `access_token` in the body: the address is the origin the page was loaded from, so the browser
+  attaches the cookie of the signed-in account itself, and the script never sees it. It reads no
+  cookies, writes nothing to a file or to the storage of the browser beyond the list of App IDs the
+  check needs after a reload, and sends nothing to the local server of the application.
 
 ### How to undo it
 
@@ -538,31 +550,41 @@ Pick the backup file with this same script and write it back. That is the whole 
 backup is an ordinary order file, and the script that wrote your order is the script that puts the
 old one back.
 
+### What the write cannot undo
+
+Steam keeps a `priority` on every wishlist entry: a straight numbering, from one upwards, of the
+entries you have arranged by hand. Entries you have never arranged sit at the end with `priority: 0`
+and no number at all. On the account this was read off, 166 entries were 76 with the priorities
+1…76 and 90 with a zero.
+
+This script sends the list **whole**, numbered `1…N`, because a partial list is not a partial
+reorder. So after the write **every** entry has a priority, including the ones that had none before.
+The backup puts the order back; it cannot put back “never arranged”. The panel says so in the box
+above the write button and again at the confirmation, before anything is sent.
+
 ### What remains a limitation
 
-- **The endpoint is undocumented and unsupported.** `POST /wishlist/profiles/<steamid>/reorder/` is
-  what the page itself uses when a row is dragged; Valve promises nothing about it and may change it
-  any day. When that happens, the script says what came back instead of pretending it worked.
-- **A wishlist opened by its custom url says nothing about whose it is.** The endpoint takes the
-  numeric SteamID64 only, and Steam brings the address to `/wishlist/id/<name>/`, redirecting the
-  numeric form back to it. So the account is looked for in five places, in this order: seventeen
-  digits in the address of the page; `g_steamID`, the variable the old layout defined; a link on the
-  page to this same wishlist by its numeric address; the same address inside an inline script; a
-  `data-steamid` attribute. The numeric address wins over everything the page says. Whatever
-  answers, the report names the account the write would go to — the id, the custom name if the
-  address gives one, and which of the five said so — and the confirmation names it again.
-- **Sources that disagree are a refusal, not a choice.** A page carries links to wishlists other
-  than its own, so when two of the five name two different accounts the script says so, names each
-  account and the source that named it, and offers no write at all — there is no way round it in the
-  panel. Guessing there would put your order into somebody else's list, and that cannot be taken
-  back. On the numeric address the id of the page and the signed-in one are compared instead, and a
-  wishlist that is not yours is refused before anything is sent.
-- **When nothing on the page names an account, you can type it in.** A field appears in the report
-  for your own seventeen digits — they are in the address of your profile, or in the address bar
-  under “Edit Profile” if your profile has a custom address too. It is checked for the shape and
-  used for nothing but the address of the request. A wrong number costs a refusal from Steam and
-  nothing else, and the script stops depending on where exactly Steam hides the id this month.
-- **A very large wishlist may not fit into one request.** Steam answers `413`, and the script says
+- **The endpoint is undocumented and unsupported.** `POST /wishlist/action` with
+  `{"m":"Reorder","mp":[[…]]}` is what the page itself sends when a row is dragged; Valve promises
+  nothing about it and may change it any day. When that happens, the script says what came back
+  instead of pretending it worked. The address it used before this —
+  `/wishlist/profiles/<steamid>/reorder/` with a `sessionid` field — belonged to the previous
+  version of the page, and the rewritten one does not use it at all: it puts no `g_sessionID` on the
+  page, so that write never even started.
+- **The write goes to the account this browser is signed in as, not to the page on the screen.** The
+  address names no account — the cookie decides. So opening somebody else's wishlist and running the
+  script would rearrange *your* list with *their* App IDs, read off their page. The script still
+  reads the page for the account it belongs to and names it in the report, as a check you can make
+  with your own eyes: seventeen digits in the address; `g_steamID`, the variable the old layout
+  defined; a link on the page to this wishlist by its numeric address; that address inside an inline
+  script; a `data-steamid` attribute.
+- **An account it could not work out is a sentence, not a lock.** Since the request is addressed to
+  nobody, there is nothing an unknown account could send astray, and the write is not blocked over
+  it — the report says the account is unknown, or that the page names more than one, and asks you to
+  look at the list. The single case still refused outright is the certain one: a numeric address
+  naming one account while the page says you are signed in as another.
+- **A very large wishlist may not fit into one request.** 166 entries make a body of about seven
+  kilobytes, so the ceiling is far off — but it is a ceiling. Steam answers `413`, and the script says
   so in words. Splitting the list is not a way out — a partial list is not a partial reorder, Steam
   spreads the entries it was given through the ones it was not — so for such a list the preview mode
   is still there: “Show the order on the page” marks every row with the number it has to end up at,
@@ -687,11 +709,12 @@ The manual edits are reset by a button of their own, without touching the compar
   Covers are switched off by the “Load covers” toggle in the header; with the toggle off and no
   import running, nothing reaches outside at all.
 - **The export userscript makes no network requests whatsoever**, and the one that carries the order
-  back makes exactly one, to Steam itself: the `POST` that writes the order, to the same address the
+  back makes exactly one, to Steam itself: the `POST` that writes the order, to the same origin the
   wishlist page was loaded from, after you have confirmed it. Both have `@grant none` and not a
-  single `@connect`, so neither can reach any other host. Neither reads your cookies. The `sessionid`
-  the write needs is taken from `g_sessionID`, the variable of the page the script is running in,
-  used in the body of that one request, and put nowhere else — no file, no storage, no console.
+  single `@connect`, so neither can reach any other host. Neither reads your cookies, and neither
+  holds a secret of yours: the body of that one request carries the App IDs and their places and
+  nothing else — no `sessionid`, no token. The right to write is the cookie the browser attaches by
+  itself, because the address is the page's own.
 - The same holds for the demo on GitHub Pages: the very same static files, only on somebody else's
   hosting. Your data stays in your browser — there is nobody to send it to and nothing to send it
   with.
@@ -707,7 +730,9 @@ from an account, would be untrue, which is why it is not here.
   sends what the wishlist page itself sends when a row is dragged, and Valve promises nothing about
   it: it may change any day, and then the script will report what came back instead of pretending it
   worked. A very large wishlist can also fail to fit into one request — Steam answers `413`, and the
-  preview mode with the marks on the rows is what is left. In detail — in
+  preview mode with the marks on the rows is what is left. And one part of the write is undone by
+  nothing: after it every entry carries a priority number, including the ones that carried none. In
+  detail — in [“What the write cannot undo”](#what-the-write-cannot-undo) and
   [“What remains a limitation”](#what-remains-a-limitation).
 - **The Steam selectors will break one day.** The layout of the wishlist has changed more than once,
   and the class names of the current page change by themselves — they look like `S2Q8eqrNOA4-` and
