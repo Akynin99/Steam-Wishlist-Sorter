@@ -38,7 +38,7 @@ export const STEAM_CDN_URL = 'https://cdn.cloudflare.steamstatic.com/steam/apps/
  * lower one, so the categories are the coarse part of the final ranking and
  * the pairwise comparisons only refine the order inside a single category.
  *
- * A category is an id and a rule, not a caption: the interface is bilingual,
+ * A category is an id and a rule, not a caption: the interface is translated,
  * so the words live in the dictionaries of `i18n.js` under `category.<id>` and
  * are looked up by `categoryLabel()` at the moment of drawing.
  *
