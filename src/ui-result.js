@@ -15,6 +15,11 @@
  * with an arrow), its category (the picker in the row) and whether it belongs
  * in the list at all. Then the files, folded away as well.
  *
+ * Above the list stands one more way of reading it: «Show tier list» opens a
+ * panel that lays the same order out as rows of covers, one row per category.
+ * It is a view and not a fifth block of work — it changes nothing, keeps
+ * nothing, and is built again from the result every time it opens.
+ *
  * A hand made placement is kept by `ranking.js` as "this item goes next to
  * that one" and replayed over whatever the comparisons produce, so returning
  * to the sorting improves the list around the placements instead of erasing
@@ -41,6 +46,7 @@ import {
   rowStatus,
 } from './result-view.js';
 import { clear, copyText, downloadText, element, kindLabel, renderCover } from './ui-common.js';
+import { createTierListPanel } from './ui-tier-list.js';
 
 /** What the kind filter can be set to. */
 const FILTERS = { all: 'all', game: 'game', dlc: 'dlc' };
@@ -92,6 +98,7 @@ export function createResultScreen(app) {
     bookmarkletCarries: document.getElementById('result-bookmarklet-carries'),
     bookmarkletState: document.getElementById('result-bookmarklet-state'),
     bookmarkletEmpty: document.getElementById('result-bookmarklet-empty'),
+    tierOpen: document.getElementById('result-tier-open'),
   };
 
   /** @type {'all'|'game'|'dlc'} */
@@ -125,6 +132,26 @@ export function createResultScreen(app) {
 
   /** The address of the link as it stands now, for the copy button. */
   let currentUrl = null;
+
+  /**
+   * The result of the last render.
+   *
+   * The tier list is drawn from this and not from the list on the screen:
+   * the search and the kind filter hide rows instead of rebuilding them, and
+   * a view read off the DOM would have inherited both. Kept from the render
+   * rather than asked for again on the click, because `render()` runs after
+   * every change and building the ranking twice buys nothing.
+   *
+   * @type {ReturnType<import('./ranking.js').RankingSession['getResult']>|null}
+   */
+  let lastResult = null;
+
+  /** The panel behind «Show tier list»; it holds no state between openings. */
+  const tierList = createTierListPanel(app);
+
+  nodes.tierOpen.addEventListener('click', () => {
+    if (lastResult) tierList.open(lastResult);
+  });
 
   /* ---------------------------------------------------------- rows */
 
@@ -897,6 +924,7 @@ export function createResultScreen(app) {
 
   function render() {
     const result = app.session.getResult();
+    lastResult = result;
     const { entries, removed, summary } = result;
     const loadCovers = app.loadCovers;
 

@@ -2818,6 +2818,217 @@ label.menu__row:hover {
   justify-content: flex-end;
 }
 
+/* -------------------------------------------------- the tier list */
+
+/*
+ * The same order, laid out as rows of covers. A view and nothing else: there
+ * is no control in here, and everything below is about making two hundred
+ * small pictures readable rather than about doing anything to them.
+ *
+ * A panel and not one of the narrow dialogs: a tier list squeezed into 460 px
+ * is a column, and a column is what the screen behind already shows.
+ */
+.dialog--panel {
+  width: min(1120px, 100vw - 32px);
+  max-width: none;
+  max-height: min(860px, 100vh - 32px);
+}
+
+/* Only while it is open: `display` on a closed dialog would override the
+   `display: none` the browser gives it, and the panel would stand on the page
+   from the first paint. */
+.dialog--panel[open] {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* The head keeps its size and the rows take the rest, so the title and the way
+   out are never scrolled off the top of a list of two hundred games. */
+.tier__head {
+  display: flex;
+  flex: none;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* The text takes the width and pushes the way out to the far edge, where a
+   way out belongs. `min-width: 0` so a long title wraps instead of widening
+   the row past the panel. */
+.tier__headtext {
+  flex: 1;
+  min-width: 0;
+}
+
+.tier__close {
+  flex: none;
+}
+
+/* `flex: 0 1 auto` and not `1`: the panel is as tall as the rows it holds and
+   only starts scrolling when they outgrow the window. Made to grow, a list of
+   three rows would still have stood the full height of the screen. */
+.tier__rows {
+  display: flex;
+  flex: 0 1 auto;
+  flex-direction: column;
+  gap: var(--gap-list);
+  min-height: 0;
+  padding: 18px 22px 22px;
+  overflow-y: auto;
+}
+
+/*
+ * A row: its caption beside the covers where there is room, above them where
+ * there is not. The covers wrap onto the next line and never scroll sideways —
+ * the whole point of the layout is that a row is read at a glance.
+ */
+.tier-row {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: 10px;
+  align-items: stretch;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-panel);
+}
+
+/*
+ * The two rows that are not degrees of interest stand away from the scale.
+ * The one for the items marked for removal is drawn with a dashed edge and
+ * says in words what it is: these games are still on the wishlist, and this
+ * application has never deleted anything from Steam.
+ */
+.tier-row--apart {
+  margin-top: 12px;
+}
+
+.tier-row--remove {
+  border-style: dashed;
+}
+
+/*
+ * The caption carries the colour the category has everywhere else, handed in
+ * as `--cat-color`. A wash and not the colour itself: the name is written on
+ * it, and a name has to stay readable in both themes.
+ */
+.tier-row__caption {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--cat-color, var(--border-strong)) 20%, var(--bg-panel));
+}
+
+.tier-row__name {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: var(--weight-heading);
+}
+
+/* Full-strength text and not a muted one: it sits on the wash of the row,
+   which is lighter than the surfaces the quieter levels are measured on. */
+.tier-row__note {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.tier-row__cards {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tier-row__empty {
+  align-self: center;
+  margin: 0;
+  padding: 8px 4px;
+  color: var(--text-muted);
+  font-size: 0.86rem;
+}
+
+/*
+ * A card is a cover, a quiet number and a title. Nothing on it is pressable:
+ * it is a picture of a place in the list, and this panel does not offer to
+ * change one.
+ */
+.tier-card {
+  position: relative;
+  width: 132px;
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-well);
+  overflow: hidden;
+}
+
+/* The cover fills the card, so the frame is the card's own. */
+.tier-card__cover {
+  border: 0;
+  border-radius: 0;
+}
+
+/* A card is 132 px wide, and the caption of the placeholder does not fit under
+   the monogram at that size — it would be cut off by the edge of the card. The
+   monogram alone is what tells two coverless games apart here, and the title is
+   a hover or a focus away. */
+.tier-card__cover .cover__caption {
+  display: none;
+}
+
+.tier-card__cover .cover__monogram {
+  font-size: 1.4rem;
+}
+
+.tier-card__position {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  padding: 1px 6px;
+  border-bottom-right-radius: var(--radius-sm);
+  background: var(--bg-inset);
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * The title, in the markup at all times so that a screen reader has it, and
+ * out of sight behind the bottom edge of the card until the card is hovered or
+ * focused. Hidden by the edge and not by `opacity`: a title faded down to
+ * nothing is still text on the screen, and this one is either fully readable
+ * or not there.
+ */
+.tier-card__name {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 1;
+  padding: 6px 7px;
+  background: var(--bg-inset);
+  color: var(--text);
+  font-size: 0.76rem;
+  line-height: 1.25;
+  transform: translateY(101%);
+  transition: transform 0.14s ease;
+}
+
+.tier-card:hover .tier-card__name,
+.tier-card:focus .tier-card__name {
+  transform: translateY(0);
+}
+
 /* ------------------------------------------------------- responsive */
 
 /*
@@ -2838,6 +3049,34 @@ label.menu__row:hover {
 @media (max-width: 760px) {
   .transfer__steps {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* The name of a tier row becomes a header over its covers: kept beside them,
+   the column would leave a strip two covers wide for the row itself. */
+@media (max-width: 760px) {
+  .tier-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/*
+ * The panel takes the whole window. A dialog with a margin around it wastes
+ * the width the covers need, and on a phone the panel is the screen anyway.
+ */
+@media (max-width: 640px) {
+  .dialog--panel {
+    width: 100vw;
+    max-width: 100vw;
+    height: 100dvh;
+    max-height: 100dvh;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .tier__head,
+  .tier__rows {
+    padding-inline: 14px;
   }
 }
 

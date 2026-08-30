@@ -1050,6 +1050,12 @@
                     data-i18n="result.filter.dlc">DLC</button>
           </div>
           <span class="result-tools__count" id="result-shown"></span>
+
+          <!-- The same order, looked at from the side. A second way of reading
+               the list and not a second thing to do with it, so it stands here
+               among the tools of the list and not next to the transfer. -->
+          <button type="button" class="btn result-tools__tier" id="result-tier-open"
+                  aria-haspopup="dialog" data-i18n="tier.open">Show tier list</button>
         </div>
 
         <p class="hint" id="result-hint" data-i18n-html="result.hint">
@@ -1285,6 +1291,35 @@
         <button type="submit" class="btn btn--primary" value="confirm" id="confirm-ok" data-i18n="dialog.confirm">Continue</button>
       </div>
     </form>
+  </dialog>
+
+  <!--
+    The tier list. A view of the result and nothing more: it is built again out
+    of `getResult()` every time it opens, it holds no state of its own, and
+    nothing in it can be dragged, edited or clicked through to.
+
+    A `<dialog>` for the same reasons as the others — the focus trap, Escape
+    and the inertness of the page behind it come with it, and `isHotkeyBlocked()`
+    already keeps the hotkeys of the result screen quiet while any dialog is
+    open. The head stays put and the rows below it scroll, so the title and the
+    way out are never scrolled off.
+
+    The rows themselves are built in `ui-tier-list.js`: how many there are and
+    what is in them depends on the result, and the words in them carry no keys
+    of their own here because there is no markup here to carry them.
+  -->
+  <dialog class="dialog dialog--panel tier" id="tier-dialog" aria-labelledby="tier-title">
+    <div class="tier__head">
+      <div class="tier__headtext">
+        <h2 class="dialog__title" id="tier-title" tabindex="-1" data-i18n="tier.title">Wishlist tier list</h2>
+        <p class="dialog__text" data-i18n="tier.lead">
+          Games are ordered from left to right within each category.
+        </p>
+      </div>
+      <button type="button" class="btn tier__close" id="tier-close"
+              data-i18n="tier.close">Close</button>
+    </div>
+    <div class="tier__rows" id="tier-rows"></div>
   </dialog>
 
   <div class="toast" id="toast" hidden></div>
