@@ -665,6 +665,16 @@ const EN = {
   'result.move.edgeLast': 'last',
   'result.category.failed': 'The category could not be changed: {message}',
   'result.category.toast': '“{title}” — {category}.',
+  /* -- result screen: the tier list ------------------------------------- */
+  'tier.open': 'Show tier list',
+  'tier.title': 'Wishlist tier list',
+  'tier.lead': 'Games are ordered from left to right within each category.',
+  'tier.close': 'Close',
+  'tier.none': 'Not categorized',
+  'tier.empty': 'Nothing here',
+  'tier.card.aria': '{position}. {title}',
+  'tier.remove.note':
+    'Marked for removal. Nothing is deleted from Steam here — that is left to you.',
 
   /* -- result screen: the files and the two resets ---------------------- */
   'result.export.summary': 'Download or share',
@@ -1286,6 +1296,16 @@ const RU = {
   'result.move.edgeLast': 'последняя',
   'result.category.failed': 'Не удалось сменить категорию: {message}',
   'result.category.toast': '«{title}» — {category}.',
+  /* -- result screen: the tier list ------------------------------------- */
+  'tier.open': 'Отобразить тир-лист',
+  'tier.title': 'Тир-лист желаемого',
+  'tier.lead': 'Внутри каждой категории игры расположены по порядку слева направо.',
+  'tier.close': 'Закрыть',
+  'tier.none': 'Без категории',
+  'tier.empty': 'Здесь пусто',
+  'tier.card.aria': '{position}. {title}',
+  'tier.remove.note':
+    'Помечено на удаление. Из Steam приложение ничего не удаляет — это остаётся вам.',
 
   /* -- экран результата: файлы и два сброса ------------------------------- */
   'result.export.summary': 'Скачать или поделиться',
@@ -1947,6 +1967,16 @@ const DE = {
   'result.move.edgeLast': 'letzte',
   'result.category.failed': 'Die Kategorie ließ sich nicht ändern: {message}',
   'result.category.toast': '„{title}“ — {category}.',
+  /* -- result screen: the tier list ------------------------------------- */
+  'tier.open': 'Tier-Liste anzeigen',
+  'tier.title': 'Tier-Liste der Wunschliste',
+  'tier.lead': 'Innerhalb jeder Kategorie stehen die Spiele der Reihe nach von links nach rechts.',
+  'tier.close': 'Schließen',
+  'tier.none': 'Ohne Kategorie',
+  'tier.empty': 'Hier ist nichts',
+  'tier.card.aria': '{position}. {title}',
+  'tier.remove.note':
+    'Zum Entfernen vorgemerkt. Aus Steam löscht die Anwendung nichts — das bleibt dir überlassen.',
 
   /* -- result screen: the files and the two resets ---------------------- */
   'result.export.summary': 'Herunterladen oder weitergeben',
@@ -2621,6 +2651,16 @@ const FR = {
   'result.move.edgeLast': 'dernière',
   'result.category.failed': 'La catégorie n’a pas pu être changée : {message}',
   'result.category.toast': '« {title} » — {category}.',
+  /* -- result screen: the tier list ------------------------------------- */
+  'tier.open': 'Afficher la tier list',
+  'tier.title': 'Tier list de la liste de souhaits',
+  'tier.lead': 'Dans chaque catégorie, les jeux sont classés de gauche à droite.',
+  'tier.close': 'Fermer',
+  'tier.none': 'Sans catégorie',
+  'tier.empty': 'Rien ici',
+  'tier.card.aria': '{position}. {title}',
+  'tier.remove.note':
+    'Marqué pour être retiré. L’application ne supprime rien de Steam — cela vous revient.',
 
   /* -- result screen: the files and the two resets ---------------------- */
   'result.export.summary': 'Télécharger ou partager',
@@ -3281,6 +3321,16 @@ const ES = {
   'result.move.edgeLast': 'última',
   'result.category.failed': 'La categoría no se pudo cambiar: {message}',
   'result.category.toast': '«{title}»: {category}.',
+  /* -- result screen: the tier list ------------------------------------- */
+  'tier.open': 'Mostrar la tier list',
+  'tier.title': 'Tier list de la lista de deseados',
+  'tier.lead': 'Dentro de cada categoría, los juegos van en orden de izquierda a derecha.',
+  'tier.close': 'Cerrar',
+  'tier.none': 'Sin categoría',
+  'tier.empty': 'Aquí no hay nada',
+  'tier.card.aria': '{position}. {title}',
+  'tier.remove.note':
+    'Marcado para quitar. La aplicación no borra nada de Steam: eso queda de tu parte.',
 
   /* -- result screen: the files and the two resets ---------------------- */
   'result.export.summary': 'Descargar o compartir',
@@ -3933,6 +3983,16 @@ const PT_BR = {
   'result.move.edgeLast': 'última',
   'result.category.failed': 'A categoria não pôde ser mudada: {message}',
   'result.category.toast': '“{title}” — {category}.',
+  /* -- result screen: the tier list ------------------------------------- */
+  'tier.open': 'Mostrar a tier list',
+  'tier.title': 'Tier list da lista de desejos',
+  'tier.lead': 'Dentro de cada categoria, os jogos ficam em ordem da esquerda para a direita.',
+  'tier.close': 'Fechar',
+  'tier.none': 'Sem categoria',
+  'tier.empty': 'Nada aqui',
+  'tier.card.aria': '{position}. {title}',
+  'tier.remove.note':
+    'Marcado para sair. O aplicativo não apaga nada da Steam — isso fica com você.',
 
   /* -- result screen: the files and the two resets ---------------------- */
   'result.export.summary': 'Baixar ou compartilhar',
@@ -4566,6 +4626,16 @@ const PL = {
   'result.move.edgeLast': 'ostatni',
   'result.category.failed': 'Nie udało się zmienić kategorii: {message}',
   'result.category.toast': '„{title}” — {category}.',
+  /* -- result screen: the tier list ------------------------------------- */
+  'tier.open': 'Pokaż tier listę',
+  'tier.title': 'Tier lista listy życzeń',
+  'tier.lead': 'W każdej kategorii gry stoją po kolei od lewej do prawej.',
+  'tier.close': 'Zamknij',
+  'tier.none': 'Bez kategorii',
+  'tier.empty': 'Tu nic nie ma',
+  'tier.card.aria': '{position}. {title}',
+  'tier.remove.note':
+    'Oznaczone do usunięcia. Aplikacja niczego nie usuwa ze Steama — to zostaje po twojej stronie.',
 
   /* -- result screen: the files and the two resets ---------------------- */
   'result.export.summary': 'Pobierz albo udostępnij',
@@ -5204,6 +5274,16 @@ const TR = {
   'result.move.edgeLast': 'son',
   'result.category.failed': 'Kategori değiştirilemedi: {message}',
   'result.category.toast': '“{title}” — {category}.',
+  /* -- result screen: the tier list ------------------------------------- */
+  'tier.open': 'Tier listesini göster',
+  'tier.title': 'İstek listesinin tier listesi',
+  'tier.lead': 'Her kategorinin içinde oyunlar soldan sağa doğru sırayla dizilir.',
+  'tier.close': 'Kapat',
+  'tier.none': 'Kategorisiz',
+  'tier.empty': 'Burada bir şey yok',
+  'tier.card.aria': '{position}. {title}',
+  'tier.remove.note':
+    'Kaldırılmak üzere işaretlendi. Uygulama Steam’den hiçbir şey silmez — bu size kalıyor.',
 
   /* -- result screen: the files and the two resets ---------------------- */
   'result.export.summary': 'İndirin ya da paylaşın',
