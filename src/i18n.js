@@ -668,13 +668,26 @@ const EN = {
   /* -- result screen: the tier list ------------------------------------- */
   'tier.open': 'Show tier list',
   'tier.title': 'Wishlist tier list',
-  'tier.lead': 'Games are ordered from left to right within each category.',
+  'tier.lead':
+    'Games are ordered from left to right within each category, and moving a card here changes '
+    + 'the same order the list behind shows.',
+  'tier.hint':
+    'A card is dragged to another place or another row, or moved with <kbd>Ctrl</kbd> + '
+    + '<kbd>←</kbd> / <kbd>→</kbd> inside a row and <kbd>Ctrl</kbd> + <kbd>↑</kbd> / <kbd>↓</kbd> '
+    + 'between rows. The moves are saved and survive a reload.',
   'tier.close': 'Close',
   'tier.none': 'Not categorized',
   'tier.empty': 'Nothing here',
   'tier.card.aria': '{position}. {title}',
   'tier.remove.note':
     'Marked for removal. Nothing is deleted from Steam here — that is left to you.',
+  'tier.move.announce': '“{title}” — row “{row}”, place {place} of {total}.',
+  'tier.move.removed': '“{title}” — row “{row}”. It is out of the numbering of the list.',
+  'tier.move.failed': 'It could not be moved: {message}',
+  'tier.move.edgeStart': 'This card is already first in its row.',
+  'tier.move.edgeEnd': 'This card is already last in its row.',
+  'tier.move.edgeTop': 'This is the topmost row.',
+  'tier.move.edgeBottom': 'This is the bottom row.',
 
   /* -- result screen: the files and the two resets ---------------------- */
   'result.export.summary': 'Download or share',
@@ -1299,13 +1312,26 @@ const RU = {
   /* -- result screen: the tier list ------------------------------------- */
   'tier.open': 'Отобразить тир-лист',
   'tier.title': 'Тир-лист желаемого',
-  'tier.lead': 'Внутри каждой категории игры расположены по порядку слева направо.',
+  'tier.lead':
+    'Внутри каждой категории игры расположены по порядку слева направо, и перестановка карточки '
+    + 'здесь меняет тот же порядок, который показан списком позади.',
+  'tier.hint':
+    'Карточку можно перетащить на другое место или в другой ряд, а можно переставить с клавиатуры: '
+    + '<kbd>Ctrl</kbd> + <kbd>←</kbd> / <kbd>→</kbd> внутри ряда и <kbd>Ctrl</kbd> + <kbd>↑</kbd> / '
+    + '<kbd>↓</kbd> между рядами. Перестановки сохраняются и переживают перезагрузку.',
   'tier.close': 'Закрыть',
   'tier.none': 'Без категории',
   'tier.empty': 'Здесь пусто',
   'tier.card.aria': '{position}. {title}',
   'tier.remove.note':
     'Помечено на удаление. Из Steam приложение ничего не удаляет — это остаётся вам.',
+  'tier.move.announce': '«{title}» — ряд «{row}», место {place} из {total}.',
+  'tier.move.removed': '«{title}» — ряд «{row}». В нумерацию списка не входит.',
+  'tier.move.failed': 'Не удалось переставить: {message}',
+  'tier.move.edgeStart': 'Эта карточка и так первая в своём ряду.',
+  'tier.move.edgeEnd': 'Эта карточка и так последняя в своём ряду.',
+  'tier.move.edgeTop': 'Это самый верхний ряд.',
+  'tier.move.edgeBottom': 'Это самый нижний ряд.',
 
   /* -- экран результата: файлы и два сброса ------------------------------- */
   'result.export.summary': 'Скачать или поделиться',
@@ -1970,11 +1996,25 @@ const DE = {
   /* -- result screen: the tier list ------------------------------------- */
   'tier.open': 'Tier-Liste anzeigen',
   'tier.title': 'Tier-Liste der Wunschliste',
-  'tier.lead': 'Innerhalb jeder Kategorie stehen die Spiele der Reihe nach von links nach rechts.',
+  'tier.lead':
+    'Innerhalb jeder Kategorie stehen die Spiele der Reihe nach von links nach rechts, und eine '
+    + 'hier verschobene Karte ändert dieselbe Reihenfolge, die die Liste dahinter zeigt.',
+  'tier.hint':
+    'Eine Karte lässt sich an eine andere Stelle oder in eine andere Zeile ziehen oder mit '
+    + '<kbd>Strg</kbd> + <kbd>←</kbd> / <kbd>→</kbd> innerhalb der Zeile und <kbd>Strg</kbd> + '
+    + '<kbd>↑</kbd> / <kbd>↓</kbd> zwischen den Zeilen verschieben. Die Verschiebungen werden '
+    + 'gespeichert und überstehen ein Neuladen.',
   'tier.close': 'Schließen',
   'tier.none': 'Ohne Kategorie',
   'tier.empty': 'Hier ist nichts',
   'tier.card.aria': '{position}. {title}',
+  'tier.move.announce': '„{title}“ — Zeile „{row}“, Platz {place} von {total}.',
+  'tier.move.removed': '„{title}“ — Zeile „{row}“. Es zählt nicht zur Nummerierung der Liste.',
+  'tier.move.failed': 'Verschieben nicht möglich: {message}',
+  'tier.move.edgeStart': 'Diese Karte steht bereits an erster Stelle ihrer Zeile.',
+  'tier.move.edgeEnd': 'Diese Karte steht bereits an letzter Stelle ihrer Zeile.',
+  'tier.move.edgeTop': 'Das ist die oberste Zeile.',
+  'tier.move.edgeBottom': 'Das ist die unterste Zeile.',
   'tier.remove.note':
     'Zum Entfernen vorgemerkt. Aus Steam löscht die Anwendung nichts — das bleibt dir überlassen.',
 
@@ -2654,11 +2694,25 @@ const FR = {
   /* -- result screen: the tier list ------------------------------------- */
   'tier.open': 'Afficher la tier list',
   'tier.title': 'Tier list de la liste de souhaits',
-  'tier.lead': 'Dans chaque catégorie, les jeux sont classés de gauche à droite.',
+  'tier.lead':
+    'Dans chaque catégorie, les jeux sont classés de gauche à droite, et déplacer une carte ici '
+    + 'change le même ordre que celui affiché par la liste derrière.',
+  'tier.hint':
+    'Une carte se glisse à une autre place ou dans une autre ligne, ou se déplace avec '
+    + '<kbd>Ctrl</kbd> + <kbd>←</kbd> / <kbd>→</kbd> dans une ligne et <kbd>Ctrl</kbd> + '
+    + '<kbd>↑</kbd> / <kbd>↓</kbd> entre les lignes. Les déplacements sont enregistrés et '
+    + 'survivent à un rechargement.',
   'tier.close': 'Fermer',
   'tier.none': 'Sans catégorie',
   'tier.empty': 'Rien ici',
   'tier.card.aria': '{position}. {title}',
+  'tier.move.announce': '« {title} » — ligne « {row} », place {place} sur {total}.',
+  'tier.move.removed': '« {title} » — ligne « {row} ». Elle ne compte pas dans la numérotation.',
+  'tier.move.failed': 'Le déplacement a échoué : {message}',
+  'tier.move.edgeStart': 'Cette carte est déjà la première de sa ligne.',
+  'tier.move.edgeEnd': 'Cette carte est déjà la dernière de sa ligne.',
+  'tier.move.edgeTop': 'C’est la ligne la plus haute.',
+  'tier.move.edgeBottom': 'C’est la ligne la plus basse.',
   'tier.remove.note':
     'Marqué pour être retiré. L’application ne supprime rien de Steam — cela vous revient.',
 
@@ -3324,11 +3378,24 @@ const ES = {
   /* -- result screen: the tier list ------------------------------------- */
   'tier.open': 'Mostrar la tier list',
   'tier.title': 'Tier list de la lista de deseados',
-  'tier.lead': 'Dentro de cada categoría, los juegos van en orden de izquierda a derecha.',
+  'tier.lead':
+    'Dentro de cada categoría, los juegos van en orden de izquierda a derecha, y mover una tarjeta '
+    + 'aquí cambia el mismo orden que muestra la lista de detrás.',
+  'tier.hint':
+    'Una tarjeta se arrastra a otro lugar o a otra fila, o se mueve con <kbd>Ctrl</kbd> + '
+    + '<kbd>←</kbd> / <kbd>→</kbd> dentro de la fila y <kbd>Ctrl</kbd> + <kbd>↑</kbd> / '
+    + '<kbd>↓</kbd> entre filas. Los movimientos se guardan y sobreviven a una recarga.',
   'tier.close': 'Cerrar',
   'tier.none': 'Sin categoría',
   'tier.empty': 'Aquí no hay nada',
   'tier.card.aria': '{position}. {title}',
+  'tier.move.announce': '«{title}» — fila «{row}», puesto {place} de {total}.',
+  'tier.move.removed': '«{title}» — fila «{row}». Queda fuera de la numeración de la lista.',
+  'tier.move.failed': 'No se ha podido mover: {message}',
+  'tier.move.edgeStart': 'Esta tarjeta ya es la primera de su fila.',
+  'tier.move.edgeEnd': 'Esta tarjeta ya es la última de su fila.',
+  'tier.move.edgeTop': 'Esta es la fila más alta.',
+  'tier.move.edgeBottom': 'Esta es la fila más baja.',
   'tier.remove.note':
     'Marcado para quitar. La aplicación no borra nada de Steam: eso queda de tu parte.',
 
@@ -3986,11 +4053,25 @@ const PT_BR = {
   /* -- result screen: the tier list ------------------------------------- */
   'tier.open': 'Mostrar a tier list',
   'tier.title': 'Tier list da lista de desejos',
-  'tier.lead': 'Dentro de cada categoria, os jogos ficam em ordem da esquerda para a direita.',
+  'tier.lead':
+    'Dentro de cada categoria, os jogos ficam em ordem da esquerda para a direita, e mover um '
+    + 'cartão aqui muda a mesma ordem que a lista atrás mostra.',
+  'tier.hint':
+    'Um cartão pode ser arrastado para outro lugar ou para outra linha, ou movido com '
+    + '<kbd>Ctrl</kbd> + <kbd>←</kbd> / <kbd>→</kbd> dentro da linha e <kbd>Ctrl</kbd> + '
+    + '<kbd>↑</kbd> / <kbd>↓</kbd> entre as linhas. Os movimentos são salvos e sobrevivem a um '
+    + 'recarregamento.',
   'tier.close': 'Fechar',
   'tier.none': 'Sem categoria',
   'tier.empty': 'Nada aqui',
   'tier.card.aria': '{position}. {title}',
+  'tier.move.announce': '“{title}” — linha “{row}”, posição {place} de {total}.',
+  'tier.move.removed': '“{title}” — linha “{row}”. Fica fora da numeração da lista.',
+  'tier.move.failed': 'Não foi possível mover: {message}',
+  'tier.move.edgeStart': 'Este cartão já é o primeiro da sua linha.',
+  'tier.move.edgeEnd': 'Este cartão já é o último da sua linha.',
+  'tier.move.edgeTop': 'Esta é a linha mais acima.',
+  'tier.move.edgeBottom': 'Esta é a linha mais abaixo.',
   'tier.remove.note':
     'Marcado para sair. O aplicativo não apaga nada da Steam — isso fica com você.',
 
@@ -4629,11 +4710,25 @@ const PL = {
   /* -- result screen: the tier list ------------------------------------- */
   'tier.open': 'Pokaż tier listę',
   'tier.title': 'Tier lista listy życzeń',
-  'tier.lead': 'W każdej kategorii gry stoją po kolei od lewej do prawej.',
+  'tier.lead':
+    'W każdej kategorii gry stoją po kolei od lewej do prawej, a przestawienie karty tutaj zmienia '
+    + 'tę samą kolejność, którą pokazuje lista z tyłu.',
+  'tier.hint':
+    'Kartę można przeciągnąć na inne miejsce albo do innego rzędu, można też przestawić ją '
+    + 'klawiszami <kbd>Ctrl</kbd> + <kbd>←</kbd> / <kbd>→</kbd> w rzędzie i <kbd>Ctrl</kbd> + '
+    + '<kbd>↑</kbd> / <kbd>↓</kbd> między rzędami. Przestawienia są zapisywane i przetrwają '
+    + 'przeładowanie.',
   'tier.close': 'Zamknij',
   'tier.none': 'Bez kategorii',
   'tier.empty': 'Tu nic nie ma',
   'tier.card.aria': '{position}. {title}',
+  'tier.move.announce': '„{title}” — rząd „{row}”, miejsce {place} z {total}.',
+  'tier.move.removed': '„{title}” — rząd „{row}”. Nie wchodzi do numeracji listy.',
+  'tier.move.failed': 'Nie udało się przestawić: {message}',
+  'tier.move.edgeStart': 'Ta karta i tak jest pierwsza w swoim rzędzie.',
+  'tier.move.edgeEnd': 'Ta karta i tak jest ostatnia w swoim rzędzie.',
+  'tier.move.edgeTop': 'To jest najwyższy rząd.',
+  'tier.move.edgeBottom': 'To jest najniższy rząd.',
   'tier.remove.note':
     'Oznaczone do usunięcia. Aplikacja niczego nie usuwa ze Steama — to zostaje po twojej stronie.',
 
@@ -5277,11 +5372,24 @@ const TR = {
   /* -- result screen: the tier list ------------------------------------- */
   'tier.open': 'Tier listesini göster',
   'tier.title': 'İstek listesinin tier listesi',
-  'tier.lead': 'Her kategorinin içinde oyunlar soldan sağa doğru sırayla dizilir.',
+  'tier.lead':
+    'Her kategorinin içinde oyunlar soldan sağa doğru sırayla dizilir; burada bir kartı taşımak, '
+    + 'arkadaki listenin gösterdiği sıranın kendisini değiştirir.',
+  'tier.hint':
+    'Bir kart başka bir yere ya da başka bir sıraya sürüklenebilir; klavyeyle de taşınır: sıranın '
+    + 'içinde <kbd>Ctrl</kbd> + <kbd>←</kbd> / <kbd>→</kbd>, sıralar arasında <kbd>Ctrl</kbd> + '
+    + '<kbd>↑</kbd> / <kbd>↓</kbd>. Taşımalar kaydedilir ve sayfa yenilense de durur.',
   'tier.close': 'Kapat',
   'tier.none': 'Kategorisiz',
   'tier.empty': 'Burada bir şey yok',
   'tier.card.aria': '{position}. {title}',
+  'tier.move.announce': '“{title}” — “{row}” sırası, {total} içinde {place}. yer.',
+  'tier.move.removed': '“{title}” — “{row}” sırası. Listenin numaralandırmasına girmez.',
+  'tier.move.failed': 'Taşınamadı: {message}',
+  'tier.move.edgeStart': 'Bu kart zaten sırasının başında.',
+  'tier.move.edgeEnd': 'Bu kart zaten sırasının sonunda.',
+  'tier.move.edgeTop': 'Bu en üstteki sıra.',
+  'tier.move.edgeBottom': 'Bu en alttaki sıra.',
   'tier.remove.note':
     'Kaldırılmak üzere işaretlendi. Uygulama Steam’den hiçbir şey silmez — bu size kalıyor.',
 
