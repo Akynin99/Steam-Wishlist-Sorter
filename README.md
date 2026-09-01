@@ -561,7 +561,17 @@ the network or a live Steam page.
    list they change. A row is moved with the mouse or, without one, by walking the list with
    <kbd>↑</kbd> / <kbd>↓</kbd> and moving the row under the cursor with <kbd>Ctrl</kbd> +
    <kbd>↑</kbd> / <kbd>Ctrl</kbd> + <kbd>↓</kbd>.
-5. **Back into Steam**, if you want the order there and not only in a file: the transfer card stands
+5. **The tier list**, above the list: **“Show tier list”** lays the same order out as rows of
+   covers, one row per category, and lets you rearrange it that way — drag a card to another place
+   in its row, to another row (which changes the game's category and puts it where you dropped it),
+   into **“Not categorized”** to take the category off, or into the row of games to remove from the
+   wishlist. Without a mouse it is the same keys as in the list: the arrows walk the covers,
+   <kbd>Ctrl</kbd> + <kbd>←</kbd> / <kbd>→</kbd> moves a card inside its row and <kbd>Ctrl</kbd> +
+   <kbd>↑</kbd> / <kbd>↓</kbd> between rows, and every move is said out loud in the head of the
+   panel. It is the same data as the list behind it and not a copy: whatever you do in one shows up
+   in the other, the link into Steam is rebuilt with it, and “Reset the manual moves” undoes moves
+   made here as well.
+6. **Back into Steam**, if you want the order there and not only in a file: the transfer card stands
    above the list, because that is what the whole thing is for — drag the link onto the bookmarks
    bar, or copy it, and press the bookmark on your wishlist page. See
    [Carrying the order back into Steam](#carrying-the-order-back-into-steam).
@@ -910,9 +920,10 @@ in development.
 | [`src/export.js`](src/export.js) | the result as JSON, CSV and text. No DOM — which is why every format is checked by a test character by character, instead of by eye in a downloaded file |
 | [`src/bookmarklet.js`](src/bookmarklet.js) | the link that carries the order into Steam: the app ids in their final order, the interface texts of the moment, and the small program that sends the one write request. No DOM either, so a test can read the address apart character by character and make the generated code run against a fake page |
 | [`src/result-view.js`](src/result-view.js) | what the result screen decides before it draws anything: the state of a row, the share of the list the answers carry, whether the link taken a minute ago still writes the order on the screen, and whether the bookmarks bar is shown with <kbd>Ctrl</kbd> or with the command key. No DOM, so all four are covered by [`tests/result-view.test.js`](tests/result-view.test.js) |
+| [`src/tier-list.js`](src/tier-list.js) | the tier list without a DOM: the grouping of a result into rows, and what a card dragged somewhere means — which category it ends up in and which card it ends up next to. It ranks nothing; it only decides the two calls the session then makes, and in the one order that works, because a card cannot be placed next to a neighbour whose category it does not share yet |
 | [`src/theme.js`](src/theme.js) | the names of the two themes, the rule for reading one back — an unknown value and a state file from before the second theme both read as Modern — and the key the chosen theme is mirrored under for the script in the head. It touches no DOM and holds no storage of its own, so a test gets at it directly |
 | [`src/onboarding.js`](src/onboarding.js) | which stages have already explained themselves. It is not application state — it says something about the person, not about the wishlist — so it lives under a key of its own and “Start over” does not bring the explanations back |
-| [`src/ui-*.js`](src/) | the screens on top of the core: wishlist, categories, comparisons, result, the card of the direct import, the shared frame with its stage sequence and settings menu, and the dialogs |
+| [`src/ui-*.js`](src/) | the screens on top of the core: wishlist, categories, comparisons, result, the tier list panel, the card of the direct import, the shared frame with its stage sequence and settings menu, and the dialogs |
 | [`server.js`](server.js) | a server on plain Node: it serves the files of the project, is guarded against escaping the root, and answers the three endpoints of the direct import — the health check the card asks about, the wishlist and the missing titles |
 | [`userscripts/`](userscripts/) | two Tampermonkey scripts: the wishlist export and the writing of the order back into Steam. The half of the second one that decides what gets sent and what an answer means is loaded by `node --test` and covered by [`tests/reorder-userscript.test.js`](tests/reorder-userscript.test.js) |
 
@@ -1078,7 +1089,7 @@ styles.css                 the styles: two dark themes over one set of markup
 server.js                  the local server on plain Node: the files, and the /api/* endpoints
 start.bat                  the launcher for Windows (Node, with Python as a fallback)
 src/                       the source: model, i18n, import, steam, storage, ranking, export,
-                           bookmarklet, result-view, theme, onboarding, screens
+                           bookmarklet, result-view, tier-list, theme, onboarding, screens
 tests/                     the tests on node:test; tests/fixtures — the demo set and test data
                            tests/helpers — a mock of the wishlist markup, in both Steam layouts
 userscripts/               two Tampermonkey scripts for the Steam page
