@@ -1,13 +1,17 @@
 /**
  * The tier list panel of the result screen.
  *
- * A second way of reading the order that is already on the screen: one row per
- * category, the games of a row standing left to right in the order the ranking
- * gave them. It shows and it does nothing else — no sorting is started, no
- * category is touched, no hand placement is recorded, and there is nothing on
- * a card to press. It keeps no state of its own either: the rows are built
- * from the result every time the panel opens, so whatever was changed on the
- * screen a minute ago is already in them.
+ * The same order the list behind it shows, laid out as rows of covers — one
+ * row per category, the games of a row standing left to right — and the second
+ * place that order can be changed from. A card is dragged to another place in
+ * its row, to another row, into «not categorized», or into the row of games
+ * marked for removal; the keyboard does all four without a mouse.
+ *
+ * It keeps no state of its own. Every move goes into the session through
+ * `applyTierMove()`, the screen behind is redrawn from the same session, and
+ * the rows here are built again out of the fresh result — so the panel and the
+ * list are one set of data and never two copies of it that have to be kept in
+ * step.
  *
  * The rows come from `tier-list.js`, which is given the result the screen has
  * already asked for. They are never read off the list on the screen: the
@@ -17,26 +21,45 @@
  *
  * A `<dialog>`, so the focus trap and the inertness of the page behind it come
  * from the browser, and `isHotkeyBlocked()` keeps the hotkeys of the result
- * screen quiet while it stands open.
+ * screen quiet while it stands open. What just happened is said in a line of
+ * the panel's own head rather than in a toast: a toast lives on the page
+ * behind, and the page behind a modal dialog is not on the screen.
  */
 
 import { t } from './i18n.js';
 import { categoryLabel } from './model.js';
-import { TIER_REMOVE, buildTierList } from './tier-list.js';
+import {
+  TIER_NONE,
+  TIER_REMOVE,
+  applyTierMove,
+  buildTierBoard,
+  planTierMove,
+  planTierStep,
+} from './tier-list.js';
 import { clear, element, renderCover } from './ui-common.js';
+
+/** How long the status line stays empty before it is filled. See `say()`. */
+const ANNOUNCE_DELAY_MS = 60;
 
 /**
  * Builds the panel and wires it to the button that opens it.
  *
- * @param {object} app The application object of `ui-app.js`; only
- *   `app.loadCovers` is read, and only at the moment the panel opens.
+ * @param {object} app The application object of `ui-app.js`; `app.loadCovers`,
+ *   `app.session` and `app.save` are read.
+ * @param {{ onChange: (appId: number) => ReturnType<
+ *   import('./ranking.js').RankingSession['getResult']> }} hooks
+ *   `onChange` is called after every move: it redraws the screen behind — the
+ *   list, and with it the bookmarklet link, which carries the order inside its
+ *   own address and would otherwise write the order as it stood before the
+ *   panel was opened — and hands back the result the panel is rebuilt from.
  * @returns {{ open: (result: ReturnType<
  *   import('./ranking.js').RankingSession['getResult']>) => void }}
  */
-export function createTierListPanel(app) {
+export function createTierListPanel(app, hooks) {
   const dialog = document.getElementById('tier-dialog');
   const title = document.getElementById('tier-title');
   const rowsBox = document.getElementById('tier-rows');
+  const status = document.getElementById('tier-status');
   const closeButton = document.getElementById('tier-close');
   const openButton = document.getElementById('result-tier-open');
 
@@ -51,11 +74,21 @@ export function createTierListPanel(app) {
    */
   let cards = [];
 
+  /** The rows of the last build, as `buildTierBoard()` gave them. */
+  let board = [];
+
   /** Index of the card that owns the single tab stop of the panel. */
   let stop = 0;
 
   /** Where the page stood when the panel opened. */
   let scrollY = 0;
+
+  /** App id being dragged, and where it would land. */
+  let draggedId = null;
+  /** @type {import('./tier-list.js').TierDrop|null} */
+  let dropTarget = null;
+
+  let statusTimer = 0;
 
   /* ----------------------------------------------------------- drawing */
 
@@ -69,8 +102,9 @@ export function createTierListPanel(app) {
    * faded down to nothing is still text on the screen, and this one is either
    * fully readable or not there at all.
    *
-   * Nothing on it is pressable. A card is a picture of a place in the list,
-   * and a button here would be an action the panel has no business offering.
+   * Nothing on it is pressable. The card *is* the control: it is dragged, or
+   * it is moved with the keyboard, and a button on top of it would be a third
+   * way of saying what those two already say.
    *
    * @param {import('./tier-list.js').TierCard} card
    * @param {boolean} loadCovers
@@ -85,12 +119,14 @@ export function createTierListPanel(app) {
       {
         className: 'tier-card',
         attrs: {
+          draggable: 'true',
           tabindex: '-1',
           'aria-label':
             card.position === null
               ? card.item.title
               : t('tier.card.aria', { position: card.position, title: card.item.title }),
         },
+        dataset: { appId: String(card.appId) },
       },
       [cover, element('span', { className: 'tier-card__name', text: card.item.title })],
     );
@@ -143,6 +179,8 @@ export function createTierListPanel(app) {
     const list = element('ul', { className: 'tier-row__cards' });
     for (const card of row.items) list.append(renderCard(card, loadCovers));
 
+    // An empty row says so, and stays a row: it is where a card is dropped to
+    // take its category off or to mark it for removal.
     const body = row.items.length > 0
       ? list
       : element('p', { className: 'tier-row__empty', text: t('tier.empty') });
@@ -152,6 +190,7 @@ export function createTierListPanel(app) {
       {
         className: `tier-row tier-row--${row.id}` + (row.onScale ? '' : ' tier-row--apart'),
         attrs: { 'aria-labelledby': headingId },
+        dataset: { row: row.id },
       },
       [caption, body],
     );
@@ -168,8 +207,9 @@ export function createTierListPanel(app) {
     const loadCovers = app.loadCovers;
     clear(rowsBox);
     cards = [];
+    board = buildTierBoard(result);
 
-    for (const row of buildTierList(result)) {
+    for (const row of board) {
       const node = renderRow(row, loadCovers);
       rowsBox.append(node);
       cards.push(...node.querySelectorAll('.tier-card'));
@@ -177,6 +217,99 @@ export function createTierListPanel(app) {
 
     stop = 0;
     setTabStop(0);
+  }
+
+  /* ---------------------------------------------------------- the moves */
+
+  /**
+   * Says what just happened, in the head of the panel.
+   *
+   * A live region is only read out when its text changes, and the same move
+   * made twice is the same sentence twice; so the line is emptied first and
+   * filled on the next tick, the way `app.announce()` does it. It is written
+   * on the screen as well as read out, because the toasts of the application
+   * live on the page behind and a modal dialog stands over that page.
+   *
+   * @param {string} message
+   * @param {boolean} [failed]
+   */
+  function say(message, failed = false) {
+    clearTimeout(statusTimer);
+    status.textContent = '';
+    status.classList.toggle('tier__status--error', failed);
+    statusTimer = setTimeout(() => {
+      status.textContent = message;
+    }, ANNOUNCE_DELAY_MS);
+  }
+
+  /**
+   * Where a card ended up, said in the words of the panel: the row it is in
+   * and its place along that row. The removal row has no places to be at — its
+   * cards are outside the numbering — so it is named and nothing else is.
+   *
+   * @param {number} appId
+   */
+  function announcePlace(appId) {
+    const row = board.find((candidate) => candidate.items.some((card) => card.appId === appId));
+    if (!row) return;
+    const index = row.items.findIndex((card) => card.appId === appId);
+    const name = row.id === TIER_NONE ? t('tier.none') : categoryLabel(row.category);
+    const item = row.items[index].item;
+
+    say(
+      row.id === TIER_REMOVE
+        ? t('tier.move.removed', { title: item.title, row: name })
+        : t('tier.move.announce', {
+            title: item.title,
+            row: name,
+            place: index + 1,
+            total: row.items.length,
+          }),
+    );
+  }
+
+  /**
+   * Carries a move out and puts the panel back together around it.
+   *
+   * The panel is rebuilt from the result rather than patched: a move changes
+   * the numbers of everything after it, and a card put in place by hand while
+   * the rest of the rows keep the numbers of a minute ago is a panel that
+   * lies. What must not change is where the user is standing, so the scroll of
+   * the rows and the focus are carried over the rebuild — several cards in a
+   * row cannot be moved from a panel that jumps back to the top after each.
+   *
+   * @param {import('./tier-list.js').TierMove|null} move
+   * @param {string} [refusal] What to say when there is nothing to do.
+   */
+  function commit(move, refusal) {
+    if (!move) {
+      if (refusal) say(refusal);
+      return;
+    }
+
+    try {
+      applyTierMove(app.session, move);
+    } catch (error) {
+      say(t('tier.move.failed', { message: error.message }), true);
+      return;
+    }
+
+    app.save();
+
+    const top = rowsBox.scrollTop;
+    render(hooks.onChange(move.appId));
+    rowsBox.scrollTop = top;
+
+    const index = cards.findIndex((card) => Number(card.dataset.appId) === move.appId);
+    if (index !== -1) {
+      focusCard(index, true);
+      // Only if the card has left the visible part of the rows: `nearest`
+      // scrolls the least it can, and does nothing at all when the card is
+      // already there — which is the usual case and must stay still.
+      cards[index].scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
+
+    announcePlace(move.appId);
   }
 
   /* ------------------------------------------------------ the keyboard */
@@ -201,16 +334,17 @@ export function createTierListPanel(app) {
 
   /**
    * @param {number} index
+   * @param {boolean} [preventScroll] After a move the rows are put back where
+   *        they stood, and focusing a card is allowed to scroll to it.
    */
-  function focusCard(index) {
+  function focusCard(index, preventScroll = false) {
     setTabStop(index);
-    cards[stop]?.focus();
+    cards[stop]?.focus({ preventScroll });
   }
 
   /**
    * The first card of the row above or below the one the focus is in. The
-   * empty rows of the scale are stepped over, because there is nothing in them
-   * to land on.
+   * empty rows are stepped over, because there is nothing in them to land on.
    *
    * @param {HTMLElement} card
    * @param {-1|1} direction
@@ -226,6 +360,32 @@ export function createTierListPanel(app) {
     return -1;
   }
 
+  /**
+   * The keyboard alternative to dragging.
+   *
+   * `Ctrl` with an arrow moves the card the focus is on — sideways inside its
+   * row, up and down between rows — the same modifier the list on the screen
+   * behind uses for the same thing. The bare arrows go on walking the cards,
+   * so nothing that worked before is taken away.
+   *
+   * The two refusals are told apart on purpose: the end of a row and the end
+   * of the ladder of rows are different walls, and a line saying which one was
+   * hit is the difference between «this key does nothing» and «there is
+   * nowhere further this way».
+   *
+   * @param {number} appId
+   * @param {'left'|'right'|'up'|'down'} direction
+   */
+  function moveByKeyboard(appId, direction) {
+    const refusals = {
+      left: 'tier.move.edgeStart',
+      right: 'tier.move.edgeEnd',
+      up: 'tier.move.edgeTop',
+      down: 'tier.move.edgeBottom',
+    };
+    commit(planTierStep(board, appId, direction), t(refusals[direction]));
+  }
+
   rowsBox.addEventListener('keydown', (event) => {
     const card = event.target instanceof Element ? event.target.closest('.tier-card') : null;
     if (!card) return;
@@ -233,23 +393,28 @@ export function createTierListPanel(app) {
     const index = cards.indexOf(card);
     if (index === -1) return;
 
-    const step = { ArrowRight: 1, ArrowLeft: -1 }[event.key];
-    if (step !== undefined) {
-      event.preventDefault();
-      focusCard(index + step);
-      return;
-    }
-
-    if (event.key === 'Home' || event.key === 'End') {
+    const sideways = { ArrowRight: 'right', ArrowLeft: 'left' }[event.key];
+    const along = { ArrowDown: 'down', ArrowUp: 'up' }[event.key];
+    if (sideways === undefined && along === undefined) {
+      if (event.key !== 'Home' && event.key !== 'End') return;
       event.preventDefault();
       focusCard(event.key === 'Home' ? 0 : cards.length - 1);
       return;
     }
 
-    const direction = { ArrowDown: 1, ArrowUp: -1 }[event.key];
-    if (direction === undefined) return;
     event.preventDefault();
-    const neighbour = firstOfNeighbourRow(card, direction);
+
+    if (event.ctrlKey || event.metaKey) {
+      moveByKeyboard(Number(card.dataset.appId), sideways ?? along);
+      return;
+    }
+
+    if (sideways !== undefined) {
+      focusCard(index + (sideways === 'right' ? 1 : -1));
+      return;
+    }
+
+    const neighbour = firstOfNeighbourRow(card, along === 'down' ? 1 : -1);
     if (neighbour !== -1) focusCard(neighbour);
   });
 
@@ -259,6 +424,85 @@ export function createTierListPanel(app) {
     const card = event.target instanceof Element ? event.target.closest('.tier-card') : null;
     if (card) setTabStop(cards.indexOf(card));
   });
+
+  /* ------------------------------------------------- drag and drop */
+
+  function clearDropMarks() {
+    for (const node of rowsBox.querySelectorAll('.tier-card--drop-before, .tier-card--drop-after')) {
+      node.classList.remove('tier-card--drop-before', 'tier-card--drop-after');
+    }
+    for (const node of rowsBox.querySelectorAll('.tier-row--drop')) {
+      node.classList.remove('tier-row--drop');
+    }
+  }
+
+  function finishDrag() {
+    clearDropMarks();
+    if (draggedId !== null) {
+      rowsBox.querySelector('.tier-card.is-dragging')?.classList.remove('is-dragging');
+    }
+    draggedId = null;
+    dropTarget = null;
+  }
+
+  rowsBox.addEventListener('dragstart', (event) => {
+    const card = event.target instanceof Element ? event.target.closest('.tier-card') : null;
+    if (!card) return;
+    draggedId = Number(card.dataset.appId);
+    card.classList.add('is-dragging');
+    event.dataTransfer.effectAllowed = 'move';
+    // Some browsers refuse to start a drag without any payload.
+    event.dataTransfer.setData('text/plain', String(draggedId));
+  });
+
+  rowsBox.addEventListener('dragover', (event) => {
+    if (draggedId === null || !(event.target instanceof Element)) return;
+    const row = event.target.closest('.tier-row');
+    if (!row) return;
+
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    clearDropMarks();
+
+    const card = event.target.closest('.tier-card');
+
+    // Over the card being dragged: it is standing in its own way, and nothing
+    // is marked, because dropping it on itself would change nothing.
+    if (card && Number(card.dataset.appId) === draggedId) {
+      dropTarget = null;
+      return;
+    }
+
+    if (!card) {
+      // The caption, the empty message, the free space after the last cover:
+      // the row itself is the target, and the card goes to the end of it.
+      row.classList.add('tier-row--drop');
+      dropTarget = { appId: draggedId, row: row.dataset.row, anchor: null, side: 'after' };
+      return;
+    }
+
+    // Left and right and not top and bottom: a row reads left to right, and a
+    // row of covers wraps onto the next line rather than starting a column.
+    const box = card.getBoundingClientRect();
+    const side = event.clientX < box.left + box.width / 2 ? 'before' : 'after';
+    card.classList.add(side === 'before' ? 'tier-card--drop-before' : 'tier-card--drop-after');
+    dropTarget = {
+      appId: draggedId,
+      row: row.dataset.row,
+      anchor: Number(card.dataset.appId),
+      side,
+    };
+  });
+
+  rowsBox.addEventListener('drop', (event) => {
+    if (draggedId === null || dropTarget === null) return;
+    event.preventDefault();
+    const drop = dropTarget;
+    finishDrag();
+    commit(planTierMove(board, drop));
+  });
+
+  rowsBox.addEventListener('dragend', finishDrag);
 
   /* ------------------------------------------------- opening and closing */
 
@@ -272,6 +516,9 @@ export function createTierListPanel(app) {
    */
   function open(result) {
     render(result);
+    clearTimeout(statusTimer);
+    status.textContent = '';
+    status.classList.remove('tier__status--error');
     scrollY = window.scrollY;
 
     if (typeof dialog.showModal !== 'function') {
@@ -279,9 +526,9 @@ export function createTierListPanel(app) {
       return;
     }
     dialog.showModal();
-    // The title and not the first control: the panel is something to read, and
-    // a reader that starts on «Close» has been told the way out before it has
-    // been told what it is leaving.
+    // The title and not the first card: the panel is something to read before
+    // it is something to rearrange, and a reader that starts inside the rows
+    // has been handed a tool before being told what it works on.
     title.focus();
   }
 

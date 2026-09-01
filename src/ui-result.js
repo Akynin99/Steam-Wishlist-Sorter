@@ -15,10 +15,12 @@
  * with an arrow), its category (the picker in the row) and whether it belongs
  * in the list at all. Then the files, folded away as well.
  *
- * Above the list stands one more way of reading it: «Show tier list» opens a
- * panel that lays the same order out as rows of covers, one row per category.
- * It is a view and not a fifth block of work — it changes nothing, keeps
- * nothing, and is built again from the result every time it opens.
+ * Above the list stands the same order laid out the other way: «Show tier
+ * list» opens a panel of covers, one row per category, where a card is dragged
+ * or walked with the keyboard between the places of a row and between the rows
+ * themselves. It is a second way into the same three edits and not a fifth
+ * block of work: it keeps nothing of its own, every move it makes goes into
+ * this session, and this screen is redrawn around it.
  *
  * A hand made placement is kept by `ranking.js` as "this item goes next to
  * that one" and replayed over whatever the comparisons produce, so returning
@@ -146,8 +148,26 @@ export function createResultScreen(app) {
    */
   let lastResult = null;
 
-  /** The panel behind «Show tier list»; it holds no state between openings. */
-  const tierList = createTierListPanel(app);
+  /**
+   * The panel behind «Show tier list»; it holds no state between openings.
+   *
+   * It edits the same session this screen draws, so every move it makes is
+   * redrawn here at once — including the bookmarklet link, which carries the
+   * order inside its own address and would otherwise be the order as it stood
+   * before the panel was opened. The fresh result is handed back so the panel
+   * does not walk the whole ranking a second time to get it.
+   */
+  const tierList = createTierListPanel(app, {
+    onChange(appId) {
+      // The tab stop of the list follows the card that moved — `render()`
+      // hands it to `selectedAppId` at the end — but the focus itself is not
+      // touched: it belongs to the panel standing over this screen, and the
+      // list behind a modal dialog is inert.
+      selectedAppId = appId;
+      render();
+      return lastResult;
+    },
+  });
 
   nodes.tierOpen.addEventListener('click', () => {
     if (lastResult) tierList.open(lastResult);

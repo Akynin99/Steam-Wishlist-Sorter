@@ -2821,9 +2821,11 @@ label.menu__row:hover {
 /* -------------------------------------------------- the tier list */
 
 /*
- * The same order, laid out as rows of covers. A view and nothing else: there
- * is no control in here, and everything below is about making two hundred
- * small pictures readable rather than about doing anything to them.
+ * The same order, laid out as rows of covers, and the second place it is
+ * changed from. There is still no control in here: the card itself is what is
+ * dragged and what the keyboard moves, so most of what follows is about making
+ * two hundred small pictures readable and the rest is about showing where the
+ * one being dragged would land.
  *
  * A panel and not one of the narrow dialogs: a tier list squeezed into 460 px
  * is a column, and a column is what the screen behind already shows.
@@ -2864,6 +2866,23 @@ label.menu__row:hover {
 
 .tier__close {
   flex: none;
+}
+
+/*
+ * The line that says what just moved. It keeps its height while it is empty,
+ * so that the first move does not push the rows down by a line — the panel
+ * must sit still under a card being dragged into it.
+ */
+.tier__status {
+  min-height: 1.3em;
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  line-height: 1.3;
+}
+
+.tier__status--error {
+  color: var(--danger-text);
 }
 
 /* `flex: 0 1 auto` and not `1`: the panel is as tall as the rows it holds and
@@ -2907,6 +2926,13 @@ label.menu__row:hover {
 
 .tier-row--remove {
   border-style: dashed;
+}
+
+/* The row itself is the target: the card is dropped at the end of it. Marked
+   on the whole row, because that is exactly the size of what was aimed at. */
+.tier-row--drop {
+  border-color: var(--accent);
+  background: var(--accent-tint-weak);
 }
 
 /*
@@ -2958,9 +2984,10 @@ label.menu__row:hover {
 }
 
 /*
- * A card is a cover, a quiet number and a title. Nothing on it is pressable:
- * it is a picture of a place in the list, and this panel does not offer to
- * change one.
+ * A card is a cover, a quiet number and a title. Nothing is pressable on it
+ * because the card itself is the thing that moves: it is picked up with the
+ * mouse or moved with `Ctrl` and an arrow, and a button on top of it would be
+ * a third way of saying what those two already say.
  */
 .tier-card {
   position: relative;
@@ -2970,6 +2997,27 @@ label.menu__row:hover {
   border-radius: var(--radius-sm);
   background: var(--bg-well);
   overflow: hidden;
+  cursor: grab;
+  user-select: none;
+}
+
+.tier-card.is-dragging {
+  opacity: 0.45;
+  cursor: grabbing;
+}
+
+/*
+ * Where the card will land if it is dropped here. A bar down the side the card
+ * would go to and not a glow around the whole cover: a row reads left to
+ * right, and «before this one» and «after this one» are two different drops
+ * onto the same cover.
+ */
+.tier-card--drop-before {
+  box-shadow: inset 3px 0 0 0 var(--accent);
+}
+
+.tier-card--drop-after {
+  box-shadow: inset -3px 0 0 0 var(--accent);
 }
 
 /* The cover fills the card, so the frame is the card's own. */

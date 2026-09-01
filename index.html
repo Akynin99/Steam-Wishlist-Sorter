@@ -1294,15 +1294,17 @@
   </dialog>
 
   <!--
-    The tier list. A view of the result and nothing more: it is built again out
-    of `getResult()` every time it opens, it holds no state of its own, and
-    nothing in it can be dragged, edited or clicked through to.
+    The tier list. The same order the list on the result screen shows, laid out
+    as rows of covers, and the second place it can be changed from: a card is
+    dragged, or moved with the keyboard, between the places of a row and
+    between the rows themselves. It holds no state of its own — every move goes
+    into the session and the rows are built again out of the fresh result.
 
     A `<dialog>` for the same reasons as the others — the focus trap, Escape
     and the inertness of the page behind it come with it, and `isHotkeyBlocked()`
     already keeps the hotkeys of the result screen quiet while any dialog is
-    open. The head stays put and the rows below it scroll, so the title and the
-    way out are never scrolled off.
+    open. The head stays put and the rows below it scroll, so the title, the
+    way out and the line saying what just moved are never scrolled off.
 
     The rows themselves are built in `ui-tier-list.js`: how many there are and
     what is in them depends on the result, and the words in them carry no keys
@@ -1313,8 +1315,20 @@
       <div class="tier__headtext">
         <h2 class="dialog__title" id="tier-title" tabindex="-1" data-i18n="tier.title">Wishlist tier list</h2>
         <p class="dialog__text" data-i18n="tier.lead">
-          Games are ordered from left to right within each category.
+          Games are ordered from left to right within each category, and moving a card here
+          changes the same order the list behind shows.
         </p>
+        <p class="hint" data-i18n-html="tier.hint">
+          A card is dragged to another place or another row, or moved with <kbd>Ctrl</kbd> +
+          <kbd>←</kbd> / <kbd>→</kbd> inside a row and <kbd>Ctrl</kbd> + <kbd>↑</kbd> /
+          <kbd>↓</kbd> between rows. The moves are saved and survive a reload.
+        </p>
+        <!-- What just moved, where to and to which place. It is on the screen
+             as well as read out, because the toasts of the application live on
+             the page behind, and a modal dialog stands over that page. It
+             keeps its line while empty, so the rows below do not jump down the
+             first time something is said. -->
+        <p class="tier__status" id="tier-status" role="status" aria-live="polite"></p>
       </div>
       <button type="button" class="btn tier__close" id="tier-close"
               data-i18n="tier.close">Close</button>
